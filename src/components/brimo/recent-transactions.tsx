@@ -4,7 +4,7 @@ import { FileText, Send, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy } from 'firebase/firestore';
 import type { Transaction, KasAccount } from '@/lib/data';
 import { useEffect, useState } from 'react';
 
@@ -24,30 +24,36 @@ export default function RecentTransactions() {
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
 
   useEffect(() => {
-    if (!kasAccounts || !user?.uid) {
-        if(!kasAccounts && !isLoading){
-            setIsLoading(false);
-        }
-      return;
-    };
-
     const fetchTransactions = async () => {
+      if (!kasAccounts || !user?.uid) {
+        // If there are no accounts, we are done loading.
+        if (!isLoading && !kasAccounts) {
+          setIsLoading(false);
+        }
+        return;
+      }
+
       setIsLoading(true);
       let allTransactions: TransactionWithId[] = [];
       
-      for (const account of kasAccounts) {
-        const transactionsRef = collection(firestore, 'users', user.uid, 'kasAccounts', account.id, 'transactions');
-        const q = query(transactionsRef, orderBy('date', 'desc'));
-        const querySnapshot = await getDocs(q);
-        querySnapshot.forEach((doc) => {
-          allTransactions.push({ ...(doc.data() as Transaction), id: doc.id });
-        });
-      }
+      try {
+        for (const account of kasAccounts) {
+          const transactionsRef = collection(firestore, 'users', user.uid, 'kasAccounts', account.id, 'transactions');
+          const q = query(transactionsRef, orderBy('date', 'desc'));
+          const querySnapshot = await getDocs(q);
+          querySnapshot.forEach((doc) => {
+            allTransactions.push({ ...(doc.data() as Transaction), id: doc.id });
+          });
+        }
 
-      allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      
-      setRecentTransactions(allTransactions.slice(0, 4));
-      setIsLoading(false);
+        allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        setRecentTransactions(allTransactions.slice(0, 4));
+      } catch (error) {
+        console.error("Error fetching transactions: ", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchTransactions();
