@@ -2,131 +2,163 @@
  * @fileoverview Firestore Security Rules for BrimoUI application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model, ensuring that only
- * authenticated users can access their own data. Data is organized under
- * user-specific paths (/users/{userId}/...), and access is granted based on
- * matching the authenticated user's UID to the userId path segment.
+ * This ruleset enforces a strict user-ownership model, ensuring that only the authenticated user
+ * can access their own data, including preferences, cash accounts, and transactions. All data
+ * is nested under `/users/{userId}`, providing a clear and secure hierarchical structure.
  *
  * Data Structure:
- * - /users/{userId}/preferences/{preferenceId}: Stores user preferences.
- *   preferenceId must match the userId.
- * - /users/{userId}/kasAccounts/{kasAccountId}: Stores cash account information.
- * - /users/{userId}/kasAccounts/{kasAccountId}/transactions/{transactionId}:
- *   Stores transaction history for each cash account.
+ * - `/users/{userId}/preferences/{preferenceId}`: Stores user-specific preferences.
+ *   `preferenceId` must match `userId`. This is a 1:1 relationship.
+ * - `/users/{userId}/kasAccounts/{kasAccountId}`: Stores cash account information for each user.
+ *   This is a 1:N relationship between users and KasAccounts.
+ * - `/users/{userId}/kasAccounts/{kasAccountId}/transactions/{transactionId}`: Stores transaction
+ *   history for each cash account. This is a 1:N relationship between KasAccounts and Transactions.
  *
  * Key Security Decisions:
- * - All data is private and accessible only to the owning user.
- * - Listing of user preferences is allowed only for the owner.
- * - Listing of kasAccounts is allowed only for the owner.
- * - Listing of transactions is allowed only for the owner.
- * - Data validation is limited to ensuring the consistency of user IDs
- *   between the path and the document's internal fields during create and update
- *   operations.
+ * - Strict user-ownership is enforced for all data access.
+ * - No public data access is allowed.
+ * - List operations are restricted to the owning user.
+ * - Data consistency is enforced between the path and the document's internal fields
+ *   during creation and updates to prevent unauthorized data modification.
  *
  * Denormalization for Authorization:
- *  N/A - The path-based structure inherently provides the necessary
- *  information for authorization, eliminating the need for denormalization.
+ * Path-based ownership eliminates the need for `get()` calls in security rules.
  *
  * Structural Segregation:
- *  N/A - All data is private.
+ * All private user data is kept under the /users/{userId} collection, ensuring no accidental
+ * public exposure.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user preference documents.
+     * @description Enforces access control for user preferences. Only the authenticated user can
+     *              access their own preferences. The 'preferenceId' should always be the user's uid.
      * @path /users/{userId}/preferences/{preferenceId}
-     * @allow (create) - Authenticated user with matching userId and preferenceId can create their preference document.
-     * @allow (get, list, update, delete) - Authenticated user with matching userId can access their preference document.
-     * @deny (create) - If the userId and preferenceId do not match the authenticated user's ID.
-     * @deny (update, delete) - If the document does not exist.
-     * @principle Enforces document ownership and validates path consistency.
+     * @allow (create) - User 'user_abc' can create their own preference document if userId and preferenceId match their auth UID.
+     *                  Request: { "auth": { "uid": "user_abc" }, "resource.data": { "id": "user_abc", "showBalance": true, "activeTab": "dashboard" } }
+     * @allow (get, list, update, delete) - User 'user_abc' can access their own preference document.
+     *                  Request: { "auth": { "uid": "user_abc" } }
+     * @deny (create) - User 'user_xyz' cannot create a preference document for user 'user_abc'.
+     *                  Request: { "auth": { "uid": "user_xyz" }, "resource.data": { "id": "user_abc", "showBalance": true, "activeTab": "dashboard" } }
+     * @deny (get, list, update, delete) - User 'user_xyz' cannot access user 'user_abc' preference document.
+     *                  Request: { "auth": { "uid": "user_xyz" } }
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId}/preferences/{preferenceId} {
+      // Helper function to check if the user is signed in.
       function isSignedIn() {
         return request.auth != null;
       }
 
-      function isOwner(userId) {
-        return isSignedIn() && request.auth.uid == userId;
+      // Helper function to check if the user is the owner of the document.
+      function isOwner(userId, preferenceId) {
+        return isSignedIn() && request.auth.uid == userId && userId == preferenceId;
       }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+      //Helper function to check if the user is the existing owner of the document.
+      function isExistingOwner(userId, preferenceId) {
+        return isSignedIn() && isOwner(userId, preferenceId) && resource != null;
       }
 
-      // Read rules
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      // Allow read access to the user's own preference document.
+      allow get: if isOwner(userId, preferenceId);
+      allow list: if isOwner(userId, preferenceId);
 
-      // Write rules
-      allow create: if isOwner(userId) && preferenceId == userId;
-      allow update: if isExistingOwner(userId) && preferenceId == userId;
-      allow delete: if isExistingOwner(userId);
+      // Allow the user to create their own preference document, if userId and preferenceId match their auth UID.
+      allow create: if isOwner(userId, preferenceId);
+
+      // Allow the user to update their own preference document. Enforce immutability of the 'id' field.
+      allow update: if isExistingOwner(userId, preferenceId);
+
+      // Allow the user to delete their own preference document.
+      allow delete: if isExistingOwner(userId, preferenceId);
     }
 
     /**
-     * @description Controls access to kasAccount documents.
+     * @description Enforces access control for cash accounts. Only the authenticated user can access their own cash accounts.
      * @path /users/{userId}/kasAccounts/{kasAccountId}
-     * @allow (create) - Authenticated user with matching userId can create a kasAccount document.
-     * @allow (get, list, update, delete) - Authenticated user with matching userId can access their kasAccount document.
-     * @deny (create) - If the userId does not match the authenticated user's ID.
-     * @deny (update, delete) - If the document does not exist or the user is not the owner.
-     * @principle Enforces document ownership and ensures only the owner can manage kasAccounts.
+     * @allow (create) - User 'user_abc' can create a kasAccount if userId matches their auth UID.
+     *                  Request: { "auth": { "uid": "user_abc" }, "resource.data": { "id": "account_123", "label": "Tunai", "balance": 100, "color": "blue" } }
+     * @allow (get, list, update, delete) - User 'user_abc' can access their own kasAccount.
+     *                  Request: { "auth": { "uid": "user_abc" } }
+     * @deny (create) - User 'user_xyz' cannot create a kasAccount for user 'user_abc'.
+     *                  Request: { "auth": { "uid": "user_xyz" }, "resource.data": { "id": "account_123", "label": "Tunai", "balance": 100, "color": "blue" } }
+     * @deny (get, list, update, delete) - User 'user_xyz' cannot access user 'user_abc' kasAccount.
+     *                  Request: { "auth": { "uid": "user_xyz" } }
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId}/kasAccounts/{kasAccountId} {
+      // Helper function to check if the user is signed in.
       function isSignedIn() {
         return request.auth != null;
       }
 
+      // Helper function to check if the user is the owner of the document.
       function isOwner(userId) {
         return isSignedIn() && request.auth.uid == userId;
       }
 
+      //Helper function to check if the user is the existing owner of the document.
       function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+        return isSignedIn() && isOwner(userId) && resource != null;
       }
 
-      // Read rules
+      // Allow read access to the user's own kasAccount.
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
 
-      // Write rules
+      // Allow the user to create their own kasAccount.
       allow create: if isOwner(userId);
+
+      // Allow the user to update their own kasAccount.
       allow update: if isExistingOwner(userId);
+
+      // Allow the user to delete their own kasAccount.
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to transaction documents within a kasAccount.
+     * @description Enforces access control for transactions. Only the authenticated user can access their own transactions.
      * @path /users/{userId}/kasAccounts/{kasAccountId}/transactions/{transactionId}
-     * @allow (create) - Authenticated user with matching userId can create a transaction document.
-     * @allow (get, list, update, delete) - Authenticated user with matching userId can access their transaction document.
-     * @deny (create) - If the userId does not match the authenticated user's ID.
-     * @deny (update, delete) - If the document does not exist or the user is not the owner.
-     * @principle Enforces document ownership and ensures only the owner can manage transactions.
+     * @allow (create) - User 'user_abc' can create a transaction if userId matches their auth UID.
+     *                  Request: { "auth": { "uid": "user_abc" }, "resource.data": { "id": "txn_123", "kasAccountId": "account_123", "type": "credit", "name": "Deposit", "account": "Bank", "date": "2024-01-01T00:00:00Z", "amount": 100 } }
+     * @allow (get, list, update, delete) - User 'user_abc' can access their own transaction.
+     *                  Request: { "auth": { "uid": "user_abc" } }
+     * @deny (create) - User 'user_xyz' cannot create a transaction for user 'user_abc'.
+     *                  Request: { "auth": { "uid": "user_xyz" }, "resource.data": { "id": "txn_123", "kasAccountId": "account_123", "type": "credit", "name": "Deposit", "account": "Bank", "date": "2024-01-01T00:00:00Z", "amount": 100 } }
+     * @deny (get, list, update, delete) - User 'user_xyz' cannot access user 'user_abc' transaction.
+     *                  Request: { "auth": { "uid": "user_xyz" } }
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId}/kasAccounts/{kasAccountId}/transactions/{transactionId} {
+      // Helper function to check if the user is signed in.
       function isSignedIn() {
         return request.auth != null;
       }
 
+      // Helper function to check if the user is the owner of the document.
       function isOwner(userId) {
         return isSignedIn() && request.auth.uid == userId;
       }
 
+      //Helper function to check if the user is the existing owner of the document.
       function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+        return isSignedIn() && isOwner(userId) && resource != null;
       }
 
-      // Read rules
+      // Allow read access to the user's own transaction.
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
 
-      // Write rules
+      // Allow the user to create their own transaction.
       allow create: if isOwner(userId);
+
+      // Allow the user to update their own transaction.
       allow update: if isExistingOwner(userId);
+
+      // Allow the user to delete their own transaction.
       allow delete: if isExistingOwner(userId);
     }
   }

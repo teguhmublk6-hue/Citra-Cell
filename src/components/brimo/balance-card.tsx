@@ -2,13 +2,24 @@
 
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
-import { kasAccounts } from '@/lib/data';
 import { Button } from '@/components/ui/button';
+import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { collection } from 'firebase/firestore';
+import type { KasAccount } from '@/lib/data';
 
 export default function BalanceCard() {
   const [showBalance, setShowBalance] = useState(true);
+  const firestore = useFirestore();
+  const { user } = useUser();
 
-  const totalBalance = kasAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+  const kasAccountsCollection = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, 'users', user.uid, 'kasAccounts');
+  }, [firestore, user]);
+
+  const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
+
+  const totalBalance = kasAccounts?.reduce((sum, acc) => sum + acc.balance, 0) ?? 0;
 
   return (
     <div className="bg-card/80 backdrop-blur-md rounded-2xl p-5 text-card-foreground shadow-lg border border-border/20">
