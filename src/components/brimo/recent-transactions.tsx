@@ -4,24 +4,55 @@ import { FileText, Send, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collectionGroup, query, where, orderBy, limit } from 'firebase/firestore';
-import type { Transaction } from '@/lib/data';
+import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import type { Transaction, KasAccount } from '@/lib/data';
+import { useEffect, useState } from 'react';
+
+type TransactionWithId = Transaction & { id: string };
 
 export default function RecentTransactions() {
   const firestore = useFirestore();
   const { user } = useUser();
+  const [recentTransactions, setRecentTransactions] = useState<TransactionWithId[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const transactionsQuery = useMemoFirebase(() => {
-    if (!user?.uid) return null; // Wait for user
-    return query(
-      collectionGroup(firestore, 'transactions'),
-      where('userId', '==', user.uid), // Ensure we only get transactions for the current user
-      orderBy('date', 'desc'),
-      limit(4)
-    );
+  const kasAccountsCollection = useMemoFirebase(() => {
+    if (!user?.uid) return null;
+    return collection(firestore, 'users', user.uid, 'kasAccounts');
   }, [firestore, user?.uid]);
 
-  const { data: recentTransactions, isLoading } = useCollection<Transaction>(transactionsQuery);
+  const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
+
+  useEffect(() => {
+    if (!kasAccounts || !user?.uid) {
+        if(!kasAccounts && !isLoading){
+            setIsLoading(false);
+        }
+      return;
+    };
+
+    const fetchTransactions = async () => {
+      setIsLoading(true);
+      let allTransactions: TransactionWithId[] = [];
+      
+      for (const account of kasAccounts) {
+        const transactionsRef = collection(firestore, 'users', user.uid, 'kasAccounts', account.id, 'transactions');
+        const q = query(transactionsRef, orderBy('date', 'desc'));
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach((doc) => {
+          allTransactions.push({ ...(doc.data() as Transaction), id: doc.id });
+        });
+      }
+
+      allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      setRecentTransactions(allTransactions.slice(0, 4));
+      setIsLoading(false);
+    };
+
+    fetchTransactions();
+  }, [kasAccounts, user?.uid, firestore]);
+
 
   return (
     <Card>
@@ -34,15 +65,16 @@ export default function RecentTransactions() {
         </div>
       </CardHeader>
       <CardContent>
-        {isLoading && <p className="text-muted-foreground text-sm">Memuat transaksi...</p>}
-        {!isLoading && (!recentTransactions || recentTransactions.length === 0) ? (
+        {isLoading ? (
+          <p className="text-muted-foreground text-sm">Memuat transaksi...</p>
+        ) : !recentTransactions || recentTransactions.length === 0 ? (
           <div className="py-8 text-center">
             <FileText size={48} strokeWidth={1} className="mx-auto text-muted-foreground mb-2" />
             <p className="text-muted-foreground text-sm">Belum ada transaksi</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {recentTransactions?.map((trx) => (
+            {recentTransactions.map((trx) => (
               <div key={trx.id} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${trx.type === 'credit' ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
