@@ -1,36 +1,11 @@
 "use client";
 
-import { useState } from 'react';
-import { FileText, Send, ChevronRight, Sparkles } from 'lucide-react';
+import { FileText, Send, ChevronRight } from 'lucide-react';
 import { recentTransactions } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getTransactionSummary } from '@/app/actions';
-import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
 
 export default function RecentTransactions() {
-  const [summary, setSummary] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-
-  const handleSummarize = async () => {
-    setIsLoading(true);
-    setSummary('');
-    const result = await getTransactionSummary();
-    if (result && 'summary' in result) {
-      setSummary(result.summary);
-    } else if (result && 'error' in result) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: result.error,
-      });
-    }
-    setIsLoading(false);
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -70,40 +45,6 @@ export default function RecentTransactions() {
             <p className="text-muted-foreground text-sm">Belum ada transaksi</p>
           </div>
         )}
-        
-        <div className="mt-6">
-          <Button onClick={handleSummarize} disabled={isLoading} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-            {isLoading ? (
-              <span className="flex items-center justify-center gap-2">
-                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                Meringkas...
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <Sparkles size={16} />
-                Ringkas dengan AI
-              </span>
-            )}
-          </Button>
-
-          {isLoading && (
-            <div className="mt-4 space-y-2">
-              <Skeleton className="h-4 w-1/4" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </div>
-          )}
-
-          {summary && !isLoading && (
-            <Alert className="mt-4 bg-primary/5 border-primary/20">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <AlertTitle className="font-semibold text-primary">Ringkasan AI</AlertTitle>
-              <AlertDescription className="text-foreground/80">
-                {summary}
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
       </CardContent>
     </Card>
   );
