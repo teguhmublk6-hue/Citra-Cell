@@ -5,7 +5,7 @@ export default function QuickServices() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Layanan Cepat</CardTitle>
+        <CardTitle className="text-lg">BRILink</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 text-center">
