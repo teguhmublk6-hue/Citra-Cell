@@ -1,0 +1,180 @@
+{
+  "entities": {
+    "KasAccount": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "KasAccount",
+      "type": "object",
+      "description": "Represents a cash account within the BrimoUI application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the KasAccount entity."
+        },
+        "label": {
+          "type": "string",
+          "description": "The display name of the cash account (e.g., Tunai, Bank)."
+        },
+        "balance": {
+          "type": "number",
+          "description": "The current balance of the cash account."
+        },
+        "color": {
+          "type": "string",
+          "description": "The background color associated with the account for UI rendering."
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "balance",
+        "color"
+      ]
+    },
+    "Transaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Transaction",
+      "type": "object",
+      "description": "Represents a financial transaction.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Transaction entity."
+        },
+        "kasAccountId": {
+          "type": "string",
+          "description": "Reference to KasAccount. (Relationship: KasAccount 1:N Transaction)"
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of transaction (e.g., credit, debit)."
+        },
+        "name": {
+          "type": "string",
+          "description": "A descriptive name for the transaction."
+        },
+        "account": {
+          "type": "string",
+          "description": "The account associated with the transaction."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the transaction.",
+          "format": "date-time"
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount of the transaction."
+        }
+      },
+      "required": [
+        "id",
+        "kasAccountId",
+        "type",
+        "name",
+        "account",
+        "date",
+        "amount"
+      ]
+    },
+    "UserPreference": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserPreference",
+      "type": "object",
+      "description": "Stores user-specific preferences for the BrimoUI application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserPreference entity."
+        },
+        "showBalance": {
+          "type": "boolean",
+          "description": "Indicates whether the user prefers to show or hide their balance."
+        },
+        "activeTab": {
+          "type": "string",
+          "description": "The user's currently active tab in the application."
+        }
+      },
+      "required": [
+        "id",
+        "showBalance",
+        "activeTab"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}/preferences/{preferenceId}",
+        "definition": {
+          "entityName": "UserPreference",
+          "schema": {
+            "$ref": "#/backend/entities/UserPreference"
+          },
+          "description": "Stores user preferences. Only the authenticated user can access their own preferences. The 'preferenceId' should always be the user's uid. Since there will be only one document per user, this models a 1:1 relationship.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the user."
+            },
+            {
+              "name": "preferenceId",
+              "description": "The ID of the user's preference document, should match the userId."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/kasAccounts/{kasAccountId}",
+        "definition": {
+          "entityName": "KasAccount",
+          "schema": {
+            "$ref": "#/backend/entities/KasAccount"
+          },
+          "description": "Stores cash account information for each user. Only the authenticated user can access their own kas accounts. The kasAccounts are owned by the user, which allows list and read operations to be secured by path. This models a 1:N relationship between users and KasAccounts.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the user."
+            },
+            {
+              "name": "kasAccountId",
+              "description": "The ID of the kas account."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/kasAccounts/{kasAccountId}/transactions/{transactionId}",
+        "definition": {
+          "entityName": "Transaction",
+          "schema": {
+            "$ref": "#/backend/entities/Transaction"
+          },
+          "description": "Stores transaction history for each cash account. Only the authenticated user can access their own transactions. Transactions are owned by the user, which allows list and read operations to be secured by path. This models a 1:N relationship between KasAccounts and Transactions.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The ID of the user."
+            },
+            {
+              "name": "kasAccountId",
+              "description": "The ID of the kas account."
+            },
+            {
+              "name": "transactionId",
+              "description": "The ID of the transaction."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to manage user preferences, cash accounts, and transactions within the BrimoUI application. It prioritizes authorization independence and supports the required query capabilities. User preferences and KasAccounts are stored under the user's document, enabling easy access and management of user-specific data. Transactions are stored as a subcollection of KasAccounts for efficient retrieval. This design supports real-time balance updates and transaction summarization. The chosen structure enables secure list operations (QAPs) since data segregation is enforced via path-based ownership, limiting access to the current user's data only. Authorization Independence is achieved through path-based ownership, eliminating the need for `get()` calls in security rules. This allows for atomic operations and simplifies debugging."
+  }
+}

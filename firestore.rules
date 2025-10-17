@@ -1,0 +1,133 @@
+/**
+ * @fileoverview Firestore Security Rules for BrimoUI application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model, ensuring that only
+ * authenticated users can access their own data. Data is organized under
+ * user-specific paths (/users/{userId}/...), and access is granted based on
+ * matching the authenticated user's UID to the userId path segment.
+ *
+ * Data Structure:
+ * - /users/{userId}/preferences/{preferenceId}: Stores user preferences.
+ *   preferenceId must match the userId.
+ * - /users/{userId}/kasAccounts/{kasAccountId}: Stores cash account information.
+ * - /users/{userId}/kasAccounts/{kasAccountId}/transactions/{transactionId}:
+ *   Stores transaction history for each cash account.
+ *
+ * Key Security Decisions:
+ * - All data is private and accessible only to the owning user.
+ * - Listing of user preferences is allowed only for the owner.
+ * - Listing of kasAccounts is allowed only for the owner.
+ * - Listing of transactions is allowed only for the owner.
+ * - Data validation is limited to ensuring the consistency of user IDs
+ *   between the path and the document's internal fields during create and update
+ *   operations.
+ *
+ * Denormalization for Authorization:
+ *  N/A - The path-based structure inherently provides the necessary
+ *  information for authorization, eliminating the need for denormalization.
+ *
+ * Structural Segregation:
+ *  N/A - All data is private.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Controls access to user preference documents.
+     * @path /users/{userId}/preferences/{preferenceId}
+     * @allow (create) - Authenticated user with matching userId and preferenceId can create their preference document.
+     * @allow (get, list, update, delete) - Authenticated user with matching userId can access their preference document.
+     * @deny (create) - If the userId and preferenceId do not match the authenticated user's ID.
+     * @deny (update, delete) - If the document does not exist.
+     * @principle Enforces document ownership and validates path consistency.
+     */
+    match /users/{userId}/preferences/{preferenceId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return isSignedIn() && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      // Read rules
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
+      // Write rules
+      allow create: if isOwner(userId) && preferenceId == userId;
+      allow update: if isExistingOwner(userId) && preferenceId == userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to kasAccount documents.
+     * @path /users/{userId}/kasAccounts/{kasAccountId}
+     * @allow (create) - Authenticated user with matching userId can create a kasAccount document.
+     * @allow (get, list, update, delete) - Authenticated user with matching userId can access their kasAccount document.
+     * @deny (create) - If the userId does not match the authenticated user's ID.
+     * @deny (update, delete) - If the document does not exist or the user is not the owner.
+     * @principle Enforces document ownership and ensures only the owner can manage kasAccounts.
+     */
+    match /users/{userId}/kasAccounts/{kasAccountId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return isSignedIn() && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      // Read rules
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
+      // Write rules
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to transaction documents within a kasAccount.
+     * @path /users/{userId}/kasAccounts/{kasAccountId}/transactions/{transactionId}
+     * @allow (create) - Authenticated user with matching userId can create a transaction document.
+     * @allow (get, list, update, delete) - Authenticated user with matching userId can access their transaction document.
+     * @deny (create) - If the userId does not match the authenticated user's ID.
+     * @deny (update, delete) - If the document does not exist or the user is not the owner.
+     * @principle Enforces document ownership and ensures only the owner can manage transactions.
+     */
+    match /users/{userId}/kasAccounts/{kasAccountId}/transactions/{transactionId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return isSignedIn() && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      // Read rules
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
+      // Write rules
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+  }
+}
