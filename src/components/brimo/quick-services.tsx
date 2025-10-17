@@ -6,33 +6,48 @@ import {
   Carousel,
   CarouselContent,
   CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
 } from "@/components/ui/carousel";
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import type { CarouselApi } from "@/components/ui/carousel"
+import React from 'react';
 
 export default function QuickServices() {
-  const [activeSlide, setActiveSlide] = useState(0);
+  const [api, setApi] = React.useState<CarouselApi>()
+  const [current, setCurrent] = React.useState(0)
+  const [count, setCount] = React.useState(0)
 
   const serviceGroups = [
     { title: 'BRILink', services: quickServices },
     { title: 'PPOB', services: ppobServices },
   ];
 
+  React.useEffect(() => {
+    if (!api) {
+      return
+    }
+
+    setCount(api.scrollSnapList().length)
+    setCurrent(api.selectedScrollSnap())
+
+    api.on("select", () => {
+      setCurrent(api.selectedScrollSnap())
+    })
+  }, [api])
+
   return (
     <Card>
-      <Carousel onSlideChanged={(api) => setActiveSlide(api.selectedScrollSnap())}>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle className="text-lg">{serviceGroups[activeSlide].title}</CardTitle>
+            <CardTitle className="text-lg">{serviceGroups[current].title}</CardTitle>
             <div className="flex items-center justify-center space-x-2">
               {serviceGroups.map((_, index) => (
                 <button
                   key={index}
+                  onClick={() => api?.scrollTo(index)}
                   className={cn(
                     "h-2 w-2 rounded-full transition-colors",
-                    index === activeSlide ? "bg-primary" : "bg-muted"
+                    index === current ? "bg-primary" : "bg-muted"
                   )}
                   aria-label={`Go to slide ${index + 1}`}
                 />
@@ -41,6 +56,7 @@ export default function QuickServices() {
           </div>
         </CardHeader>
         <CardContent className="px-2">
+          <Carousel setApi={setApi}>
             <CarouselContent>
               {serviceGroups.map((group, groupIndex) => (
                 <CarouselItem key={groupIndex}>
@@ -61,10 +77,8 @@ export default function QuickServices() {
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="absolute left-0" />
-            <CarouselNext className="absolute right-0" />
+          </Carousel>
         </CardContent>
-      </Carousel>
     </Card>
   );
 }
