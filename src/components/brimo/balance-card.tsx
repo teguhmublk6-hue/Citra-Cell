@@ -13,9 +13,9 @@ export default function BalanceCard() {
   const { user } = useUser();
 
   const kasAccountsCollection = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user?.uid) return null; // Wait for user
     return collection(firestore, 'users', user.uid, 'kasAccounts');
-  }, [firestore, user]);
+  }, [firestore, user?.uid]);
 
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
 

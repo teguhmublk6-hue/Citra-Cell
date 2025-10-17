@@ -4,7 +4,7 @@ import { FileText, Send, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collectionGroup, query, orderBy, limit } from 'firebase/firestore';
+import { collectionGroup, query, where, orderBy, limit } from 'firebase/firestore';
 import type { Transaction } from '@/lib/data';
 
 export default function RecentTransactions() {
@@ -12,13 +12,14 @@ export default function RecentTransactions() {
   const { user } = useUser();
 
   const transactionsQuery = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user?.uid) return null; // Wait for user
     return query(
       collectionGroup(firestore, 'transactions'),
+      where('userId', '==', user.uid), // Ensure we only get transactions for the current user
       orderBy('date', 'desc'),
       limit(4)
     );
-  }, [firestore, user]);
+  }, [firestore, user?.uid]);
 
   const { data: recentTransactions, isLoading } = useCollection<Transaction>(transactionsQuery);
 
