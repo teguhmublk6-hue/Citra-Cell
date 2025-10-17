@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Wallet, Building2, Zap, Smartphone, ShoppingBag, Send, CreditCard, Gift, FileText, QrCode, Bell, Settings, Home, MoreHorizontal } from 'lucide-react';
+import { Wallet, Building2, Zap, Smartphone, ShoppingBag, Send, CreditCard, Gift, FileText, QrCode, Bell, Settings, Home, MoreHorizontal, Phone, Wifi, Lightbulb, Droplets, HeartPulse } from 'lucide-react';
 
 export type KasAccount = {
   id: string;
@@ -30,6 +30,15 @@ export const quickServices: QuickService[] = [
   { icon: CreditCard, label: 'VA Payment', color: 'bg-orange-500' },
   { icon: Gift, label: 'KJP', color: 'bg-pink-500' },
   { icon: MoreHorizontal, label: 'Lainnya', color: 'bg-gray-400' },
+];
+
+export const ppobServices: QuickService[] = [
+    { icon: Phone, label: 'Pulsa', color: 'bg-blue-500' },
+    { icon: Wifi, label: 'Data', color: 'bg-sky-500' },
+    { icon: Lightbulb, label: 'Token Listrik', color: 'bg-yellow-500' },
+    { icon: Zap, label: 'PLN', color: 'bg-amber-500' },
+    { icon: Droplets, label: 'PDAM', color: 'bg-cyan-500' },
+    { icon: HeartPulse, label: 'BPJS', color: 'bg-teal-500' },
 ];
 
 export type Transaction = {
