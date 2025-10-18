@@ -1,15 +1,15 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import QuickServices from './quick-services';
 import RecentTransactions from './recent-transactions';
 import BottomNav from './bottom-nav';
 import PlaceholderContent from './placeholder-content';
 import SettingsContent from './settings-content';
-import { FileText, QrCode, Bell, Receipt, Plus, ArrowRightLeft } from 'lucide-react';
+import { FileText, Bell, Plus, ArrowRightLeft, TrendingUp, TrendingDown } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, getDocs, orderBy, CollectionReference, DocumentData } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy } from 'firebase/firestore';
 import type { KasAccount as KasAccountType, Transaction } from '@/lib/data';
 import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight } from 'lucide-react';
 import Header from './header';
@@ -20,20 +20,17 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import TransactionHistory from './TransactionHistory';
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/components/ui/carousel';
 import { cn } from '@/lib/utils';
 import Autoplay from 'embla-carousel-autoplay';
 import { ScrollArea } from '../ui/scroll-area';
 import GlobalTransactionHistory from './GlobalTransactionHistory';
+import TransferBalanceForm from './TransferBalanceForm';
+import AddCapitalForm from './AddCapitalForm';
+import WithdrawBalanceForm from './WithdrawBalanceForm';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -45,8 +42,8 @@ const iconMap: { [key: string]: React.ElementType } = {
   'default': Wallet,
 };
 
-export type ActiveTab = 'home' | 'mutasi' | 'qris' | 'inbox' | 'settings';
-type ActiveSheet = null | 'history';
+export type ActiveTab = 'home' | 'mutasi' | 'inbox' | 'settings';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -116,6 +113,19 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     setActiveSheet('history');
   }
 
+  const handleMutationMenuClick = (sheet: ActiveSheet) => {
+    // Close the mutation menu sheet first
+    const mutationMenuTrigger = document.getElementById('mutation-menu-trigger');
+    if (mutationMenuTrigger) {
+      mutationMenuTrigger.click(); // This closes the sheet
+    }
+    
+    // Open the new sheet after a short delay to allow the first one to close
+    setTimeout(() => {
+      setActiveSheet(sheet);
+    }, 150);
+  }
+
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
@@ -153,7 +163,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
             </div>
             </div>
             <div className="flex flex-col gap-4 px-4">
-                <Sheet open={!!activeSheet} onOpenChange={(isOpen) => !isOpen && setActiveSheet(null)}>
+                <Sheet open={activeSheet !== null && activeSheet !== 'transfer' && activeSheet !== 'addCapital' && activeSheet !== 'withdraw'} onOpenChange={(isOpen) => !isOpen && setActiveSheet(null)}>
                   <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="item-1" className="border-none">
                       <div className="p-3 bg-card/80 backdrop-blur-md rounded-2xl shadow-lg border border-border/20 flex items-center justify-between gap-2 data-[state=open]:rounded-b-none">
@@ -198,6 +208,22 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                       {activeSheet === 'history' && selectedAccount && <TransactionHistory account={selectedAccount} onDone={() => setActiveSheet(null)} />}
                   </SheetContent>
                 </Sheet>
+
+                <Sheet open={activeSheet === 'transfer' || activeSheet === 'addCapital' || activeSheet === 'withdraw'} onOpenChange={(isOpen) => !isOpen && setActiveSheet(null)}>
+                  <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
+                      <SheetHeader>
+                          <SheetTitle>
+                            {activeSheet === 'transfer' && 'Pindah Saldo'}
+                            {activeSheet === 'addCapital' && 'Tambah Modal'}
+                            {activeSheet === 'withdraw' && 'Tarik Saldo'}
+                          </SheetTitle>
+                      </SheetHeader>
+                      {activeSheet === 'transfer' && <TransferBalanceForm onDone={() => setActiveSheet(null)} />}
+                      {activeSheet === 'addCapital' && <AddCapitalForm onDone={() => setActiveSheet(null)} />}
+                      {activeSheet === 'withdraw' && <WithdrawBalanceForm onDone={() => setActiveSheet(null)} />}
+                  </SheetContent>
+                </Sheet>
+
                 <QuickServices />
                 <RecentTransactions />
             </div>
@@ -207,8 +233,6 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
         return <SettingsContent />;
       case 'mutasi':
         return <GlobalTransactionHistory />;
-      case 'qris':
-        return <PlaceholderContent icon={QrCode} title="Halaman QRIS" />;
       case 'inbox':
         return <PlaceholderContent icon={Bell} title="Halaman Inbox" />;
       default:
@@ -219,7 +243,42 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
   return (
     <>
       {renderContent()}
-      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab}>
+         <Sheet>
+            <SheetTrigger asChild>
+                <button id="mutation-menu-trigger" className="h-14 w-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center -mt-4 shadow-lg shadow-primary/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                    <Plus size={28} />
+                </button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl" onOpenAutoFocus={(e) => e.preventDefault()}>
+                <SheetHeader className="mb-4">
+                    <SheetTitle>Menu Mutasi</SheetTitle>
+                </SheetHeader>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                    <button onClick={() => handleMutationMenuClick('transfer')} className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted">
+                        <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
+                            <ArrowRightLeft size={24} />
+                        </div>
+                        <span className="text-sm font-medium">Pindah Saldo</span>
+                    </button>
+                    <button onClick={() => handleMutationMenuClick('addCapital')} className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted">
+                        <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
+                            <TrendingUp size={24} />
+                        </div>
+                        <span className="text-sm font-medium">Tambah Modal</span>
+                    </button>
+                    <button onClick={() => handleMutationMenuClick('withdraw')} className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted">
+                        <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
+                            <TrendingDown size={24} />
+                        </div>
+                        <span className="text-sm font-medium">Tarik Saldo</span>
+                    </button>
+                </div>
+            </SheetContent>
+         </Sheet>
+      </BottomNav>
     </>
   );
 }
+
+    
