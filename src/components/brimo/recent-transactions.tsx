@@ -1,7 +1,7 @@
 
 "use client";
 
-import { FileText, Send, ChevronRight } from 'lucide-react';
+import { FileText, ArrowDownLeft, ArrowUpRight, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -82,7 +82,11 @@ export default function RecentTransactions() {
               <div key={trx.id} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${trx.type === 'credit' ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
-                    <Send size={18} strokeWidth={2} className={trx.type === 'credit' ? 'text-green-500 -rotate-45' : 'text-red-500 rotate-[135deg]'} />
+                    {trx.type === 'credit' ? (
+                      <ArrowDownLeft size={18} strokeWidth={2} className="text-green-500" />
+                    ) : (
+                      <ArrowUpRight size={18} strokeWidth={2} className="text-red-500" />
+                    )}
                   </div>
                   <div>
                     <p className="font-medium text-sm">{trx.name}</p>
