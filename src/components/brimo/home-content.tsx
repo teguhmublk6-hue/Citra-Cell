@@ -9,7 +9,7 @@ import PlaceholderContent from './placeholder-content';
 import SettingsContent from './settings-content';
 import { FileText, QrCode, Bell, ArrowRightLeft, Receipt } from 'lucide-react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, collectionGroup, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy } from 'firebase/firestore';
 import type { KasAccount as KasAccountType, Transaction } from '@/lib/data';
 import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight } from 'lucide-react';
 import Header from './header';
@@ -31,6 +31,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import AddCapitalForm from './AddCapitalForm';
 import TransferBalanceForm from './TransferBalanceForm';
 import OperationalCostReport from './OperationalCostReport';
+import TransactionHistory from './TransactionHistory';
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/components/ui/carousel';
 import { cn } from '@/lib/utils';
 import Autoplay from 'embla-carousel-autoplay';
@@ -47,11 +48,12 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'qris' | 'inbox' | 'settings';
-type ActiveSheet = null | 'addCapital' | 'transferBalance' | 'operationalCost';
+type ActiveSheet = null | 'addCapital' | 'transferBalance' | 'operationalCost' | 'history';
 
 export default function HomeContent() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
+  const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
   const [currentSlide, setCurrentSlide] = useState(0)
   
@@ -107,6 +109,11 @@ export default function HomeContent() {
     return () => carouselApi.off("select", onSelect);
   }, [carouselApi]);
 
+  const handleAccountClick = (account: KasAccountType) => {
+    setSelectedAccount(account);
+    setActiveSheet('history');
+  }
+
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
@@ -155,12 +162,12 @@ export default function HomeContent() {
                         </AccordionTrigger>
 
                         <div className="flex items-center">
-                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => setActiveSheet('operationalCost')}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={(e) => { e.stopPropagation(); setActiveSheet('operationalCost'); }}>
                                 <Receipt size={16} />
                             </Button>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full">
+                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={(e) => e.stopPropagation()}>
                                     <ArrowRightLeft size={16} />
                                 </Button>
                                 </DropdownMenuTrigger>
@@ -180,9 +187,9 @@ export default function HomeContent() {
                         <ScrollArea className="h-[280px]">
                             <div className="flex flex-col gap-0 rounded-b-2xl overflow-hidden border border-t-0 border-border/20 shadow-lg">
                             {kasAccounts?.map((account) => {
-                                const Icon = iconMap[account.label] || iconMap['default'];
+                                const Icon = iconMap[account.type] || iconMap['default'];
                                 return (
-                                <div key={account.id} className="p-3 bg-card/80 backdrop-blur-md flex items-center justify-between gap-4 border-t border-border/10">
+                                <button key={account.id} onClick={() => handleAccountClick(account)} className="w-full text-left p-3 bg-card/80 backdrop-blur-md flex items-center justify-between gap-4 border-t border-border/10 hover:bg-muted/50 transition-colors">
                                     <div className="flex items-center gap-3">
                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${account.color}`}>
                                             <Icon size={20} className="text-white" />
@@ -193,7 +200,7 @@ export default function HomeContent() {
                                         </div>
                                     </div>
                                     <ChevronRight size={18} className="text-muted-foreground" />
-                                </div>
+                                </button>
                                 );
                             })}
                             </div>
@@ -207,11 +214,13 @@ export default function HomeContent() {
                             {activeSheet === 'addCapital' && 'Tambah Modal Saldo Kas'}
                             {activeSheet === 'transferBalance' && 'Pindah Saldo Antar Kas'}
                             {activeSheet === 'operationalCost' && 'Laporan Biaya Operasional'}
+                            {activeSheet === 'history' && `Riwayat Mutasi: ${selectedAccount?.label}`}
                           </SheetTitle>
                       </SheetHeader>
-                      {activeSheet === 'addCapital' && <AddCapitalForm accounts={kasAccounts || []} onDone={() => setActiveSheet(null)} />}
-                      {activeSheet === 'transferBalance' && <TransferBalanceForm accounts={kasAccounts || []} onDone={() => setActiveSheet(null)} />}
-                      {activeSheet === 'operationalCost' && <OperationalCostReport accounts={kasAccounts || []} onDone={() => setActiveSheet(null)} />}
+                      {activeSheet === 'addCapital' && kasAccounts && <AddCapitalForm accounts={kasAccounts} onDone={() => setActiveSheet(null)} />}
+                      {activeSheet === 'transferBalance' && kasAccounts && <TransferBalanceForm accounts={kasAccounts} onDone={() => setActiveSheet(null)} />}
+                      {activeSheet === 'operationalCost' && kasAccounts && <OperationalCostReport accounts={kasAccounts} onDone={() => setActiveSheet(null)} />}
+                      {activeSheet === 'history' && selectedAccount && <TransactionHistory account={selectedAccount} onDone={() => setActiveSheet(null)} />}
                   </SheetContent>
                 </Sheet>
                 <QuickServices />
@@ -239,5 +248,3 @@ export default function HomeContent() {
     </>
   );
 }
-
-    
