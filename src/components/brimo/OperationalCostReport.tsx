@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
 import type { KasAccount, Transaction } from '@/lib/data';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, X } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '../ui/skeleton';
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
@@ -30,6 +31,7 @@ const parseRupiah = (value: string | undefined | null): number => {
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
 
 const costFormSchema = z.object({
+  sourceAccountId: z.string().min(1, 'Akun sumber harus dipilih'),
   name: z.string().min(1, 'Keterangan harus diisi'),
   amount: z.preprocess(
     numberPreprocessor,
@@ -54,6 +56,7 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
   const form = useForm<z.infer<typeof costFormSchema>>({
     resolver: zodResolver(costFormSchema),
     defaultValues: {
+      sourceAccountId: '',
       name: '',
       amount: undefined,
     },
@@ -61,7 +64,10 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
 
   useEffect(() => {
     const fetchOperationalCosts = async () => {
-      if (!user?.uid || !accounts.length) return;
+      if (!user?.uid || !accounts.length) {
+        setIsLoading(false);
+        return;
+      };
       
       setIsLoading(true);
       let allCosts: Transaction[] = [];
@@ -89,25 +95,24 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
   const handleAddCost = async (values: z.infer<typeof costFormSchema>) => {
     if (!user || !firestore) return;
 
-    const tunaiAccount = accounts.find(acc => acc.type === 'Tunai');
-    if (!tunaiAccount) {
-      console.error("Akun 'Tunai' tidak ditemukan.");
-      // Optionally, show a toast to the user
+    const sourceAccount = accounts.find(acc => acc.id === values.sourceAccountId);
+    if (!sourceAccount) {
+      console.error("Akun sumber tidak ditemukan.");
       return;
     }
 
-    if (tunaiAccount.balance < values.amount) {
-        form.setError('amount', { message: 'Saldo tunai tidak mencukupi' });
+    if (sourceAccount.balance < values.amount) {
+        form.setError('amount', { message: 'Saldo akun sumber tidak mencukupi' });
         return;
     }
     
     const batch = writeBatch(firestore);
 
     // 1. Create new transaction for the operational cost
-    const transactionRef = doc(collection(firestore, 'users', user.uid, 'kasAccounts', tunaiAccount.id, 'transactions'));
+    const transactionRef = doc(collection(firestore, 'users', user.uid, 'kasAccounts', sourceAccount.id, 'transactions'));
     const newTransaction: Omit<Transaction, 'id'> = {
       userId: user.uid,
-      kasAccountId: tunaiAccount.id,
+      kasAccountId: sourceAccount.id,
       name: values.name,
       account: 'Biaya Operasional',
       date: new Date().toISOString(),
@@ -117,10 +122,10 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
     };
     batch.set(transactionRef, newTransaction);
     
-    // 2. Update the balance of the 'Tunai' account
-    const tunaiAccountRef = doc(firestore, 'users', user.uid, 'kasAccounts', tunaiAccount.id);
-    const newBalance = tunaiAccount.balance - values.amount;
-    batch.update(tunaiAccountRef, { balance: newBalance });
+    // 2. Update the balance of the source account
+    const sourceAccountRef = doc(firestore, 'users', user.uid, 'kasAccounts', sourceAccount.id);
+    const newBalance = sourceAccount.balance - values.amount;
+    batch.update(sourceAccountRef, { balance: newBalance });
 
     try {
         await batch.commit();
@@ -155,6 +160,28 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
         <div className="px-1 mb-4">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleAddCost)} className="space-y-4 p-4 border rounded-lg">
+               <FormField
+                control={form.control}
+                name="sourceAccountId"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Ambil dari Akun Kas</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Pilih akun sumber biaya" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        {accounts.map(account => (
+                            <SelectItem key={account.id} value={account.id}>{account.label} ({formatToRupiah(account.balance) || 'Rp 0'})</SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
               <FormField
                 control={form.control}
                 name="name"
@@ -225,6 +252,5 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
       </div>
     </div>
   );
-}
 
     
