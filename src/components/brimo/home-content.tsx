@@ -28,10 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import AddCapitalForm from './AddCapitalForm';
-import OperationalCostReport from './OperationalCostReport';
 import TransactionHistory from './TransactionHistory';
-import TransferBalanceForm from './TransferBalanceForm';
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/components/ui/carousel';
 import { cn } from '@/lib/utils';
 import Autoplay from 'embla-carousel-autoplay';
@@ -49,7 +46,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'qris' | 'inbox' | 'settings';
-type ActiveSheet = null | 'addCapital' | 'operationalCost' | 'history' | 'transfer';
+type ActiveSheet = null | 'history';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -165,27 +162,6 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                             <p className="font-semibold text-sm">Saldo akun</p>
                           </div>
                         </AccordionTrigger>
-
-                        <div className="flex items-center">
-                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={(e) => { e.stopPropagation(); setActiveSheet('operationalCost'); }}>
-                                <Receipt size={16} />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={(e) => { e.stopPropagation(); setActiveSheet('transfer'); }}>
-                                <ArrowRightLeft size={16} />
-                            </Button>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={(e) => e.stopPropagation()}>
-                                    <Plus size={16} />
-                                </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => setActiveSheet('addCapital')}>
-                                    Tambah Modal
-                                </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
                       </div>
 
                       <AccordionContent className="p-0">
@@ -216,16 +192,10 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                   <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
                       <SheetHeader>
                           <SheetTitle>
-                            {activeSheet === 'addCapital' && 'Tambah Modal Saldo Kas'}
-                            {activeSheet === 'operationalCost' && 'Laporan Biaya Operasional'}
                             {activeSheet === 'history' && `Riwayat Mutasi: ${selectedAccount?.label}`}
-                            {activeSheet === 'transfer' && 'Pindah Saldo Antar Akun'}
                           </SheetTitle>
                       </SheetHeader>
-                      {activeSheet === 'addCapital' && kasAccounts && <AddCapitalForm accounts={kasAccounts} onDone={() => setActiveSheet(null)} />}
-                      {activeSheet === 'operationalCost' && kasAccounts && <OperationalCostReport accounts={kasAccounts} onDone={() => setActiveSheet(null)} />}
                       {activeSheet === 'history' && selectedAccount && <TransactionHistory account={selectedAccount} onDone={() => setActiveSheet(null)} />}
-                      {activeSheet === 'transfer' && kasAccounts && <TransferBalanceForm accounts={kasAccounts} onDone={() => setActiveSheet(null)} />}
                   </SheetContent>
                 </Sheet>
                 <QuickServices />
