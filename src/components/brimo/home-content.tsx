@@ -7,7 +7,7 @@ import RecentTransactions from './recent-transactions';
 import BottomNav from './bottom-nav';
 import PlaceholderContent from './placeholder-content';
 import SettingsContent from './settings-content';
-import { FileText, QrCode, Bell, MoreHorizontal } from 'lucide-react';
+import { FileText, QrCode, Bell, ArrowRightLeft } from 'lucide-react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { KasAccount as KasAccountType } from '@/lib/data';
@@ -80,7 +80,7 @@ export default function HomeContent() {
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full">
-                              <MoreHorizontal size={18} />
+                              <ArrowRightLeft size={16} />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
