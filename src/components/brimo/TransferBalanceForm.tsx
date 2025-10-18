@@ -29,7 +29,7 @@ const formSchema = z.object({
     (val) => Number(val),
     z.number().min(0, "Biaya admin tidak boleh negatif")
   ),
-  manualAdminFee: z.number().min(0, "Biaya admin tidak boleh negatif").optional(),
+  manualAdminFee: z.number({ invalid_type_error: "Nominal harus angka" }).min(0, "Biaya admin tidak boleh negatif").optional(),
   description: z.string().optional(),
 }).refine(data => data.sourceAccountId !== data.destinationAccountId, {
   message: "Akun sumber dan tujuan tidak boleh sama",
