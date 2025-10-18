@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFirestore } from '@/firebase';
-import { doc, writeBatch, collection, serverTimestamp } from 'firebase/firestore';
+import { doc, writeBatch, collection } from 'firebase/firestore';
 import type { KasAccount, Transaction } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '../ui/alert';
@@ -119,7 +119,7 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
 
     // 2. Create debit transaction for source account
     const sourceTransactionRef = doc(collection(firestore, 'kasAccounts', sourceAccount.id, 'transactions'));
-    const sourceTransaction: Omit<Transaction, 'id'> = {
+    const sourceTransaction: Omit<Transaction, 'id' | 'sourceKasAccountId' | 'destinationKasAccountId'> = {
       kasAccountId: sourceAccount.id,
       name: `Transfer ke: ${destinationAccount.label}`,
       account: destinationAccount.label,
@@ -129,15 +129,13 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
       category: 'transfer',
       balanceBefore: sourceBalanceBefore,
       balanceAfter: sourceBalanceAfter + (finalFee > 0 ? finalFee : 0),
-      sourceKasAccountId: sourceAccount.id,
-      destinationKasAccountId: destinationAccount.id,
     };
     batch.set(sourceTransactionRef, sourceTransaction);
     
     // 3. Create debit transaction for admin fee if applicable
     if (finalFee > 0) {
         const feeTransactionRef = doc(collection(firestore, 'kasAccounts', sourceAccount.id, 'transactions'));
-        const feeTransaction: Omit<Transaction, 'id'> = {
+        const feeTransaction: Omit<Transaction, 'id' | 'sourceKasAccountId' | 'destinationKasAccountId'> = {
             kasAccountId: sourceAccount.id,
             name: `Biaya Admin Transfer ke: ${destinationAccount.label}`,
             account: 'Biaya Admin',
@@ -159,7 +157,7 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
 
     // 5. Create credit transaction for destination account
     const destinationTransactionRef = doc(collection(firestore, 'kasAccounts', destinationAccount.id, 'transactions'));
-    const destinationTransaction: Omit<Transaction, 'id'> = {
+    const destinationTransaction: Omit<Transaction, 'id' | 'sourceKasAccountId' | 'destinationKasAccountId'> = {
         kasAccountId: destinationAccount.id,
         name: `Transfer dari: ${sourceAccount.label}`,
         account: sourceAccount.label,
@@ -169,8 +167,6 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
         category: 'transfer',
         balanceBefore: destBalanceBefore,
         balanceAfter: destBalanceAfter,
-        sourceKasAccountId: sourceAccount.id,
-        destinationKasAccountId: destinationAccount.id,
     };
     batch.set(destinationTransactionRef, destinationTransaction);
 
@@ -278,7 +274,10 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
                               <Input 
                                   type="text" placeholder="Rp 0" {...field}
                                   value={formatToRupiah(field.value)}
-                                  onChange={(e) => field.onChange(parseRupiah(e.target.value))}
+                                  onChange={(e) => {
+                                      const numericValue = parseRupiah(e.target.value);
+                                      field.onChange(numericValue);
+                                  }}
                               />
                           </FormControl>
                           <FormMessage />
