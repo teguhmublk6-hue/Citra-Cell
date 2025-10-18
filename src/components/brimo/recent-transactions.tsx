@@ -25,25 +25,28 @@ export default function RecentTransactions() {
 
   useEffect(() => {
     const fetchTransactions = async () => {
-      if (!kasAccounts || !user?.uid) {
-        // If there are no accounts, we are done loading.
-        if (!isLoading && !kasAccounts) {
-          setIsLoading(false);
-        }
+      if (!user?.uid) {
+        // Still waiting for user, do nothing.
         return;
+      }
+      if (kasAccounts === null) {
+        // kasAccounts are still loading, wait.
+        return
       }
 
       setIsLoading(true);
       let allTransactions: TransactionWithId[] = [];
       
       try {
-        for (const account of kasAccounts) {
-          const transactionsRef = collection(firestore, 'users', user.uid, 'kasAccounts', account.id, 'transactions');
-          const q = query(transactionsRef, orderBy('date', 'desc'));
-          const querySnapshot = await getDocs(q);
-          querySnapshot.forEach((doc) => {
-            allTransactions.push({ ...(doc.data() as Transaction), id: doc.id });
-          });
+        if (kasAccounts.length > 0) {
+            for (const account of kasAccounts) {
+                const transactionsRef = collection(firestore, 'users', user.uid, 'kasAccounts', account.id, 'transactions');
+                const q = query(transactionsRef, orderBy('date', 'desc'));
+                const querySnapshot = await getDocs(q);
+                querySnapshot.forEach((doc) => {
+                    allTransactions.push({ ...(doc.data() as Transaction), id: doc.id });
+                });
+            }
         }
 
         allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -61,7 +64,7 @@ export default function RecentTransactions() {
 
 
   return (
-    <Card>
+    <Card className="bg-card/80 backdrop-blur-md border-border/20 shadow-lg">
       <CardHeader>
         <div className="flex justify-between items-center">
           <div>
@@ -72,7 +75,7 @@ export default function RecentTransactions() {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <p className="text-muted-foreground text-sm">Memuat transaksi...</p>
+          <p className="text-muted-foreground text-sm py-8 text-center">Memuat transaksi...</p>
         ) : !recentTransactions || recentTransactions.length === 0 ? (
           <div className="py-8 text-center">
             <FileText size={48} strokeWidth={1} className="mx-auto text-muted-foreground mb-2" />
