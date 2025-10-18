@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import QuickServices from './quick-services';
 import RecentTransactions from './recent-transactions';
 import BottomNav from './bottom-nav';
@@ -32,6 +32,8 @@ import AddCapitalForm from './AddCapitalForm';
 import TransferBalanceForm from './TransferBalanceForm';
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/components/ui/carousel';
 import { cn } from '@/lib/utils';
+import Autoplay from 'embla-carousel-autoplay';
+
 
 const iconMap: { [key: string]: React.ElementType } = {
   'Tunai': Wallet,
@@ -53,6 +55,10 @@ export default function HomeContent() {
   
   const firestore = useFirestore();
   const { user } = useUser();
+
+  const plugin = useRef(
+    Autoplay({ delay: 500, stopOnInteraction: true })
+  );
 
   const kasAccountsCollection = useMemoFirebase(() => {
     if (!user?.uid) return null; // Wait for user
@@ -81,7 +87,12 @@ export default function HomeContent() {
           <>
             <Header />
             <div className="px-4 -mt-16">
-              <Carousel setApi={setCarouselApi}>
+              <Carousel 
+                setApi={setCarouselApi}
+                plugins={[plugin.current]}
+                onMouseEnter={plugin.current.stop}
+                onMouseLeave={plugin.current.reset}
+              >
                 <CarouselContent>
                   <CarouselItem>
                     <BalanceCard balanceType="non-tunai" />
