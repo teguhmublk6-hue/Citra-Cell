@@ -6,15 +6,16 @@ export type KasAccount = {
   userId: string;
   label: string;
   balance: number;
+  minimumBalance: number;
   color: string;
 };
 
 export const kasAccounts: KasAccount[] = [
-  { id: 'tunai', userId: 'dummy', label: 'Tunai', balance: 125000, color: 'bg-green-500' },
-  { id: 'bank', userId: 'dummy', label: 'Bank', balance: 2500000, color: 'bg-blue-500' },
-  { id: 'ppob', userId: 'dummy', label: 'PPOB', balance: 50000, color: 'bg-yellow-500' },
-  { id: 'ewallet', userId: 'dummy', label: 'E-Wallet', balance: 375000, color: 'bg-purple-500' },
-  { id: 'merchant', userId: 'dummy', label: 'Merchant', balance: 0, color: 'bg-orange-500' },
+  { id: 'tunai', userId: 'dummy', label: 'Tunai', balance: 125000, minimumBalance: 50000, color: 'bg-green-500' },
+  { id: 'bank', userId: 'dummy', label: 'Bank', balance: 2500000, minimumBalance: 500000, color: 'bg-blue-500' },
+  { id: 'ppob', userId: 'dummy', label: 'PPOB', balance: 50000, minimumBalance: 25000, color: 'bg-yellow-500' },
+  { id: 'ewallet', userId: 'dummy', label: 'E-Wallet', balance: 375000, minimumBalance: 100000, color: 'bg-purple-500' },
+  { id: 'merchant', userId: 'dummy', label: 'Merchant', balance: 0, minimumBalance: 0, color: 'bg-orange-500' },
 ];
 
 export type QuickService = {

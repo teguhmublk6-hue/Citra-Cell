@@ -10,6 +10,7 @@ import KasAccountForm from './KasAccountForm';
 import DeleteKasAccountDialog from './DeleteKasAccountDialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 export default function KasManagement() {
   const firestore = useFirestore();
@@ -70,22 +71,27 @@ export default function KasManagement() {
             </div>
           )}
           <div className="space-y-3 pr-4">
-            {kasAccounts?.map((account) => (
-              <div key={account.id} className="flex items-center justify-between p-3 bg-card-foreground/5 rounded-lg">
-                <div>
-                  <p className="font-semibold">{account.label}</p>
-                  <p className="text-sm text-muted-foreground">Rp{account.balance.toLocaleString('id-ID')}</p>
+            {kasAccounts?.map((account) => {
+              const isBelowMinimum = account.balance < account.minimumBalance;
+              return (
+                <div key={account.id} className="flex items-center justify-between p-3 bg-card-foreground/5 rounded-lg">
+                  <div>
+                    <p className="font-semibold">{account.label}</p>
+                    <p className={cn("text-sm", isBelowMinimum ? "text-red-500" : "text-muted-foreground")}>
+                      Rp{account.balance.toLocaleString('id-ID')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(account)}>
+                      <Edit size={18} />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(account)}>
+                      <Trash2 size={18} />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" onClick={() => handleEdit(account)}>
-                    <Edit size={18} />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(account)}>
-                    <Trash2 size={18} />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </ScrollArea>
         <DeleteKasAccountDialog

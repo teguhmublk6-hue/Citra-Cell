@@ -18,6 +18,10 @@
           "type": "number",
           "description": "The current balance of the cash account."
         },
+        "minimumBalance": {
+          "type": "number",
+          "description": "The minimum balance threshold for the account."
+        },
         "color": {
           "type": "string",
           "description": "The background color associated with the account for UI rendering."
@@ -27,6 +31,7 @@
         "id",
         "label",
         "balance",
+        "minimumBalance",
         "color"
       ]
     },

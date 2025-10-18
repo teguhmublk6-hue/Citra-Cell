@@ -8,17 +8,23 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFirestore, useUser } from '@/firebase';
-import { collection, doc, addDoc, setDoc } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { accountTypes } from '@/lib/data';
 import { setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+
+const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
 
 const formSchema = z.object({
   label: z.string().min(1, 'Nama akun harus diisi'),
   type: z.string().min(1, 'Jenis akun harus dipilih'),
   balance: z.preprocess(
-    (val) => (val === "" ? undefined : Number(String(val).replace(/[^0-9]/g, ""))),
+    numberPreprocessor,
     z.number({ invalid_type_error: "Saldo harus angka" }).min(0, 'Saldo tidak boleh negatif')
+  ),
+  minimumBalance: z.preprocess(
+    numberPreprocessor,
+    z.number({ invalid_type_error: "Saldo minimal harus angka" }).min(0, 'Saldo minimal tidak boleh negatif').optional()
   ),
 });
 
@@ -26,6 +32,14 @@ interface KasAccountFormProps {
   account: KasAccount | null;
   onDone: () => void;
 }
+
+const formatToRupiah = (value: number | string | undefined | null): string => {
+    if (value === null || value === undefined) return 'Rp 0';
+    const num = Number(value);
+    if (isNaN(num)) return 'Rp 0';
+    return `Rp ${num.toLocaleString('id-ID')}`;
+};
+
 
 export default function KasAccountForm({ account, onDone }: KasAccountFormProps) {
   const firestore = useFirestore();
@@ -37,6 +51,7 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
       label: account?.label || '',
       type: account?.label || '',
       balance: account?.balance || 0,
+      minimumBalance: account?.minimumBalance || 0,
     },
   });
 
@@ -48,6 +63,7 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
       userId: user.uid,
       label: values.label,
       balance: values.balance,
+      minimumBalance: values.minimumBalance || 0,
       color: selectedType?.color || 'bg-gray-500',
     };
 
@@ -111,19 +127,45 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
                 <FormControl>
                     <Input 
                         type="text"
-                        placeholder="Rp 0" 
-                        {...field}
+                        placeholder="Rp 0"
+                        onFocus={(e) => {
+                            if (e.target.value === 'Rp 0') e.target.value = '';
+                        }}
                         onChange={(e) => {
                             const value = e.target.value.replace(/[^0-9]/g, "");
                             field.onChange(Number(value));
-                            e.target.value = `Rp ${Number(value).toLocaleString('id-ID')}`;
                         }}
                         onBlur={(e) => {
+                            e.target.value = formatToRupiah(field.value);
+                        }}
+                        defaultValue={formatToRupiah(field.value)}
+                    />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+            <FormField
+            control={form.control}
+            name="minimumBalance"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Saldo Minimal</FormLabel>
+                <FormControl>
+                    <Input 
+                        type="text"
+                        placeholder="Rp 0"
+                        onFocus={(e) => {
+                            if (e.target.value === 'Rp 0') e.target.value = '';
+                        }}
+                        onChange={(e) => {
                             const value = e.target.value.replace(/[^0-9]/g, "");
                             field.onChange(Number(value));
-                            e.target.value = `Rp ${Number(value).toLocaleString('id-ID')}`;
                         }}
-                         value={`Rp ${Number(field.value || 0).toLocaleString('id-ID')}`}
+                        onBlur={(e) => {
+                            e.target.value = formatToRupiah(field.value);
+                        }}
+                        defaultValue={formatToRupiah(field.value)}
                     />
                 </FormControl>
                 <FormMessage />
