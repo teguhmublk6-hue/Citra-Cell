@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // This is a general rule that will match every document and collection in your database.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
