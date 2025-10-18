@@ -51,7 +51,12 @@ const iconMap: { [key: string]: React.ElementType } = {
 export type ActiveTab = 'home' | 'mutasi' | 'qris' | 'inbox' | 'settings';
 type ActiveSheet = null | 'addCapital' | 'transferBalance' | 'operationalCost' | 'history';
 
-export default function HomeContent() {
+interface HomeContentProps {
+  revalidateData: () => void;
+  isAccountsLoading: boolean;
+}
+
+export default function HomeContent({ revalidateData, isAccountsLoading }: HomeContentProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
   const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
@@ -59,11 +64,6 @@ export default function HomeContent() {
   const [currentSlide, setCurrentSlide] = useState(0)
   
   const firestore = useFirestore();
-  const [revalidationKey, setRevalidationKey] = useState(0);
-
-  const revalidateData = useCallback(() => {
-    setRevalidationKey(prev => prev + 1);
-  }, []);
 
   const plugin = useRef(
     Autoplay({ delay: 2000, stopOnInteraction: true })
@@ -71,13 +71,10 @@ export default function HomeContent() {
 
   const kasAccountsCollection = useMemoFirebase(() => {
     if (!firestore) return null;
-    // We add revalidationKey to the dependency array to force re-memoization
-    // which in turn forces useCollection to re-fetch data.
-    console.log(`Re-fetching kasAccounts with key: ${revalidationKey}`);
     return collection(firestore, 'kasAccounts');
-  }, [firestore, revalidationKey]);
+  }, [firestore]);
 
-  const { data: kasAccounts, isLoading: isAccountsLoading } = useCollection<KasAccountType>(kasAccountsCollection);
+  const { data: kasAccounts } = useCollection<KasAccountType>(kasAccountsCollection);
   
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
@@ -101,7 +98,7 @@ export default function HomeContent() {
     };
 
     fetchTransactions();
-  }, [firestore, kasAccounts, revalidationKey]);
+  }, [firestore, kasAccounts]);
 
 
   useEffect(() => {

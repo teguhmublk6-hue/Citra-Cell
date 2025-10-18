@@ -24,6 +24,18 @@ export default function Header({ onSync, isSyncing }: HeaderProps) {
     } else {
       setIsEditing(true);
     }
+
+    const handleStorageChange = () => {
+        const newName = localStorage.getItem('brimoDeviceName') || '';
+        setDeviceName(newName);
+        setInputValue(newName);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+        window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const handleSave = () => {
@@ -46,7 +58,7 @@ export default function Header({ onSync, isSyncing }: HeaderProps) {
       <div className="flex justify-between items-center">
         <div>
           <p className="text-sm opacity-90">Selamat datang,</p>
-          {isEditing ? (
+          {isEditing && !deviceName ? (
             <div className="flex items-center gap-2 mt-1">
               <Input
                 type="text"
