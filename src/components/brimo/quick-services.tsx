@@ -36,7 +36,7 @@ export default function QuickServices() {
   }, [api])
 
   return (
-    <Card>
+    <Card className="bg-card/80 backdrop-blur-md border-border/20 shadow-lg">
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle className="text-lg">{serviceGroups[current].title}</CardTitle>
