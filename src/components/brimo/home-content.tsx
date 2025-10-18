@@ -57,7 +57,7 @@ export default function HomeContent() {
   const { user } = useUser();
 
   const plugin = useRef(
-    Autoplay({ delay: 500, stopOnInteraction: true })
+    Autoplay({ delay: 2000, stopOnInteraction: true })
   );
 
   const kasAccountsCollection = useMemoFirebase(() => {
