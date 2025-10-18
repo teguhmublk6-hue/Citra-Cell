@@ -275,8 +275,7 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
                                   type="text" placeholder="Rp 0" {...field}
                                   value={formatToRupiah(field.value)}
                                   onChange={(e) => {
-                                      const numericValue = parseRupiah(e.target.value);
-                                      field.onChange(numericValue);
+                                      field.onChange(parseRupiah(e.target.value));
                                   }}
                               />
                           </FormControl>
