@@ -42,7 +42,6 @@ export default function HomeContent() {
         return (
           <div className="flex flex-col gap-4 px-4">
             <div className="mt-4">
-                <h2 className="text-lg font-semibold px-4 mb-2">Dompet</h2>
                 <div className="grid grid-cols-2 gap-4 px-4">
                 {kasAccounts?.map((account) => {
                     const Icon = iconMap[account.label] || iconMap['default'];
