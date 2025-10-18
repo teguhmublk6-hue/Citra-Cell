@@ -29,7 +29,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import AddCapitalForm from './AddCapitalForm';
-import TransferBalanceForm from './TransferBalanceForm';
 import OperationalCostReport from './OperationalCostReport';
 import TransactionHistory from './TransactionHistory';
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/components/ui/carousel';
@@ -49,7 +48,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'qris' | 'inbox' | 'settings';
-type ActiveSheet = null | 'addCapital' | 'transferBalance' | 'operationalCost' | 'history';
+type ActiveSheet = null | 'addCapital' | 'operationalCost' | 'history';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -180,9 +179,6 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                                 <DropdownMenuItem onSelect={() => setActiveSheet('addCapital')}>
                                     Tambah Modal
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => setActiveSheet('transferBalance')}>
-                                    Pindah Saldo
-                                </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
@@ -217,13 +213,11 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                       <SheetHeader>
                           <SheetTitle>
                             {activeSheet === 'addCapital' && 'Tambah Modal Saldo Kas'}
-                            {activeSheet === 'transferBalance' && 'Pindah Saldo Antar Kas'}
                             {activeSheet === 'operationalCost' && 'Laporan Biaya Operasional'}
                             {activeSheet === 'history' && `Riwayat Mutasi: ${selectedAccount?.label}`}
                           </SheetTitle>
                       </SheetHeader>
                       {activeSheet === 'addCapital' && kasAccounts && <AddCapitalForm accounts={kasAccounts} onDone={() => setActiveSheet(null)} />}
-                      {activeSheet === 'transferBalance' && kasAccounts && <TransferBalanceForm accounts={kasAccounts} onDone={() => setActiveSheet(null)} />}
                       {activeSheet === 'operationalCost' && kasAccounts && <OperationalCostReport accounts={kasAccounts} onDone={() => setActiveSheet(null)} />}
                       {activeSheet === 'history' && selectedAccount && <TransactionHistory account={selectedAccount} onDone={() => setActiveSheet(null)} />}
                   </SheetContent>
