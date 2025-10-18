@@ -211,7 +211,7 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                            {accounts.map(account => (
+                            {[...accounts].sort((a, b) => b.balance - a.balance).map(account => (
                                 <SelectItem key={account.id} value={account.id}>{account.label} ({formatToRupiah(account.balance) || 'Rp 0'})</SelectItem>
                             ))}
                             </SelectContent>
@@ -233,8 +233,11 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                            {accounts.filter(a => a.id !== sourceAccountId).map(account => (
-                                <SelectItem key={account.id} value={account.id}>{account.label}</SelectItem>
+                            {[...accounts]
+                                .filter(a => a.id !== sourceAccountId)
+                                .sort((a, b) => a.balance - b.balance)
+                                .map(account => (
+                                    <SelectItem key={account.id} value={account.id}>{account.label}</SelectItem>
                             ))}
                             </SelectContent>
                         </Select>
@@ -384,5 +387,7 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
 }
 
   
+
+    
 
     
