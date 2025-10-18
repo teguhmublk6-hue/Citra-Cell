@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import QuickServices from './quick-services';
 import RecentTransactions from './recent-transactions';
 import BottomNav from './bottom-nav';
@@ -30,6 +30,8 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import AddCapitalForm from './AddCapitalForm';
 import TransferBalanceForm from './TransferBalanceForm';
+import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/components/ui/carousel';
+import { cn } from '@/lib/utils';
 
 const iconMap: { [key: string]: React.ElementType } = {
   'Tunai': Wallet,
@@ -46,6 +48,8 @@ type ActiveSheet = null | 'addCapital' | 'transferBalance';
 export default function HomeContent() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>()
+  const [currentSlide, setCurrentSlide] = useState(0)
   
   const firestore = useFirestore();
   const { user } = useUser();
@@ -57,14 +61,49 @@ export default function HomeContent() {
 
   const { data: kasAccounts } = useCollection<KasAccountType>(kasAccountsCollection);
 
+  useEffect(() => {
+    if (!carouselApi) return;
+
+    setCurrentSlide(carouselApi.selectedScrollSnap());
+
+    const onSelect = () => {
+      setCurrentSlide(carouselApi.selectedScrollSnap());
+    };
+
+    carouselApi.on("select", onSelect);
+    return () => carouselApi.off("select", onSelect);
+  }, [carouselApi]);
+
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
         return (
           <>
             <Header />
-            <div className="p-4 -mt-16">
-                <BalanceCard />
+            <div className="px-4 -mt-16">
+              <Carousel setApi={setCarouselApi}>
+                <CarouselContent>
+                  <CarouselItem>
+                    <BalanceCard balanceType="non-tunai" />
+                  </CarouselItem>
+                  <CarouselItem>
+                    <BalanceCard balanceType="tunai" />
+                  </CarouselItem>
+                </CarouselContent>
+              </Carousel>
+              <div className="flex items-center justify-center space-x-2 py-2">
+                {[0, 1].map((index) => (
+                  <button
+                    key={index}
+                    onClick={() => carouselApi?.scrollTo(index)}
+                    className={cn(
+                      "h-2 w-2 rounded-full transition-colors",
+                      index === currentSlide ? "bg-primary" : "bg-muted"
+                    )}
+                    aria-label={`Go to slide ${index + 1}`}
+                  />
+                ))}
+            </div>
             </div>
             <div className="flex flex-col gap-4 px-4">
                 <Sheet open={!!activeSheet} onOpenChange={(isOpen) => !isOpen && setActiveSheet(null)}>

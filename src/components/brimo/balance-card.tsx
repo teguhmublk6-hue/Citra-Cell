@@ -10,7 +10,11 @@ import type { KasAccount } from '@/lib/data';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 
-export default function BalanceCard() {
+interface BalanceCardProps {
+  balanceType: 'non-tunai' | 'tunai';
+}
+
+export default function BalanceCard({ balanceType }: BalanceCardProps) {
   const [showBalance, setShowBalance] = useState(true);
   const firestore = useFirestore();
   const { user } = useUser();
@@ -22,9 +26,18 @@ export default function BalanceCard() {
 
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
 
-  const totalBalance = kasAccounts?.filter(acc => acc.type !== 'Tunai').reduce((sum, acc) => sum + acc.balance, 0) ?? 0;
+  const totalBalance = kasAccounts?.filter(acc => {
+    if (balanceType === 'non-tunai') {
+      return acc.type !== 'Tunai';
+    }
+    return acc.type === 'Tunai';
+  }).reduce((sum, acc) => sum + acc.balance, 0) ?? 0;
+
   const accountsWithLowBalance = kasAccounts?.filter(acc => acc.balance < acc.minimumBalance) ?? [];
-  const needsTopUp = accountsWithLowBalance.length > 0;
+  const needsTopUp = accountsWithLowBalance.length > 0 && balanceType === 'non-tunai';
+  
+  const title = balanceType === 'non-tunai' ? 'Total Saldo' : 'Saldo Tunai';
+  const subtitle = balanceType === 'non-tunai' ? 'Non-Tunai' : 'Uang Fisik';
 
   return (
     <div className="bg-card/80 backdrop-blur-md rounded-2xl p-5 text-card-foreground shadow-lg border border-border/20">
@@ -32,9 +45,9 @@ export default function BalanceCard() {
         <div className="flex items-center gap-2">
           <div>
             <div className="flex items-center gap-2">
-              <p className="text-sm text-muted-foreground">Total Saldo</p>
+              <p className="text-sm text-muted-foreground">{title}</p>
             </div>
-            <p className="text-xs text-muted-foreground">Non-Tunai</p>
+            <p className="text-xs text-muted-foreground">{subtitle}</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
