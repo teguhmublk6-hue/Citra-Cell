@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
 import type { KasAccount, Transaction } from '@/lib/data';
 import { Button } from '@/components/ui/button';
@@ -45,7 +45,6 @@ interface OperationalCostReportProps {
 
 export default function OperationalCostReport({ accounts, onDone }: OperationalCostReportProps) {
   const firestore = useFirestore();
-  const { user } = useUser();
   const { toast } = useToast();
   
   const [showAddForm, setShowAddForm] = useState(false);
@@ -62,7 +61,7 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
 
   useEffect(() => {
     const fetchOperationalCosts = async () => {
-      if (!user?.uid || !accounts.length) {
+      if (!accounts.length) {
         setIsLoading(false);
         return;
       };
@@ -72,7 +71,7 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
 
       try {
         for (const account of accounts) {
-          const transactionsRef = collection(firestore, 'users', user.uid, 'kasAccounts', account.id, 'transactions');
+          const transactionsRef = collection(firestore, 'kasAccounts', account.id, 'transactions');
           const q = query(transactionsRef, where('category', '==', 'operational'));
           const querySnapshot = await getDocs(q);
           querySnapshot.forEach((doc) => {
@@ -88,10 +87,10 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
       }
     };
     fetchOperationalCosts();
-  }, [user, firestore, accounts]);
+  }, [firestore, accounts]);
 
   const handleAddCost = async (values: z.infer<typeof costFormSchema>) => {
-    if (!user || !firestore) return;
+    if (!firestore) return;
 
     const sourceAccount = accounts.find(acc => acc.label.toLowerCase() === 'laci' && acc.type === 'Tunai');
     if (!sourceAccount) {
@@ -114,9 +113,8 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
     const balanceAfter = balanceBefore - amount;
 
     // 1. Create new transaction for the operational cost
-    const transactionRef = doc(collection(firestore, 'users', user.uid, 'kasAccounts', sourceAccount.id, 'transactions'));
-    const newTransaction: Omit<Transaction, 'id'> = {
-      userId: user.uid,
+    const transactionRef = doc(collection(firestore, 'kasAccounts', sourceAccount.id, 'transactions'));
+    const newTransaction: Omit<Transaction, 'id' | 'userId'> = {
       kasAccountId: sourceAccount.id,
       name: values.name,
       account: 'Biaya Operasional',
@@ -130,7 +128,7 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
     batch.set(transactionRef, newTransaction);
     
     // 2. Update the balance of the source account
-    const sourceAccountRef = doc(firestore, 'users', user.uid, 'kasAccounts', sourceAccount.id);
+    const sourceAccountRef = doc(firestore, 'kasAccounts', sourceAccount.id);
     batch.update(sourceAccountRef, { balance: balanceAfter });
 
     try {

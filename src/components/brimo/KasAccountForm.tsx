@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { accountTypes } from '@/lib/data';
@@ -50,7 +50,6 @@ const parseRupiah = (value: string | undefined | null): number => {
 
 export default function KasAccountForm({ account, onDone }: KasAccountFormProps) {
   const firestore = useFirestore();
-  const { user } = useUser();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -74,11 +73,8 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
   }, [account, form])
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    if (!user) return;
-
     const selectedType = accountTypes.find(t => t.value === values.type);
     const accountData = {
-      userId: user.uid,
       label: values.label,
       type: values.type,
       balance: values.balance,
@@ -88,11 +84,11 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
 
     if (account) {
       // Update
-      const docRef = doc(firestore, 'users', user.uid, 'kasAccounts', account.id);
+      const docRef = doc(firestore, 'kasAccounts', account.id);
       setDocumentNonBlocking(docRef, accountData, { merge: true });
     } else {
       // Create
-      const collectionRef = collection(firestore, 'users', user.uid, 'kasAccounts');
+      const collectionRef = collection(firestore, 'kasAccounts');
       addDocumentNonBlocking(collectionRef, accountData);
     }
     onDone();

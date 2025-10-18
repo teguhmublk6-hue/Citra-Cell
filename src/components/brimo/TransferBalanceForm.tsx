@@ -9,7 +9,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { doc, writeBatch, collection } from 'firebase/firestore';
 import type { KasAccount, Transaction } from '@/lib/data';
 import { useState } from 'react';
@@ -64,7 +64,6 @@ interface TransferBalanceFormProps {
 
 export default function TransferBalanceForm({ accounts, onDone }: TransferBalanceFormProps) {
   const firestore = useFirestore();
-  const { user } = useUser();
   const { toast } = useToast();
   const [showManualFeeInput, setShowManualFeeInput] = useState(false);
 
@@ -84,7 +83,7 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
   const sourceAccount = accounts.find(acc => acc.id === sourceAccountId);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!user || !firestore) return;
+    if (!firestore) return;
 
     const sourceAcc = accounts.find(acc => acc.id === values.sourceAccountId);
     const destAcc = accounts.find(acc => acc.id === values.destinationAccountId);
@@ -115,16 +114,15 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
     const destBalanceAfter = destBalanceBefore + transferAmount - feeDeductedFromDest;
 
     // 1. Update balances
-    const sourceRef = doc(firestore, 'users', user.uid, 'kasAccounts', sourceAcc.id);
+    const sourceRef = doc(firestore, 'kasAccounts', sourceAcc.id);
     batch.update(sourceRef, { balance: sourceBalanceAfter });
 
-    const destRef = doc(firestore, 'users', user.uid, 'kasAccounts', destAcc.id);
+    const destRef = doc(firestore, 'kasAccounts', destAcc.id);
     batch.update(destRef, { balance: destBalanceAfter });
 
     // 2. Create debit transaction for source account
-    const sourceTrxRef = doc(collection(firestore, 'users', user.uid, 'kasAccounts', sourceAcc.id, 'transactions'));
-    const sourceTrxData: Omit<Transaction, 'id'> = {
-        userId: user.uid,
+    const sourceTrxRef = doc(collection(firestore, 'kasAccounts', sourceAcc.id, 'transactions'));
+    const sourceTrxData: Omit<Transaction, 'id' | 'userId'> = {
         kasAccountId: sourceAcc.id,
         name: `Pindah saldo ke ${destAcc.label}`,
         account: destAcc.label,
@@ -138,9 +136,8 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
     batch.set(sourceTrxRef, sourceTrxData);
 
     // 3. Create credit transaction for destination account
-    const destTrxRef = doc(collection(firestore, 'users', user.uid, 'kasAccounts', destAcc.id, 'transactions'));
-    const destTrxData: Omit<Transaction, 'id'> = {
-        userId: user.uid,
+    const destTrxRef = doc(collection(firestore, 'kasAccounts', destAcc.id, 'transactions'));
+    const destTrxData: Omit<Transaction, 'id' | 'userId'> = {
         kasAccountId: destAcc.id,
         name: `Pindah saldo dari ${sourceAcc.label}`,
         account: sourceAcc.label,
@@ -159,9 +156,8 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
         const feeTrxBalanceBefore = feeBearerAccountId === sourceAcc.id ? sourceBalanceBefore - transferAmount : destBalanceBefore + transferAmount;
         const feeTrxBalanceAfter = feeTrxBalanceBefore - fee;
 
-        const feeTrxRef = doc(collection(firestore, 'users', user.uid, 'kasAccounts', feeBearerAccountId, 'transactions'));
-        const feeTrxData: Omit<Transaction, 'id'> = {
-            userId: user.uid,
+        const feeTrxRef = doc(collection(firestore, 'kasAccounts', feeBearerAccountId, 'transactions'));
+        const feeTrxData: Omit<Transaction, 'id' | 'userId'> = {
             kasAccountId: feeBearerAccountId,
             name: 'Biaya Admin Transfer',
             account: `Pindah saldo dari ${sourceAcc.label} ke ${destAcc.label}`,

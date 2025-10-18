@@ -92,59 +92,27 @@
         "name",
         "account",
         "date",
-        "amount",
-        "userId"
-      ]
-    },
-    "UserPreference": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "UserPreference",
-      "type": "object",
-      "description": "Stores user-specific preferences for the BrimoUI application.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the UserPreference entity."
-        },
-        "showBalance": {
-          "type": "boolean",
-          "description": "Indicates whether the user prefers to show or hide their balance."
-        },
-        "activeTab": {
-          "type": "string",
-          "description": "The user's currently active tab in the application."
-        }
-      },
-      "required": [
-        "id",
-        "showBalance",
-        "activeTab"
+        "amount"
       ]
     }
   },
   "auth": {
     "providers": [
-      "password"
+      "anonymous"
     ]
   },
   "firestore": {
-    "/users/{userId}/preferences/{preferenceId}": {
-      "schema": {
-        "$ref": "#/entities/UserPreference"
-      },
-      "description": "Stores user preferences. Only the authenticated user can access their own preferences. The 'preferenceId' should always be the user's uid. Since there will be only one document per user, this models a 1:1 relationship."
-    },
-    "/users/{userId}/kasAccounts/{kasAccountId}": {
+    "/kasAccounts/{kasAccountId}": {
       "schema": {
         "$ref": "#/entities/KasAccount"
       },
-      "description": "Stores cash account information for each user. Only the authenticated user can access their own kas accounts. The kasAccounts are owned by the user, which allows list and read operations to be secured by path. This models a 1:N relationship between users and KasAccounts."
+      "description": "Stores all cash accounts in a global, public collection. All users (anonymous or authenticated) can read and write to this collection."
     },
-    "/users/{userId}/kasAccounts/{kasAccountId}/transactions/{transactionId}": {
+    "/kasAccounts/{kasAccountId}/transactions/{transactionId}": {
       "schema": {
         "$ref": "#/entities/Transaction"
       },
-      "description": "Stores transaction history for each cash account. Only the authenticated user can access their own transactions. Transactions are owned by the user, which allows list and read operations to be secured by path. This models a 1:N relationship between KasAccounts and Transactions."
+      "description": "Stores transaction history for each cash account in a global, public subcollection. All users can read and write transactions for any account."
     }
   }
 }

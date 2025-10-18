@@ -1,9 +1,10 @@
+
 "use client";
 
 import { FileText, Send, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy } from 'firebase/firestore';
 import type { Transaction, KasAccount } from '@/lib/data';
 import { useEffect, useState } from 'react';
@@ -12,23 +13,17 @@ type TransactionWithId = Transaction & { id: string };
 
 export default function RecentTransactions() {
   const firestore = useFirestore();
-  const { user } = useUser();
   const [recentTransactions, setRecentTransactions] = useState<TransactionWithId[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const kasAccountsCollection = useMemoFirebase(() => {
-    if (!user?.uid) return null;
-    return collection(firestore, 'users', user.uid, 'kasAccounts');
-  }, [firestore, user?.uid]);
+    return collection(firestore, 'kasAccounts');
+  }, [firestore]);
 
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
 
   useEffect(() => {
     const fetchTransactions = async () => {
-      if (!user?.uid) {
-        // Still waiting for user, do nothing.
-        return;
-      }
       if (kasAccounts === null) {
         // kasAccounts are still loading, wait.
         return
@@ -40,7 +35,7 @@ export default function RecentTransactions() {
       try {
         if (kasAccounts.length > 0) {
             for (const account of kasAccounts) {
-                const transactionsRef = collection(firestore, 'users', user.uid, 'kasAccounts', account.id, 'transactions');
+                const transactionsRef = collection(firestore, 'kasAccounts', account.id, 'transactions');
                 const q = query(transactionsRef, orderBy('date', 'desc'));
                 const querySnapshot = await getDocs(q);
                 querySnapshot.forEach((doc) => {
@@ -60,7 +55,7 @@ export default function RecentTransactions() {
     };
 
     fetchTransactions();
-  }, [kasAccounts, user?.uid, firestore]);
+  }, [kasAccounts, firestore]);
 
 
   return (

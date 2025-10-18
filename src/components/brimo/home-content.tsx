@@ -8,7 +8,7 @@ import BottomNav from './bottom-nav';
 import PlaceholderContent from './placeholder-content';
 import SettingsContent from './settings-content';
 import { FileText, QrCode, Bell, ArrowRightLeft, Receipt } from 'lucide-react';
-import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy } from 'firebase/firestore';
 import type { KasAccount as KasAccountType, Transaction } from '@/lib/data';
 import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight } from 'lucide-react';
@@ -58,16 +58,14 @@ export default function HomeContent() {
   const [currentSlide, setCurrentSlide] = useState(0)
   
   const firestore = useFirestore();
-  const { user } = useUser();
 
   const plugin = useRef(
     Autoplay({ delay: 2000, stopOnInteraction: true })
   );
 
   const kasAccountsCollection = useMemoFirebase(() => {
-    if (!user?.uid) return null; // Wait for user
-    return collection(firestore, 'users', user.uid, 'kasAccounts');
-  }, [firestore, user?.uid]);
+    return collection(firestore, 'kasAccounts');
+  }, [firestore]);
 
   const { data: kasAccounts } = useCollection<KasAccountType>(kasAccountsCollection);
   
@@ -75,12 +73,12 @@ export default function HomeContent() {
 
   useEffect(() => {
     const fetchTransactions = async () => {
-      if (!user?.uid || kasAccounts === null) return;
+      if (kasAccounts === null) return;
       
       let allTransactions: Transaction[] = [];
       if (kasAccounts.length > 0) {
         for (const account of kasAccounts) {
-          const transactionsRef = collection(firestore, 'users', user.uid, 'kasAccounts', account.id, 'transactions');
+          const transactionsRef = collection(firestore, 'kasAccounts', account.id, 'transactions');
           const q = query(transactionsRef, orderBy('date', 'desc'));
           const querySnapshot = await getDocs(q);
           querySnapshot.forEach((doc) => {
@@ -93,7 +91,7 @@ export default function HomeContent() {
     };
 
     fetchTransactions();
-  }, [user, firestore, kasAccounts]);
+  }, [firestore, kasAccounts]);
 
 
   useEffect(() => {

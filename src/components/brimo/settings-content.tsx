@@ -7,15 +7,16 @@ import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/co
 import KasManagement from './KasManagement';
 import { useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { useRouter } from 'next/navigation';
 
 export default function SettingsContent() {
   const auth = useAuth();
-  const router = useRouter();
 
   const handleLogout = async () => {
-    await signOut(auth);
-    router.push('/login');
+    // With a shared data model, logging out is less critical, but we can still sign out.
+    // The user will be re-authenticated anonymously on the next load.
+    if (auth) {
+        await signOut(auth);
+    }
   };
 
   const settingsItems = [
@@ -37,7 +38,7 @@ export default function SettingsContent() {
               </div>
               <div>
                 <p className="font-semibold">Firebase Database</p>
-                <p className="text-xs opacity-90">Online & Tersinkronisasi</p>
+                <p className="text-xs opacity-90">Online & Shared</p>
               </div>
             </div>
             <div className="relative flex h-3 w-3">
@@ -51,7 +52,7 @@ export default function SettingsContent() {
               <button className="flex items-center justify-between p-4 bg-card-foreground/5 rounded-xl w-full hover:bg-card-foreground/10 transition-colors">
                 <div className="flex items-center gap-4">
                   <DollarSign size={20} className="text-muted-foreground" />
-                  <span className="font-medium">Kas Terintegrasi</span>
+                  <span className="font-medium">Saldo akun</span>
                 </div>
                 <ChevronRight size={20} className="text-muted-foreground" />
               </button>
@@ -76,7 +77,7 @@ export default function SettingsContent() {
           <button onClick={handleLogout} className="flex items-center justify-between p-4 bg-destructive/10 rounded-xl w-full hover:bg-destructive/20 transition-colors text-destructive">
               <div className="flex items-center gap-4">
                 <LogOut size={20} />
-                <span className="font-medium">Logout</span>
+                <span className="font-medium">Logout (Sign Out)</span>
               </div>
               <ChevronRight size={20} />
             </button>

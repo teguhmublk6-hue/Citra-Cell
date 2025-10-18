@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { doc, writeBatch, collection } from 'firebase/firestore';
 import type { KasAccount, Transaction } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
@@ -42,7 +42,6 @@ interface AddCapitalFormProps {
 
 export default function AddCapitalForm({ accounts, onDone }: AddCapitalFormProps) {
   const firestore = useFirestore();
-  const { user } = useUser();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -54,7 +53,7 @@ export default function AddCapitalForm({ accounts, onDone }: AddCapitalFormProps
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!user || !firestore) return;
+    if (!firestore) return;
 
     const targetAccount = accounts.find(acc => acc.id === values.accountId);
     if (!targetAccount) return;
@@ -65,13 +64,12 @@ export default function AddCapitalForm({ accounts, onDone }: AddCapitalFormProps
     const balanceAfter = balanceBefore + amount;
 
     // 1. Update the account balance
-    const accountRef = doc(firestore, 'users', user.uid, 'kasAccounts', values.accountId);
+    const accountRef = doc(firestore, 'kasAccounts', values.accountId);
     batch.update(accountRef, { balance: balanceAfter });
     
     // 2. Create a credit transaction
-    const transactionRef = doc(collection(firestore, 'users', user.uid, 'kasAccounts', values.accountId, 'transactions'));
-    const newTransaction: Omit<Transaction, 'id'> = {
-        userId: user.uid,
+    const transactionRef = doc(collection(firestore, 'kasAccounts', values.accountId, 'transactions'));
+    const newTransaction: Omit<Transaction, 'id' | 'userId'> = {
         kasAccountId: values.accountId,
         name: 'Penambahan Modal',
         account: 'Setoran Modal',

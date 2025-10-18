@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import type { KasAccount } from '@/lib/data';
@@ -16,7 +16,6 @@ import { cn } from '@/lib/utils';
 
 export default function KasManagement() {
   const firestore = useFirestore();
-  const { user } = useUser();
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -24,9 +23,8 @@ export default function KasManagement() {
   const [accountToDelete, setAccountToDelete] = useState<KasAccount | null>(null);
 
   const kasAccountsCollection = useMemoFirebase(() => {
-    if (!user?.uid) return null;
-    return collection(firestore, 'users', user.uid, 'kasAccounts');
-  }, [firestore, user?.uid]);
+    return collection(firestore, 'kasAccounts');
+  }, [firestore]);
 
   const { data: kasAccounts, isLoading } = useCollection<KasAccount>(kasAccountsCollection);
 
@@ -46,8 +44,8 @@ export default function KasManagement() {
   };
 
   const confirmDelete = () => {
-    if (accountToDelete && user?.uid) {
-      const docRef = doc(firestore, 'users', user.uid, 'kasAccounts', accountToDelete.id);
+    if (accountToDelete) {
+      const docRef = doc(firestore, 'kasAccounts', accountToDelete.id);
       deleteDocumentNonBlocking(docRef);
     }
     setIsDialogOpen(false);

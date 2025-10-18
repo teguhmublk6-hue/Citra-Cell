@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, where } from 'firebase/firestore';
 import type { KasAccount, Transaction } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -32,12 +32,9 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 
 export default function TransactionHistory({ account, onDone }: TransactionHistoryProps) {
   const firestore = useFirestore();
-  const { user } = useUser();
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const transactionsCollection = useMemoFirebase(() => {
-    if (!user?.uid) return null;
-    
     const constraints = [orderBy('date', 'desc')];
     if (dateRange?.from) {
       constraints.push(where('date', '>=', startOfDay(dateRange.from).toISOString()));
@@ -47,10 +44,10 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     }
     
     return query(
-      collection(firestore, 'users', user.uid, 'kasAccounts', account.id, 'transactions'),
+      collection(firestore, 'kasAccounts', account.id, 'transactions'),
       ...constraints
     );
-  }, [firestore, user?.uid, account.id, dateRange]);
+  }, [firestore, account.id, dateRange]);
   
   const { data: transactions, isLoading } = useCollection<TransactionWithId>(transactionsCollection);
 

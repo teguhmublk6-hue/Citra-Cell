@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -17,12 +17,10 @@ interface BalanceCardProps {
 export default function BalanceCard({ balanceType }: BalanceCardProps) {
   const [showBalance, setShowBalance] = useState(true);
   const firestore = useFirestore();
-  const { user } = useUser();
 
   const kasAccountsCollection = useMemoFirebase(() => {
-    if (!user?.uid) return null; // Wait for user
-    return collection(firestore, 'users', user.uid, 'kasAccounts');
-  }, [firestore, user?.uid]);
+    return collection(firestore, 'kasAccounts');
+  }, [firestore]);
 
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
 

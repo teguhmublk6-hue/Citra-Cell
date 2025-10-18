@@ -4,7 +4,8 @@ import { Wallet, Building2, Zap, Smartphone, ShoppingBag, Send, CreditCard, Gift
 
 export type KasAccount = {
   id: string;
-  userId: string;
+  // userId field is no longer needed for a shared data model
+  // userId: string; 
   label: string;
   type: string;
   balance: number;
@@ -13,11 +14,11 @@ export type KasAccount = {
 };
 
 export const kasAccounts: KasAccount[] = [
-  { id: 'tunai', userId: 'dummy', label: 'Tunai', type: 'Tunai', balance: 125000, minimumBalance: 50000, color: 'bg-green-500' },
-  { id: 'bank', userId: 'dummy', label: 'Bank', type: 'Bank', balance: 2500000, minimumBalance: 500000, color: 'bg-blue-500' },
-  { id: 'ppob', userId: 'dummy', label: 'PPOB', type: 'PPOB', balance: 50000, minimumBalance: 25000, color: 'bg-yellow-500' },
-  { id: 'ewallet', userId: 'dummy', label: 'E-Wallet', type: 'E-Wallet', balance: 375000, minimumBalance: 100000, color: 'bg-purple-500' },
-  { id: 'merchant', userId: 'dummy', label: 'Merchant', type: 'Merchant', balance: 0, minimumBalance: 0, color: 'bg-orange-500' },
+  { id: 'tunai', label: 'Tunai', type: 'Tunai', balance: 125000, minimumBalance: 50000, color: 'bg-green-500' },
+  { id: 'bank', label: 'Bank', type: 'Bank', balance: 2500000, minimumBalance: 500000, color: 'bg-blue-500' },
+  { id: 'ppob', label: 'PPOB', type: 'PPOB', balance: 50000, minimumBalance: 25000, color: 'bg-yellow-500' },
+  { id: 'ewallet', label: 'E-Wallet', type: 'E-Wallet', balance: 375000, minimumBalance: 100000, color: 'bg-purple-500' },
+  { id: 'merchant', label: 'Merchant', type: 'Merchant', balance: 0, minimumBalance: 0, color: 'bg-orange-500' },
 ];
 
 export type QuickService = {
@@ -46,7 +47,8 @@ export const ppobServices: QuickService[] = [
 
 export type Transaction = {
   id: string;
-  userId: string;
+  // userId field is no longer needed for a shared data model
+  // userId: string;
   kasAccountId: string;
   name: string;
   account: string;
@@ -83,5 +85,3 @@ export const accountTypes = [
     { value: 'PPOB', label: 'PPOB', color: 'bg-yellow-500' },
     { value: 'Merchant', label: 'Merchant', color: 'bg-orange-500' },
 ];
-
-    
