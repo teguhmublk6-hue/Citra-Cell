@@ -1,8 +1,10 @@
+
 "use client";
 
 import { useState } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, doc, deleteDoc } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
+import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import type { KasAccount } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2 } from 'lucide-react';
@@ -46,7 +48,7 @@ export default function KasManagement() {
   const confirmDelete = () => {
     if (accountToDelete && user?.uid) {
       const docRef = doc(firestore, 'users', user.uid, 'kasAccounts', accountToDelete.id);
-      deleteDoc(docRef);
+      deleteDocumentNonBlocking(docRef);
     }
     setIsDialogOpen(false);
     setAccountToDelete(null);
@@ -76,7 +78,10 @@ export default function KasManagement() {
               return (
                 <div key={account.id} className="flex items-center justify-between p-3 bg-card-foreground/5 rounded-lg">
                   <div>
-                    <p className="font-semibold">{account.label}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="font-semibold">{account.label}</p>
+                        {account.type && <p className="text-xs text-muted-foreground">({account.type})</p>}
+                    </div>
                     <p className={cn("text-sm", isBelowMinimum ? "text-red-500" : "text-muted-foreground")}>
                       Rp{account.balance.toLocaleString('id-ID')}
                     </p>

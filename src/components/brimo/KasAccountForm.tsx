@@ -56,7 +56,7 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
     resolver: zodResolver(formSchema),
     defaultValues: {
       label: account?.label || '',
-      type: account?.label || '',
+      type: account?.type || '',
       balance: account?.balance || undefined,
       minimumBalance: account?.minimumBalance || undefined,
     },
@@ -64,8 +64,12 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
 
   useEffect(() => {
     if (account) {
-        form.setValue('balance', account.balance);
-        form.setValue('minimumBalance', account.minimumBalance);
+        form.reset({
+            label: account.label,
+            type: account.type,
+            balance: account.balance,
+            minimumBalance: account.minimumBalance,
+        });
     }
   }, [account, form])
 
@@ -76,6 +80,7 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
     const accountData = {
       userId: user.uid,
       label: values.label,
+      type: values.type,
       balance: values.balance,
       minimumBalance: values.minimumBalance || 0,
       color: selectedType?.color || 'bg-gray-500',
@@ -145,7 +150,9 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
                       {...field}
                       value={formatToRupiah(field.value)}
                       onChange={(e) => {
-                          field.onChange(parseRupiah(e.target.value));
+                          const parsedValue = parseRupiah(e.target.value);
+                          field.onChange(parsedValue);
+                          e.target.value = formatToRupiah(parsedValue) || '';
                       }}
                       onBlur={(e) => {
                           const formatted = formatToRupiah(e.target.value);
@@ -176,7 +183,9 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
                       {...field}
                       value={formatToRupiah(field.value)}
                       onChange={(e) => {
-                          field.onChange(parseRupiah(e.target.value));
+                          const parsedValue = parseRupiah(e.target.value);
+                          field.onChange(parsedValue);
+                          e.target.value = formatToRupiah(parsedValue) || '';
                       }}
                       onBlur={(e) => {
                           const formatted = formatToRupiah(e.target.value);

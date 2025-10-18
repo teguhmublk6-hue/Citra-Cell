@@ -14,6 +14,10 @@
           "type": "string",
           "description": "The display name of the cash account (e.g., Tunai, Bank)."
         },
+        "type": {
+          "type": "string",
+          "description": "The type of the cash account (e.g., Tunai, Bank)."
+        },
         "balance": {
           "type": "number",
           "description": "The current balance of the cash account."
@@ -30,6 +34,7 @@
       "required": [
         "id",
         "label",
+        "type",
         "balance",
         "minimumBalance",
         "color"
