@@ -36,7 +36,7 @@ const formSchema = z.object({
     numberPreprocessor,
     z.number({ invalid_type_error: "Jumlah transfer harus angka" }).positive('Jumlah transfer harus lebih dari 0')
   ),
-  adminFee: z.preprocess(numberPreprocessor, z.number().min(0)),
+  adminFee: z.preprocess(numberPreprocessor, z.number().min(-1)),
   manualAdminFee: z.preprocess(numberPreprocessor, z.number().min(0).optional()),
   feeDeduction: z.enum(['source', 'destination'], { required_error: 'Opsi potong biaya harus dipilih' }),
 }).refine(data => data.sourceAccountId !== data.destinationAccountId, {
@@ -383,9 +383,3 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
     </Form>
   );
 }
-
-    
-
-    
-
-    
