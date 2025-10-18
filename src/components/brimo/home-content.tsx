@@ -9,7 +9,7 @@ import PlaceholderContent from './placeholder-content';
 import SettingsContent from './settings-content';
 import { FileText, QrCode, Bell, ArrowRightLeft, Receipt } from 'lucide-react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { collection, collectionGroup, query, where, getDocs, orderBy } from 'firebase/firestore';
 import type { KasAccount as KasAccountType, Transaction } from '@/lib/data';
 import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight } from 'lucide-react';
 import Header from './header';
@@ -34,6 +34,7 @@ import OperationalCostReport from './OperationalCostReport';
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/components/ui/carousel';
 import { cn } from '@/lib/utils';
 import Autoplay from 'embla-carousel-autoplay';
+import { ScrollArea } from '../ui/scroll-area';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -67,16 +68,30 @@ export default function HomeContent() {
   }, [firestore, user?.uid]);
 
   const { data: kasAccounts } = useCollection<KasAccountType>(kasAccountsCollection);
+  
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  const allTransactionsCollectionGroup = useMemoFirebase(() => {
-    if (!user?.uid || !kasAccounts) return null;
-    // This hook doesn't support collectionGroup queries directly yet,
-    // so we'll fetch them inside the components that need them.
-    // This is just to pass some form of dependency.
-    return collection(firestore, `users/${user.uid}/kasAccounts`);
-  }, [firestore, user?.uid, kasAccounts]);
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      if (!user?.uid || kasAccounts === null) return;
+      
+      let allTransactions: Transaction[] = [];
+      if (kasAccounts.length > 0) {
+        for (const account of kasAccounts) {
+          const transactionsRef = collection(firestore, 'users', user.uid, 'kasAccounts', account.id, 'transactions');
+          const q = query(transactionsRef, orderBy('date', 'desc'));
+          const querySnapshot = await getDocs(q);
+          querySnapshot.forEach((doc) => {
+            allTransactions.push({ ...(doc.data() as Transaction), id: doc.id });
+          });
+        }
+      }
+      allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setTransactions(allTransactions);
+    };
 
-  const { data: transactions } = useCollection<Transaction>(allTransactionsCollectionGroup);
+    fetchTransactions();
+  }, [user, firestore, kasAccounts]);
 
 
   useEffect(() => {
@@ -130,7 +145,7 @@ export default function HomeContent() {
             </div>
             <div className="flex flex-col gap-4 px-4">
                 <Sheet open={!!activeSheet} onOpenChange={(isOpen) => !isOpen && setActiveSheet(null)}>
-                  <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
+                  <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="item-1" className="border-none">
                       <div className="p-3 bg-card/80 backdrop-blur-md rounded-2xl shadow-lg border border-border/20 flex items-center justify-between gap-2 data-[state=open]:rounded-b-none">
                         <AccordionTrigger className="flex-1 p-0 justify-start">
@@ -162,25 +177,27 @@ export default function HomeContent() {
                       </div>
 
                       <AccordionContent className="p-0">
-                        <div className="flex flex-col gap-0 rounded-b-2xl overflow-hidden border border-t-0 border-border/20 shadow-lg">
-                          {kasAccounts?.map((account) => {
-                              const Icon = iconMap[account.label] || iconMap['default'];
-                              return (
-                              <div key={account.id} className="p-3 bg-card/80 backdrop-blur-md flex items-center justify-between gap-4 border-t border-border/10">
-                                  <div className="flex items-center gap-3">
-                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${account.color}`}>
-                                          <Icon size={20} className="text-white" />
-                                      </div>
-                                      <div>
-                                          <p className="font-semibold text-sm">{account.label}</p>
-                                          <p className="text-muted-foreground text-xs">Rp{account.balance.toLocaleString('id-ID')}</p>
-                                      </div>
-                                  </div>
-                                  <ChevronRight size={18} className="text-muted-foreground" />
-                              </div>
-                              );
-                          })}
-                        </div>
+                        <ScrollArea className="h-[280px]">
+                            <div className="flex flex-col gap-0 rounded-b-2xl overflow-hidden border border-t-0 border-border/20 shadow-lg">
+                            {kasAccounts?.map((account) => {
+                                const Icon = iconMap[account.label] || iconMap['default'];
+                                return (
+                                <div key={account.id} className="p-3 bg-card/80 backdrop-blur-md flex items-center justify-between gap-4 border-t border-border/10">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${account.color}`}>
+                                            <Icon size={20} className="text-white" />
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-sm">{account.label}</p>
+                                            <p className="text-muted-foreground text-xs">Rp{account.balance.toLocaleString('id-ID')}</p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight size={18} className="text-muted-foreground" />
+                                </div>
+                                );
+                            })}
+                            </div>
+                        </ScrollArea>
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
@@ -194,7 +211,7 @@ export default function HomeContent() {
                       </SheetHeader>
                       {activeSheet === 'addCapital' && <AddCapitalForm accounts={kasAccounts || []} onDone={() => setActiveSheet(null)} />}
                       {activeSheet === 'transferBalance' && <TransferBalanceForm accounts={kasAccounts || []} onDone={() => setActiveSheet(null)} />}
-                      {activeSheet === 'operationalCost' && <OperationalCostReport accounts={kasAccounts || []} transactions={transactions || []} onDone={() => setActiveSheet(null)} />}
+                      {activeSheet === 'operationalCost' && <OperationalCostReport accounts={kasAccounts || []} onDone={() => setActiveSheet(null)} />}
                   </SheetContent>
                 </Sheet>
                 <QuickServices />

@@ -41,7 +41,6 @@ const costFormSchema = z.object({
 
 interface OperationalCostReportProps {
   accounts: KasAccount[];
-  transactions: Transaction[];
   onDone: () => void;
 }
 
@@ -252,5 +251,4 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
       </div>
     </div>
   );
-
     
