@@ -70,7 +70,7 @@ export default function SettingsContent() {
               <button className="flex items-center justify-between p-4 bg-card-foreground/5 rounded-xl w-full hover:bg-card-foreground/10 transition-colors">
                 <div className="flex items-center gap-4">
                   <DollarSign size={20} className="text-muted-foreground" />
-                  <span className="font-medium">Saldo akun</span>
+                  <span className="font-medium">Manajemen Akun Kas</span>
                 </div>
                 <ChevronRight size={20} className="text-muted-foreground" />
               </button>

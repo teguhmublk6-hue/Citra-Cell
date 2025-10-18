@@ -21,11 +21,11 @@ interface DeleteAllKasAccountsDialogProps {
     onConfirm: () => void;
 }
 
-const CONFIRMATION_KEYWORD = "HAPUS SEMUA";
+const CONFIRMATION_KEYWORD = "RESET SEMUA";
 
 export default function DeleteAllKasAccountsDialog({ isOpen, onClose, onConfirm }: DeleteAllKasAccountsDialogProps) {
     const [inputValue, setInputValue] = useState("");
-    const isConfirmed = inputValue === CONFIRMATION_KEYWORD;
+    const isConfirmed = inputValue.toUpperCase() === CONFIRMATION_KEYWORD;
 
     const handleConfirm = () => {
         if (isConfirmed) {
@@ -45,7 +45,7 @@ export default function DeleteAllKasAccountsDialog({ isOpen, onClose, onConfirm 
                 <AlertDialogHeader>
                     <AlertDialogTitle>Apakah Anda Benar-Benar Yakin?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Tindakan ini akan menghapus <strong>SEMUA</strong> akun kas dan <strong>SELURUH</strong> riwayat transaksinya secara permanen. Tindakan ini tidak dapat diurungkan.
+                        Tindakan ini akan mereset saldo <strong>SEMUA</strong> akun kas menjadi Rp 0 dan menghapus <strong>SELURUH</strong> riwayat transaksinya secara permanen. Tindakan ini tidak dapat diurungkan.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <div className="space-y-2">
@@ -66,7 +66,7 @@ export default function DeleteAllKasAccountsDialog({ isOpen, onClose, onConfirm 
                         disabled={!isConfirmed}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:bg-destructive/50"
                     >
-                        Ya, Hapus Semuanya
+                        Ya, Reset Semuanya
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

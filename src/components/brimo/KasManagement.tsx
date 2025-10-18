@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, writeBatch } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDocs } from 'firebase/firestore';
 import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import type { KasAccount } from '@/lib/data';
 import { Button } from '@/components/ui/button';
@@ -56,40 +56,58 @@ export default function KasManagement() {
     setAccountToDelete(null);
   };
 
-  const confirmDeleteAll = async () => {
+  const confirmResetAll = async () => {
     if (!firestore || !kasAccounts || kasAccounts.length === 0) {
         toast({
             variant: "destructive",
             title: "Tidak Ada Akun",
-            description: "Tidak ada akun kas untuk dihapus.",
+            description: "Tidak ada akun kas untuk direset.",
         });
+        setIsDeleteAllDialogOpen(false);
         return;
     }
 
-    // NOTE: This does not delete subcollections (transactions). 
-    // A cloud function is required for robust recursive deletion.
-    // For this client-side app, we only delete the account documents.
-    const batch = writeBatch(firestore);
-    kasAccounts.forEach(account => {
-        const docRef = doc(firestore, 'kasAccounts', account.id);
-        batch.delete(docRef);
+    toast({
+        title: "Memproses...",
+        description: "Mereset saldo dan riwayat transaksi semua akun.",
     });
 
     try {
-        await batch.commit();
+        for (const account of kasAccounts) {
+            const accountRef = doc(firestore, 'kasAccounts', account.id);
+            const transactionsRef = collection(accountRef, 'transactions');
+            
+            // Get all transactions to delete them in a batch
+            const transactionsSnapshot = await getDocs(transactionsRef);
+            
+            const batch = writeBatch(firestore);
+
+            // Reset account balance
+            batch.update(accountRef, { balance: 0 });
+
+            // Delete all transactions in the subcollection
+            transactionsSnapshot.forEach(transactionDoc => {
+                batch.delete(transactionDoc.ref);
+            });
+
+            await batch.commit();
+        }
+        
         toast({
             title: "Berhasil",
-            description: "Semua akun kas telah berhasil dihapus.",
+            description: "Semua saldo akun telah direset dan riwayat transaksi dihapus.",
         });
+
     } catch (e) {
-        console.error("Error deleting all accounts: ", e);
+        console.error("Error resetting all accounts: ", e);
         toast({
             variant: "destructive",
-            title: "Gagal Menghapus",
-            description: "Terjadi kesalahan saat menghapus semua akun kas.",
+            title: "Gagal Mereset",
+            description: "Terjadi kesalahan saat mereset semua akun.",
         });
+    } finally {
+        setIsDeleteAllDialogOpen(false);
     }
-    setIsDeleteAllDialogOpen(false);
   };
   
   if (isFormOpen) {
@@ -105,7 +123,7 @@ export default function KasManagement() {
             </Button>
              <Button variant="destructive" onClick={() => setIsDeleteAllDialogOpen(true)} className="w-full">
                 <ShieldAlert size={16} className="mr-2" />
-                Hapus Semua Akun
+                Reset Semua Akun
             </Button>
         </div>
         <p className="px-1 text-sm font-semibold mb-2 text-muted-foreground">Daftar Akun</p>
@@ -158,7 +176,7 @@ export default function KasManagement() {
         <DeleteAllKasAccountsDialog
             isOpen={isDeleteAllDialogOpen}
             onClose={() => setIsDeleteAllDialogOpen(false)}
-            onConfirm={confirmDeleteAll}
+            onConfirm={confirmResetAll}
         />
     </div>
   );
