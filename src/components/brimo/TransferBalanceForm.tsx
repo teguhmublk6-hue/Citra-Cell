@@ -13,6 +13,7 @@ import { doc, writeBatch, collection, serverTimestamp } from 'firebase/firestore
 import type { KasAccount, Transaction } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '../ui/alert';
+import { ScrollArea } from '../ui/scroll-area';
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
 
@@ -118,7 +119,7 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
 
     // 2. Create debit transaction for source account
     const sourceTransactionRef = doc(collection(firestore, 'kasAccounts', sourceAccount.id, 'transactions'));
-    const sourceTransaction: Omit<Transaction, 'id' | 'userId'> = {
+    const sourceTransaction: Omit<Transaction, 'id'> = {
       kasAccountId: sourceAccount.id,
       name: `Transfer ke: ${destinationAccount.label}`,
       account: destinationAccount.label,
@@ -127,7 +128,7 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
       type: 'debit',
       category: 'transfer',
       balanceBefore: sourceBalanceBefore,
-      balanceAfter: sourceBalanceAfter - (finalFee > 0 ? finalFee : 0),
+      balanceAfter: sourceBalanceAfter + (finalFee > 0 ? finalFee : 0),
       sourceKasAccountId: sourceAccount.id,
       destinationKasAccountId: destinationAccount.id,
     };
@@ -136,7 +137,7 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
     // 3. Create debit transaction for admin fee if applicable
     if (finalFee > 0) {
         const feeTransactionRef = doc(collection(firestore, 'kasAccounts', sourceAccount.id, 'transactions'));
-        const feeTransaction: Omit<Transaction, 'id' | 'userId'> = {
+        const feeTransaction: Omit<Transaction, 'id'> = {
             kasAccountId: sourceAccount.id,
             name: `Biaya Admin Transfer ke: ${destinationAccount.label}`,
             account: 'Biaya Admin',
@@ -158,7 +159,7 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
 
     // 5. Create credit transaction for destination account
     const destinationTransactionRef = doc(collection(firestore, 'kasAccounts', destinationAccount.id, 'transactions'));
-    const destinationTransaction: Omit<Transaction, 'id' | 'userId'> = {
+    const destinationTransaction: Omit<Transaction, 'id'> = {
         kasAccountId: destinationAccount.id,
         name: `Transfer dari: ${sourceAccount.label}`,
         account: sourceAccount.label,
@@ -193,107 +194,109 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 flex flex-col h-full pt-4">
-        <div className="flex-1 space-y-4">
-            <FormField
-              control={form.control}
-              name="sourceAccountId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Dari Akun</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Pilih akun sumber..." /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {accounts.map(account => (
-                        <SelectItem key={account.id} value={account.id}>{account.label} ({formatToRupiah(account.balance)})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="destinationAccountId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Ke Akun</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Pilih akun tujuan..." /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {accounts.map(account => (
-                        <SelectItem key={account.id} value={account.id}>{account.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Jumlah Transfer</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="text" placeholder="Rp 0" {...field}
-                      value={formatToRupiah(field.value)}
-                      onChange={(e) => field.onChange(parseRupiah(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
+        <ScrollArea className="flex-1 -mx-6 px-6">
+          <div className="space-y-4 pt-4 pb-6">
+              <FormField
                 control={form.control}
-                name="adminFee"
+                name="sourceAccountId"
                 render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Biaya Admin</FormLabel>
-                    <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={String(field.value)}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Pilih biaya admin..." /></SelectTrigger></FormControl>
-                        <SelectContent>
-                        {adminFeeOptions.map(opt => (
-                            <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
+                  <FormItem>
+                    <FormLabel>Dari Akun</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Pilih akun sumber..." /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {accounts.map(account => (
+                          <SelectItem key={account.id} value={account.id}>{account.label} ({formatToRupiah(account.balance)})</SelectItem>
                         ))}
-                        </SelectContent>
+                      </SelectContent>
                     </Select>
                     <FormMessage />
-                    </FormItem>
+                  </FormItem>
                 )}
-            />
-            {isManualFee && (
-                <FormField
-                    control={form.control}
-                    name="manualAdminFee"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Nominal Biaya Admin Manual</FormLabel>
-                        <FormControl>
-                            <Input 
-                                type="text" placeholder="Rp 0" {...field}
-                                value={formatToRupiah(field.value)}
-                                onChange={(e) => field.onChange(parseRupiah(e.target.value))}
-                            />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            )}
-             {totalDeduction > 0 && (
-                <Alert>
-                    <AlertDescription className="flex justify-between items-center text-sm">
-                        <span>Total Potongan Saldo:</span>
-                        <span className="font-semibold">{formatToRupiah(totalDeduction)}</span>
-                    </AlertDescription>
-                </Alert>
-            )}
-        </div>
-        <div className="flex gap-2">
+              />
+              <FormField
+                control={form.control}
+                name="destinationAccountId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ke Akun</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Pilih akun tujuan..." /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {accounts.map(account => (
+                          <SelectItem key={account.id} value={account.id}>{account.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Jumlah Transfer</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="text" placeholder="Rp 0" {...field}
+                        value={formatToRupiah(field.value)}
+                        onChange={(e) => field.onChange(parseRupiah(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                  control={form.control}
+                  name="adminFee"
+                  render={({ field }) => (
+                      <FormItem>
+                      <FormLabel>Biaya Admin</FormLabel>
+                      <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={String(field.value)}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Pilih biaya admin..." /></SelectTrigger></FormControl>
+                          <SelectContent>
+                          {adminFeeOptions.map(opt => (
+                              <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
+                          ))}
+                          </SelectContent>
+                      </Select>
+                      <FormMessage />
+                      </FormItem>
+                  )}
+              />
+              {isManualFee && (
+                  <FormField
+                      control={form.control}
+                      name="manualAdminFee"
+                      render={({ field }) => (
+                          <FormItem>
+                          <FormLabel>Nominal Biaya Admin Manual</FormLabel>
+                          <FormControl>
+                              <Input 
+                                  type="text" placeholder="Rp 0" {...field}
+                                  value={formatToRupiah(field.value)}
+                                  onChange={(e) => field.onChange(parseRupiah(e.target.value))}
+                              />
+                          </FormControl>
+                          <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+              )}
+              {totalDeduction > 0 && (
+                  <Alert>
+                      <AlertDescription className="flex justify-between items-center text-sm">
+                          <span>Total Potongan Saldo:</span>
+                          <span className="font-semibold">{formatToRupiah(totalDeduction)}</span>
+                      </AlertDescription>
+                  </Alert>
+              )}
+          </div>
+        </ScrollArea>
+        <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
             <Button type="button" variant="outline" onClick={onDone} className="w-full">Batal</Button>
             <Button type="submit" className="w-full" disabled={totalDeduction > sourceAccountBalance || totalDeduction <= 0}>Pindah Saldo</Button>
         </div>
@@ -302,3 +305,4 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
   );
 }
 
+    
