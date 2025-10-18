@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Bell, RefreshCw, Check } from 'lucide-react';
+import { Bell, RotateCw, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { Input } from '../ui/input';
@@ -84,7 +84,7 @@ export default function Header({ onSync, isSyncing }: HeaderProps) {
             <Bell size={20} />
           </Button>
           <Button variant="ghost" size="icon" className="bg-white/10 hover:bg-white/20 rounded-full text-primary-foreground" onClick={onSync} disabled={isSyncing}>
-            <RefreshCw size={20} className={isSyncing ? "animate-spin" : ""} />
+            <RotateCw size={20} className={isSyncing ? "animate-spin" : ""} />
           </Button>
         </div>
       </div>
