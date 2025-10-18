@@ -1,3 +1,4 @@
+
 import type { LucideIcon } from 'lucide-react';
 import { Wallet, Building2, Zap, Smartphone, ShoppingBag, Send, CreditCard, Gift, FileText, QrCode, Bell, Settings, Home, MoreHorizontal, Phone, Wifi, Lightbulb, Droplets, HeartPulse } from 'lucide-react';
 
@@ -52,6 +53,7 @@ export type Transaction = {
   date: string;
   amount: number;
   type: 'credit' | 'debit';
+  category?: 'operational' | string;
 };
 
 
@@ -79,3 +81,5 @@ export const accountTypes = [
     { value: 'PPOB', label: 'PPOB', color: 'bg-yellow-500' },
     { value: 'Merchant', label: 'Merchant', color: 'bg-orange-500' },
 ];
+
+    

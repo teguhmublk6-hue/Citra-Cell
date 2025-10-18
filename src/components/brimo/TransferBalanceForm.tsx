@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useFirestore, useUser } from '@/firebase';
-import { doc, writeBatch } from 'firebase/firestore';
+import { doc, writeBatch, collection } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { useState } from 'react';
 
@@ -91,6 +91,8 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
 
     let sourceNewBalance = sourceAcc.balance;
     let destNewBalance = destAcc.balance;
+    
+    const batch = writeBatch(firestore);
 
     if (values.feeDeduction === 'source') {
         if (sourceAcc.balance < transferAmount + fee) {
@@ -108,12 +110,29 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
         destNewBalance += (transferAmount - fee);
     }
     
-    const batch = writeBatch(firestore);
     const sourceRef = doc(firestore, 'users', user.uid, 'kasAccounts', sourceAcc.id);
     const destRef = doc(firestore, 'users', user.uid, 'kasAccounts', destAcc.id);
 
     batch.update(sourceRef, { balance: sourceNewBalance });
     batch.update(destRef, { balance: destNewBalance });
+
+    // Create a transaction for the admin fee
+    if (fee > 0) {
+        const feeBearerAccountId = values.feeDeduction === 'source' ? sourceAcc.id : destAcc.id;
+        const transactionsRef = collection(firestore, 'users', user.uid, 'kasAccounts', feeBearerAccountId, 'transactions');
+        const transactionData = {
+            userId: user.uid,
+            kasAccountId: feeBearerAccountId,
+            name: `Biaya Admin Transfer ke ${destAcc.label}`,
+            account: `Dari ${sourceAcc.label}`,
+            date: new Date().toISOString(),
+            amount: fee,
+            type: 'debit',
+            category: 'operational',
+        };
+        const newTransactionRef = doc(transactionsRef);
+        batch.set(newTransactionRef, transactionData);
+    }
 
     await batch.commit();
     onDone();
@@ -179,8 +198,9 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
                             placeholder="Rp 0"
                             {...field}
                             value={formatToRupiah(field.value)}
-                            onChange={(e) => {
-                                field.onChange(parseRupiah(e.target.value));
+                             onChange={(e) => {
+                                const parsedValue = parseRupiah(e.target.value);
+                                field.onChange(parsedValue);
                             }}
                             onBlur={(e) => {
                                 const formatted = formatToRupiah(e.target.value);
@@ -242,7 +262,8 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
                                 {...field}
                                 value={formatToRupiah(field.value)}
                                 onChange={(e) => {
-                                    field.onChange(parseRupiah(e.target.value));
+                                    const parsedValue = parseRupiah(e.target.value);
+                                    field.onChange(parsedValue);
                                 }}
                                 onBlur={(e) => {
                                     const formatted = formatToRupiah(e.target.value);
@@ -304,3 +325,5 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
     </Form>
   );
 }
+
+    

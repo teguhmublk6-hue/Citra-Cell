@@ -10,7 +10,7 @@ import SettingsContent from './settings-content';
 import { FileText, QrCode, Bell, ArrowRightLeft, Receipt } from 'lucide-react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
-import type { KasAccount as KasAccountType } from '@/lib/data';
+import type { KasAccount as KasAccountType, Transaction } from '@/lib/data';
 import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight } from 'lucide-react';
 import Header from './header';
 import BalanceCard from './balance-card';
@@ -27,9 +27,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import AddCapitalForm from './AddCapitalForm';
 import TransferBalanceForm from './TransferBalanceForm';
+import OperationalCostReport from './OperationalCostReport';
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/components/ui/carousel';
 import { cn } from '@/lib/utils';
 import Autoplay from 'embla-carousel-autoplay';
@@ -45,7 +46,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'qris' | 'inbox' | 'settings';
-type ActiveSheet = null | 'addCapital' | 'transferBalance';
+type ActiveSheet = null | 'addCapital' | 'transferBalance' | 'operationalCost';
 
 export default function HomeContent() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
@@ -66,6 +67,17 @@ export default function HomeContent() {
   }, [firestore, user?.uid]);
 
   const { data: kasAccounts } = useCollection<KasAccountType>(kasAccountsCollection);
+
+  const allTransactionsCollectionGroup = useMemoFirebase(() => {
+    if (!user?.uid || !kasAccounts) return null;
+    // This hook doesn't support collectionGroup queries directly yet,
+    // so we'll fetch them inside the components that need them.
+    // This is just to pass some form of dependency.
+    return collection(firestore, `users/${user.uid}/kasAccounts`);
+  }, [firestore, user?.uid, kasAccounts]);
+
+  const { data: transactions } = useCollection<Transaction>(allTransactionsCollectionGroup);
+
 
   useEffect(() => {
     if (!carouselApi) return;
@@ -128,7 +140,7 @@ export default function HomeContent() {
                         </AccordionTrigger>
 
                         <div className="flex items-center">
-                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => setActiveSheet('operationalCost')}>
                                 <Receipt size={16} />
                             </Button>
                             <DropdownMenu>
@@ -177,10 +189,12 @@ export default function HomeContent() {
                           <SheetTitle>
                             {activeSheet === 'addCapital' && 'Tambah Modal Saldo Kas'}
                             {activeSheet === 'transferBalance' && 'Pindah Saldo Antar Kas'}
+                            {activeSheet === 'operationalCost' && 'Laporan Biaya Operasional'}
                           </SheetTitle>
                       </SheetHeader>
                       {activeSheet === 'addCapital' && <AddCapitalForm accounts={kasAccounts || []} onDone={() => setActiveSheet(null)} />}
                       {activeSheet === 'transferBalance' && <TransferBalanceForm accounts={kasAccounts || []} onDone={() => setActiveSheet(null)} />}
+                      {activeSheet === 'operationalCost' && <OperationalCostReport accounts={kasAccounts || []} transactions={transactions || []} onDone={() => setActiveSheet(null)} />}
                   </SheetContent>
                 </Sheet>
                 <QuickServices />
@@ -208,3 +222,5 @@ export default function HomeContent() {
     </>
   );
 }
+
+    
