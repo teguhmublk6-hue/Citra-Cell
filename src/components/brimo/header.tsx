@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Bell, User, Pencil, Check } from 'lucide-react';
+import { Bell, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { Input } from '../ui/input';
@@ -12,13 +12,11 @@ export default function Header() {
   const [inputValue, setInputValue] = useState('');
 
   useEffect(() => {
-    // localStorage is only available on the client
     const storedName = localStorage.getItem('brimoDeviceName');
     if (storedName) {
       setDeviceName(storedName);
       setInputValue(storedName);
     } else {
-      // If no name is set, automatically enter editing mode.
       setIsEditing(true);
     }
   }, []);
@@ -31,10 +29,6 @@ export default function Header() {
       setIsEditing(false);
     }
   };
-
-  const handleEdit = () => {
-    setIsEditing(true);
-  }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -65,9 +59,6 @@ export default function Header() {
           ) : (
             <div className="flex items-center gap-2">
               <p className="text-xl font-semibold">{deviceName || 'Pengguna Brimo'}</p>
-              <Button onClick={handleEdit} variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-white/20">
-                <Pencil size={14} />
-              </Button>
             </div>
           )}
         </div>

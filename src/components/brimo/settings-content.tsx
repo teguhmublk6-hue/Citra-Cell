@@ -1,12 +1,42 @@
 
 "use client";
 
-import { ChevronRight, Bell, User, DollarSign, Settings } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronRight, Bell, User, DollarSign, Settings, Pencil, Check, Smartphone as SmartphoneIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import KasManagement from './KasManagement';
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
 
 export default function SettingsContent() {
+  const [deviceName, setDeviceName] = useState('');
+  const [isEditingDeviceName, setIsEditingDeviceName] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+
+  useEffect(() => {
+    const storedName = localStorage.getItem('brimoDeviceName') || '';
+    setDeviceName(storedName);
+    setInputValue(storedName);
+  }, []);
+
+  const handleDeviceNameSave = () => {
+    if (inputValue.trim()) {
+      const newName = inputValue.trim();
+      localStorage.setItem('brimoDeviceName', newName);
+      setDeviceName(newName);
+      setIsEditingDeviceName(false);
+      // Optional: force a re-render or reload if the header needs to update immediately
+      window.dispatchEvent(new Event('storage'));
+    }
+  };
+
+  const handleDeviceNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleDeviceNameSave();
+    }
+  };
+  
   const settingsItems = [
     { icon: User, label: 'Profil Akun' },
     { icon: Bell, label: 'Notifikasi' },
@@ -52,6 +82,38 @@ export default function SettingsContent() {
                 <KasManagement />
             </SheetContent>
           </Sheet>
+
+          <div className="p-4 bg-card-foreground/5 rounded-xl w-full">
+            {isEditingDeviceName ? (
+              <div className="flex items-center gap-2">
+                <SmartphoneIcon size={20} className="text-muted-foreground" />
+                <Input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleDeviceNameKeyDown}
+                  className="h-9 flex-1"
+                  autoFocus
+                />
+                <Button onClick={handleDeviceNameSave} size="icon" className="h-9 w-9 bg-green-500 hover:bg-green-600">
+                  <Check size={18} />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <SmartphoneIcon size={20} className="text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Nama Perangkat</p>
+                    <p className="text-sm text-muted-foreground">{deviceName || 'Belum diatur'}</p>
+                  </div>
+                </div>
+                <Button onClick={() => setIsEditingDeviceName(true)} variant="ghost" size="icon">
+                  <Pencil size={16} />
+                </Button>
+              </div>
+            )}
+          </div>
 
           {settingsItems.map((item, idx) => (
             <button key={idx} className="flex items-center justify-between p-4 bg-card-foreground/5 rounded-xl w-full hover:bg-card-foreground/10 transition-colors">
