@@ -7,7 +7,7 @@ import RecentTransactions from './recent-transactions';
 import BottomNav from './bottom-nav';
 import PlaceholderContent from './placeholder-content';
 import SettingsContent from './settings-content';
-import { FileText, QrCode, Bell, Receipt, Plus } from 'lucide-react';
+import { FileText, QrCode, Bell, Receipt, Plus, ArrowRightLeft } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, CollectionReference, DocumentData } from 'firebase/firestore';
 import type { KasAccount as KasAccountType, Transaction } from '@/lib/data';
@@ -31,6 +31,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import AddCapitalForm from './AddCapitalForm';
 import OperationalCostReport from './OperationalCostReport';
 import TransactionHistory from './TransactionHistory';
+import TransferBalanceForm from './TransferBalanceForm';
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/components/ui/carousel';
 import { cn } from '@/lib/utils';
 import Autoplay from 'embla-carousel-autoplay';
@@ -48,7 +49,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'qris' | 'inbox' | 'settings';
-type ActiveSheet = null | 'addCapital' | 'operationalCost' | 'history';
+type ActiveSheet = null | 'addCapital' | 'operationalCost' | 'history' | 'transfer';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -169,6 +170,9 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                             <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={(e) => { e.stopPropagation(); setActiveSheet('operationalCost'); }}>
                                 <Receipt size={16} />
                             </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={(e) => { e.stopPropagation(); setActiveSheet('transfer'); }}>
+                                <ArrowRightLeft size={16} />
+                            </Button>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={(e) => e.stopPropagation()}>
@@ -215,11 +219,13 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                             {activeSheet === 'addCapital' && 'Tambah Modal Saldo Kas'}
                             {activeSheet === 'operationalCost' && 'Laporan Biaya Operasional'}
                             {activeSheet === 'history' && `Riwayat Mutasi: ${selectedAccount?.label}`}
+                            {activeSheet === 'transfer' && 'Pindah Saldo Antar Akun'}
                           </SheetTitle>
                       </SheetHeader>
                       {activeSheet === 'addCapital' && kasAccounts && <AddCapitalForm accounts={kasAccounts} onDone={() => setActiveSheet(null)} />}
                       {activeSheet === 'operationalCost' && kasAccounts && <OperationalCostReport accounts={kasAccounts} onDone={() => setActiveSheet(null)} />}
                       {activeSheet === 'history' && selectedAccount && <TransactionHistory account={selectedAccount} onDone={() => setActiveSheet(null)} />}
+                      {activeSheet === 'transfer' && kasAccounts && <TransferBalanceForm accounts={kasAccounts} onDone={() => setActiveSheet(null)} />}
                   </SheetContent>
                 </Sheet>
                 <QuickServices />

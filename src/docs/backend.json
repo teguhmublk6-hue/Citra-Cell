@@ -1,0 +1,121 @@
+
+{
+  "entities": {
+    "KasAccount": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "KasAccount",
+      "type": "object",
+      "description": "Represents a cash account within the BrimoUI application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the KasAccount entity."
+        },
+        "label": {
+          "type": "string",
+          "description": "The display name of the cash account (e.g., Tunai, Bank)."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of the cash account (e.g., Tunai, Bank)."
+        },
+        "balance": {
+          "type": "number",
+          "description": "The current balance of the cash account."
+        },
+        "minimumBalance": {
+          "type": "number",
+          "description": "The minimum balance threshold for the account."
+        },
+        "color": {
+          "type": "string",
+          "description": "The background color associated with the account for UI rendering."
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "type",
+        "balance",
+        "minimumBalance",
+        "color"
+      ]
+    },
+    "Transaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Transaction",
+      "type": "object",
+      "description": "Represents a financial transaction.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Transaction entity."
+        },
+        "kasAccountId": {
+          "type": "string",
+          "description": "Reference to the KasAccount where this transaction is recorded."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of transaction (e.g., credit, debit)."
+        },
+        "name": {
+          "type": "string",
+          "description": "A descriptive name for the transaction."
+        },
+        "account": {
+          "type": "string",
+          "description": "The counterparty account or description for the transaction."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the transaction.",
+          "format": "date-time"
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount of the transaction."
+        },
+        "balanceBefore": {
+            "type": "number",
+            "description": "The balance of the kas account before the transaction."
+        },
+        "balanceAfter": {
+            "type": "number",
+            "description": "The balance of the kas account after the transaction."
+        },
+        "sourceKasAccountId": {
+            "type": "string",
+            "description": "For transfers, the ID of the source KasAccount."
+        },
+        "destinationKasAccountId": {
+            "type": "string",
+            "description": "For transfers, the ID of the destination KasAccount."
+        }
+      },
+      "required": [
+        "id",
+        "kasAccountId",
+        "type",
+        "name",
+        "account",
+        "date",
+        "amount"
+      ]
+    }
+  },
+  "firestore": {
+    "/kasAccounts/{kasAccountId}": {
+      "schema": {
+        "$ref": "#/entities/KasAccount"
+      },
+      "description": "Stores all cash accounts in a global, public collection. All users (anonymous or authenticated) can read and write to this collection."
+    },
+    "/kasAccounts/{kasAccountId}/transactions/{transactionId}": {
+      "schema": {
+        "$ref": "#/entities/Transaction"
+      },
+      "description": "Stores transaction history for each cash account in a global, public subcollection. All users can read and write transactions for any account."
+    }
+  }
+}
