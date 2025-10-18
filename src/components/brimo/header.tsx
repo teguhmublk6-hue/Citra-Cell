@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 
 export default function Header() {
   return (
-    <header className="bg-gradient-to-br from-primary to-[hsl(235,48%,42%)] text-primary-foreground p-4 pt-8 h-40 rounded-b-3xl">
+    <header className="bg-gradient-to-br from-orange-500 to-orange-600 text-primary-foreground p-4 pt-8 h-40 rounded-b-3xl">
       <div className="flex justify-between items-center">
         <div>
           <p className="text-sm opacity-90">Selamat datang,</p>
