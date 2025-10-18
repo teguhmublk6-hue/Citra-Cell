@@ -186,7 +186,7 @@ export default function HomeContent() {
                       <AccordionContent className="p-0">
                         <ScrollArea className="h-[280px]">
                             <div className="flex flex-col gap-0 rounded-b-2xl overflow-hidden border border-t-0 border-border/20 shadow-lg">
-                            {kasAccounts?.map((account) => {
+                            {kasAccounts?.filter(account => account.type !== 'Tunai').map((account) => {
                                 const Icon = iconMap[account.type] || iconMap['default'];
                                 return (
                                 <button key={account.id} onClick={() => handleAccountClick(account)} className="w-full text-left p-3 bg-card/80 backdrop-blur-md flex items-center justify-between gap-4 border-t border-border/10 hover:bg-muted/50 transition-colors">
