@@ -156,7 +156,6 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
     // 4. Create a transaction for the admin fee if it exists
     if (fee > 0) {
         const feeBearerAccountId = values.feeDeduction === 'source' ? sourceAcc.id : destAcc.id;
-        const feeBearerAccountLabel = values.feeDeduction === 'source' ? sourceAcc.label : destAcc.label;
         const feeTrxBalanceBefore = feeBearerAccountId === sourceAcc.id ? sourceBalanceBefore - transferAmount : destBalanceBefore + transferAmount;
         const feeTrxBalanceAfter = feeTrxBalanceBefore - fee;
 
@@ -384,6 +383,8 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
     </Form>
   );
 }
+
+    
 
     
 
