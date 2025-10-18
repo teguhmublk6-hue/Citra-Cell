@@ -36,6 +36,7 @@ import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/com
 import { cn } from '@/lib/utils';
 import Autoplay from 'embla-carousel-autoplay';
 import { ScrollArea } from '../ui/scroll-area';
+import GlobalTransactionHistory from './GlobalTransactionHistory';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -229,7 +230,7 @@ export default function HomeContent() {
       case 'settings':
         return <SettingsContent />;
       case 'mutasi':
-        return <PlaceholderContent icon={FileText} title="Halaman Mutasi" />;
+        return <GlobalTransactionHistory />;
       case 'qris':
         return <PlaceholderContent icon={QrCode} title="Halaman QRIS" />;
       case 'inbox':
