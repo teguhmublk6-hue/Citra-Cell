@@ -14,6 +14,8 @@ import { doc, writeBatch, collection } from 'firebase/firestore';
 import type { KasAccount, Transaction } from '@/lib/data';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
 
@@ -193,123 +195,61 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
   
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 flex flex-col h-full pt-4">
-        <div className="flex-1 space-y-4">
-            <FormField
-                control={form.control}
-                name="sourceAccountId"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Dari Akun</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Pilih akun asal" />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                        {accounts.map(account => (
-                            <SelectItem key={account.id} value={account.id}>{account.label} ({formatToRupiah(account.balance) || 'Rp 0'})</SelectItem>
-                        ))}
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                    </FormItem>
-                )}
-            />
-            <FormField
-                control={form.control}
-                name="destinationAccountId"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Ke Akun</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Pilih akun tujuan" />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                        {accounts.filter(a => a.id !== sourceAccountId).map(account => (
-                            <SelectItem key={account.id} value={account.id}>{account.label}</SelectItem>
-                        ))}
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                    </FormItem>
-                )}
-            />
-             <FormField
-                control={form.control}
-                name="amount"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Jumlah Transfer</FormLabel>
-                    <FormControl>
-                        <Input
-                            type="text"
-                            placeholder="Rp 0"
-                            {...field}
-                            value={formatToRupiah(field.value)}
-                             onChange={(e) => {
-                                const parsedValue = parseRupiah(e.target.value);
-                                field.onChange(parsedValue);
-                            }}
-                            onBlur={(e) => {
-                                const formatted = formatToRupiah(e.target.value);
-                                e.target.value = formatted === "Rp 0" ? "" : formatted;
-                                field.onBlur();
-                            }}
-                            onFocus={(e) => {
-                                if (e.target.value === "Rp 0") {
-                                    e.target.value = "";
-                                }
-                            }}
-                        />
-                    </FormControl>
-                     {sourceAccount && <FormDescription>Saldo tersedia: {formatToRupiah(sourceAccount.balance) || 'Rp 0'}</FormDescription>}
-                    <FormMessage />
-                    </FormItem>
-                )}
-            />
-            <FormField
-                control={form.control}
-                name="adminFee"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Potongan Biaya</FormLabel>
-                    <Select onValueChange={(value) => {
-                        const numValue = Number(value);
-                        field.onChange(numValue);
-                        setShowManualFeeInput(numValue === -1);
-                        if (numValue !== -1) {
-                            form.setValue('manualAdminFee', undefined);
-                        }
-                    }} defaultValue={String(field.value)}>
-                        <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Pilih biaya admin" />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                        {adminFeeOptions.map(opt => (
-                            <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
-                        ))}
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                    </FormItem>
-                )}
-            />
-            {showManualFeeInput && (
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full pt-4">
+        <ScrollArea className="flex-1 -mx-6 px-6">
+            <div className="space-y-4 pb-4">
                 <FormField
                     control={form.control}
-                    name="manualAdminFee"
+                    name="sourceAccountId"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Biaya Admin Manual</FormLabel>
+                        <FormLabel>Dari Akun</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Pilih akun asal" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            {accounts.map(account => (
+                                <SelectItem key={account.id} value={account.id}>{account.label} ({formatToRupiah(account.balance) || 'Rp 0'})</SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="destinationAccountId"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Ke Akun</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Pilih akun tujuan" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            {accounts.filter(a => a.id !== sourceAccountId).map(account => (
+                                <SelectItem key={account.id} value={account.id}>{account.label}</SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Jumlah Transfer</FormLabel>
                         <FormControl>
-                            <Input 
+                            <Input
                                 type="text"
                                 placeholder="Rp 0"
                                 {...field}
@@ -330,43 +270,107 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
                                 }}
                             />
                         </FormControl>
+                        {sourceAccount && <FormDescription>Saldo tersedia: {formatToRupiah(sourceAccount.balance) || 'Rp 0'}</FormDescription>}
                         <FormMessage />
                         </FormItem>
                     )}
                 />
-            )}
-             <FormField
-                control={form.control}
-                name="feeDeduction"
-                render={({ field }) => (
-                    <FormItem className="space-y-3">
-                    <FormLabel>Potong Biaya Dari</FormLabel>
-                    <FormControl>
-                        <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="flex space-x-4"
-                        >
-                        <FormItem className="flex items-center space-x-2 space-y-0">
+                <FormField
+                    control={form.control}
+                    name="adminFee"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Potongan Biaya</FormLabel>
+                        <Select onValueChange={(value) => {
+                            const numValue = Number(value);
+                            field.onChange(numValue);
+                            setShowManualFeeInput(numValue === -1);
+                            if (numValue !== -1) {
+                                form.setValue('manualAdminFee', undefined);
+                            }
+                        }} defaultValue={String(field.value)}>
                             <FormControl>
-                            <RadioGroupItem value="source" />
+                            <SelectTrigger>
+                                <SelectValue placeholder="Pilih biaya admin" />
+                            </SelectTrigger>
                             </FormControl>
-                            <FormLabel className="font-normal">Akun Asal</FormLabel>
+                            <SelectContent>
+                            {adminFeeOptions.map(opt => (
+                                <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
                         </FormItem>
-                        <FormItem className="flex items-center space-x-2 space-y-0">
-                            <FormControl>
-                            <RadioGroupItem value="destination" />
-                            </FormControl>
-                            <FormLabel className="font-normal">Akun Tujuan</FormLabel>
-                        </FormItem>
-                        </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )}
+                    )}
                 />
-        </div>
-        <div className="flex gap-2">
+                {showManualFeeInput && (
+                    <FormField
+                        control={form.control}
+                        name="manualAdminFee"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Biaya Admin Manual</FormLabel>
+                            <FormControl>
+                                <Input 
+                                    type="text"
+                                    placeholder="Rp 0"
+                                    {...field}
+                                    value={formatToRupiah(field.value)}
+                                    onChange={(e) => {
+                                        const parsedValue = parseRupiah(e.target.value);
+                                        field.onChange(parsedValue);
+                                    }}
+                                    onBlur={(e) => {
+                                        const formatted = formatToRupiah(e.target.value);
+                                        e.target.value = formatted === "Rp 0" ? "" : formatted;
+                                        field.onBlur();
+                                    }}
+                                    onFocus={(e) => {
+                                        if (e.target.value === "Rp 0") {
+                                            e.target.value = "";
+                                        }
+                                    }}
+                                />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
+                <FormField
+                    control={form.control}
+                    name="feeDeduction"
+                    render={({ field }) => (
+                        <FormItem className="space-y-3">
+                        <FormLabel>Potong Biaya Dari</FormLabel>
+                        <FormControl>
+                            <RadioGroup
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            className="flex space-x-4"
+                            >
+                            <FormItem className="flex items-center space-x-2 space-y-0">
+                                <FormControl>
+                                <RadioGroupItem value="source" />
+                                </FormControl>
+                                <FormLabel className="font-normal">Akun Asal</FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-2 space-y-0">
+                                <FormControl>
+                                <RadioGroupItem value="destination" />
+                                </FormControl>
+                                <FormLabel className="font-normal">Akun Tujuan</FormLabel>
+                            </FormItem>
+                            </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+            </div>
+        </ScrollArea>
+        <div className="flex gap-2 mt-4">
             <Button type="button" variant="outline" onClick={onDone} className="w-full">
                 Batal
             </Button>
@@ -380,3 +384,5 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
 }
 
   
+
+    
