@@ -157,7 +157,7 @@ export default function HomeContent() {
                       <div className="p-3 bg-card/80 backdrop-blur-md rounded-2xl shadow-lg border border-border/20 flex items-center justify-between gap-2 data-[state=open]:rounded-b-none">
                         <AccordionTrigger className="flex-1 p-0 justify-start">
                           <div className="flex items-center gap-2">
-                            <p className="font-semibold text-sm">Kas Terintegrasi</p>
+                            <p className="font-semibold text-sm">Saldo akun</p>
                           </div>
                         </AccordionTrigger>
 
