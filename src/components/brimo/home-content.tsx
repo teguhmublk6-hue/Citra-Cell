@@ -7,7 +7,7 @@ import RecentTransactions from './recent-transactions';
 import BottomNav from './bottom-nav';
 import PlaceholderContent from './placeholder-content';
 import SettingsContent from './settings-content';
-import { FileText, Bell, Plus, ArrowRightLeft, TrendingUp, TrendingDown } from 'lucide-react';
+import { FileText, Bell, Plus, ArrowRightLeft, TrendingUp, TrendingDown, RotateCw } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy } from 'firebase/firestore';
 import type { KasAccount as KasAccountType, Transaction } from '@/lib/data';
@@ -247,7 +247,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
          <Sheet>
             <SheetTrigger asChild>
                 <button id="mutation-menu-trigger" className="h-14 w-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center -mt-4 shadow-lg shadow-primary/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
-                    <Plus size={28} />
+                    <RotateCw size={28} />
                 </button>
             </SheetTrigger>
             <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl" onOpenAutoFocus={(e) => e.preventDefault()}>
@@ -280,5 +280,3 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     </>
   );
 }
-
-    
