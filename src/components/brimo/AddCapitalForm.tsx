@@ -9,9 +9,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFirestore, useUser } from '@/firebase';
-import { doc } from 'firebase/firestore';
-import type { KasAccount } from '@/lib/data';
-import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { doc, writeBatch, collection } from 'firebase/firestore';
+import type { KasAccount, Transaction } from '@/lib/data';
+import { useToast } from '@/hooks/use-toast';
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
 
@@ -43,6 +43,7 @@ interface AddCapitalFormProps {
 export default function AddCapitalForm({ accounts, onDone }: AddCapitalFormProps) {
   const firestore = useFirestore();
   const { user } = useUser();
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -52,18 +53,48 @@ export default function AddCapitalForm({ accounts, onDone }: AddCapitalFormProps
     },
   });
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    if (!user) return;
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!user || !firestore) return;
 
     const targetAccount = accounts.find(acc => acc.id === values.accountId);
     if (!targetAccount) return;
 
+    const batch = writeBatch(firestore);
+
+    // 1. Update the account balance
+    const accountRef = doc(firestore, 'users', user.uid, 'kasAccounts', values.accountId);
     const newBalance = targetAccount.balance + values.amount;
+    batch.update(accountRef, { balance: newBalance });
     
-    const docRef = doc(firestore, 'users', user.uid, 'kasAccounts', values.accountId);
-    updateDocumentNonBlocking(docRef, { balance: newBalance });
-    
-    onDone();
+    // 2. Create a credit transaction
+    const transactionRef = doc(collection(firestore, 'users', user.uid, 'kasAccounts', values.accountId, 'transactions'));
+    const newTransaction: Omit<Transaction, 'id'> = {
+        userId: user.uid,
+        kasAccountId: values.accountId,
+        name: 'Penambahan Modal',
+        account: 'Setoran Modal',
+        date: new Date().toISOString(),
+        amount: values.amount,
+        type: 'credit',
+        category: 'capital',
+    };
+    batch.set(transactionRef, newTransaction);
+
+    try {
+        await batch.commit();
+        toast({
+            title: "Modal Ditambahkan",
+            description: `Saldo ${targetAccount.label} bertambah sebesar ${formatToRupiah(values.amount)}.`
+        });
+        onDone();
+    } catch (e) {
+        console.error("Error adding capital: ", e);
+        toast({
+            variant: "destructive",
+            title: "Gagal Menambah Modal",
+            description: "Terjadi kesalahan saat memproses permintaan Anda."
+        });
+    }
   };
   
   return (

@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useFirestore, useUser } from '@/firebase';
 import { doc, writeBatch, collection } from 'firebase/firestore';
-import type { KasAccount } from '@/lib/data';
+import type { KasAccount, Transaction } from '@/lib/data';
 import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
 
@@ -62,6 +63,7 @@ interface TransferBalanceFormProps {
 export default function TransferBalanceForm({ accounts, onDone }: TransferBalanceFormProps) {
   const firestore = useFirestore();
   const { user } = useUser();
+  const { toast } = useToast();
   const [showManualFeeInput, setShowManualFeeInput] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -89,53 +91,90 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
     const fee = values.adminFee === -1 ? (values.manualAdminFee || 0) : values.adminFee;
     const transferAmount = values.amount;
 
-    let sourceNewBalance = sourceAcc.balance;
-    let destNewBalance = destAcc.balance;
-    
-    const batch = writeBatch(firestore);
-
-    if (values.feeDeduction === 'source') {
-        if (sourceAcc.balance < transferAmount + fee) {
-            form.setError('amount', { message: 'Saldo akun asal tidak mencukupi untuk transfer dan biaya admin' });
-            return;
-        }
-        sourceNewBalance -= (transferAmount + fee);
-        destNewBalance += transferAmount;
-    } else { // destination
-        if (sourceAcc.balance < transferAmount) {
-            form.setError('amount', { message: 'Saldo akun asal tidak mencukupi untuk transfer' });
-            return;
-        }
-        sourceNewBalance -= transferAmount;
-        destNewBalance += (transferAmount - fee);
+    if (values.feeDeduction === 'source' && sourceAcc.balance < transferAmount + fee) {
+      form.setError('amount', { message: 'Saldo akun asal tidak mencukupi untuk transfer dan biaya admin' });
+      return;
     }
-    
-    const sourceRef = doc(firestore, 'users', user.uid, 'kasAccounts', sourceAcc.id);
-    const destRef = doc(firestore, 'users', user.uid, 'kasAccounts', destAcc.id);
+    if (values.feeDeduction === 'destination' && sourceAcc.balance < transferAmount) {
+      form.setError('amount', { message: 'Saldo akun asal tidak mencukupi untuk transfer' });
+      return;
+    }
 
+    const batch = writeBatch(firestore);
+    const now = new Date().toISOString();
+
+    // 1. Update balances
+    const sourceNewBalance = sourceAcc.balance - transferAmount - (values.feeDeduction === 'source' ? fee : 0);
+    const destNewBalance = destAcc.balance + transferAmount - (values.feeDeduction === 'destination' ? fee : 0);
+
+    const sourceRef = doc(firestore, 'users', user.uid, 'kasAccounts', sourceAcc.id);
     batch.update(sourceRef, { balance: sourceNewBalance });
+
+    const destRef = doc(firestore, 'users', user.uid, 'kasAccounts', destAcc.id);
     batch.update(destRef, { balance: destNewBalance });
 
-    // Create a transaction for the admin fee
+    // 2. Create debit transaction for source account
+    const sourceTrxRef = doc(collection(firestore, 'users', user.uid, 'kasAccounts', sourceAcc.id, 'transactions'));
+    const sourceTrxData: Omit<Transaction, 'id'> = {
+        userId: user.uid,
+        kasAccountId: sourceAcc.id,
+        name: `Transfer ke ${destAcc.label}`,
+        account: destAcc.label,
+        date: now,
+        amount: transferAmount,
+        type: 'debit',
+        category: 'transfer',
+    };
+    batch.set(sourceTrxRef, sourceTrxData);
+
+    // 3. Create credit transaction for destination account
+    const destTrxRef = doc(collection(firestore, 'users', user.uid, 'kasAccounts', destAcc.id, 'transactions'));
+    const destTrxData: Omit<Transaction, 'id'> = {
+        userId: user.uid,
+        kasAccountId: destAcc.id,
+        name: `Transfer dari ${sourceAcc.label}`,
+        account: sourceAcc.label,
+        date: now,
+        amount: transferAmount,
+        type: 'credit',
+        category: 'transfer',
+    };
+    batch.set(destTrxRef, destTrxData);
+
+    // 4. Create a transaction for the admin fee if it exists
     if (fee > 0) {
         const feeBearerAccountId = values.feeDeduction === 'source' ? sourceAcc.id : destAcc.id;
-        const transactionsRef = collection(firestore, 'users', user.uid, 'kasAccounts', feeBearerAccountId, 'transactions');
-        const transactionData = {
+        const feeBearerAccountLabel = values.feeDeduction === 'source' ? sourceAcc.label : destAcc.label;
+        
+        const feeTrxRef = doc(collection(firestore, 'users', user.uid, 'kasAccounts', feeBearerAccountId, 'transactions'));
+        const feeTrxData: Omit<Transaction, 'id'> = {
             userId: user.uid,
             kasAccountId: feeBearerAccountId,
-            name: `Biaya Admin Transfer ke ${destAcc.label}`,
-            account: `Dari ${sourceAcc.label}`,
-            date: new Date().toISOString(),
+            name: 'Biaya Admin Transfer',
+            account: `Transfer dari ${sourceAcc.label} ke ${destAcc.label}`,
+            date: now,
             amount: fee,
             type: 'debit',
             category: 'operational',
         };
-        const newTransactionRef = doc(transactionsRef);
-        batch.set(newTransactionRef, transactionData);
+        batch.set(feeTrxRef, feeTrxData);
     }
 
-    await batch.commit();
-    onDone();
+    try {
+        await batch.commit();
+        toast({
+            title: "Transfer Berhasil",
+            description: `${formatToRupiah(transferAmount)} telah dipindahkan dari ${sourceAcc.label} ke ${destAcc.label}.`
+        });
+        onDone();
+    } catch(e) {
+        console.error("Error during transfer: ", e);
+        toast({
+            variant: "destructive",
+            title: "Transfer Gagal",
+            description: "Terjadi kesalahan saat memproses transfer."
+        });
+    }
   };
   
   return (
@@ -325,5 +364,3 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
     </Form>
   );
 }
-
-    
