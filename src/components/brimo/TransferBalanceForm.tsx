@@ -29,7 +29,7 @@ const formSchema = z.object({
     z.number({ invalid_type_error: "Biaya admin harus angka" }).min(0, 'Biaya admin tidak boleh negatif').optional()
   ),
   manualAdminFee: z.preprocess(
-    numberPreprocessor,
+    (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(val),
     z.number({ invalid_type_error: "Biaya admin harus angka" }).min(0, 'Biaya admin tidak boleh negatif').optional()
   ),
 }).refine(data => data.sourceAccountId !== data.destinationAccountId, {
@@ -272,11 +272,10 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
                           <FormLabel>Nominal Biaya Admin Manual</FormLabel>
                           <FormControl>
                               <Input 
-                                  type="text" placeholder="Rp 0" {...field}
-                                  value={formatToRupiah(field.value)}
-                                  onChange={(e) => {
-                                      field.onChange(parseRupiah(e.target.value));
-                                  }}
+                                  type="number" 
+                                  placeholder="Masukkan nominal" 
+                                  {...field}
+                                  onChange={event => field.onChange(event.target.valueAsNumber)}
                               />
                           </FormControl>
                           <FormMessage />
@@ -302,5 +301,6 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
     </Form>
   );
 }
+
 
     
