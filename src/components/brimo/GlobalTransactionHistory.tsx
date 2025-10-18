@@ -157,29 +157,27 @@ export default function GlobalTransactionHistory() {
         {!isLoading && transactions && transactions.length > 0 && (
           <div className="space-y-2">
             {transactions.map((trx) => (
-              <div key={trx.id} className="p-3 bg-card rounded-lg border">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${trx.type === 'credit' ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
-                        {trx.type === 'credit' ? (
-                        <ArrowDownLeft size={18} strokeWidth={2} className="text-green-500" />
-                        ) : (
-                        <ArrowUpRight size={18} strokeWidth={2} className="text-red-500" />
-                        )}
-                    </div>
-                    <div className="flex-1 truncate">
-                        <p className="font-semibold text-sm truncate">{trx.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {trx.type === 'credit' ? `ke ${trx.accountLabel}` : `dari ${trx.accountLabel}`} • {formatDateTime(trx.date)}
+              <div key={trx.id} className="p-3 bg-card rounded-lg border flex items-start gap-3">
+                <div className={`w-9 h-9 flex-shrink-0 rounded-full flex items-center justify-center ${trx.type === 'credit' ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+                    {trx.type === 'credit' ? (
+                    <ArrowDownLeft size={16} strokeWidth={2.5} className="text-green-500" />
+                    ) : (
+                    <ArrowUpRight size={16} strokeWidth={2.5} className="text-red-500" />
+                    )}
+                </div>
+                <div className="flex-1 flex flex-col min-w-0">
+                    <div className="flex justify-between items-start">
+                        <p className="font-semibold text-sm flex-1 pr-2">{trx.name}</p>
+                        <p className={cn(
+                            'font-bold text-sm text-right whitespace-nowrap',
+                            trx.type === 'credit' ? 'text-green-500' : 'text-foreground'
+                        )}>
+                            {trx.type === 'credit' ? '+' : '-'} {formatToRupiah(trx.amount)}
                         </p>
                     </div>
-                  </div>
-                  <p className={cn(
-                      'font-bold text-sm text-right',
-                      trx.type === 'credit' ? 'text-green-500' : 'text-foreground'
-                  )}>
-                      {trx.type === 'credit' ? '+' : '-'} {formatToRupiah(trx.amount)}
-                  </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {trx.type === 'credit' ? `ke ${trx.accountLabel}` : `dari ${trx.accountLabel}`} • {formatDateTime(trx.date)}
+                    </p>
                 </div>
               </div>
             ))}
@@ -189,5 +187,3 @@ export default function GlobalTransactionHistory() {
     </div>
   );
 }
-
-    
