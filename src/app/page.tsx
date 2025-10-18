@@ -1,9 +1,10 @@
+
 "use client";
 
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import HomeContent from '@/components/brimo/home-content';
-import { useAuth, useUser } from '@/firebase';
-import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
+import { useUser } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function LoadingSkeleton() {
@@ -29,14 +30,14 @@ function LoadingSkeleton() {
 
 
 export default function BrimoUI() {
-  const auth = useAuth();
   const { user, isUserLoading } = useUser();
+  const router = useRouter();
 
   useEffect(() => {
-    if (!user && auth) {
-      initiateAnonymousSignIn(auth);
+    if (!isUserLoading && !user) {
+      router.push('/login');
     }
-  }, [auth, user]);
+  }, [isUserLoading, user, router]);
 
   if (isUserLoading || !user) {
     return <LoadingSkeleton />;
