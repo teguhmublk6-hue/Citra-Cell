@@ -1,24 +1,12 @@
 
 "use client";
 
-import { ChevronRight, Bell, User, DollarSign, Settings, LogOut } from 'lucide-react';
+import { ChevronRight, Bell, User, DollarSign, Settings } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import KasManagement from './KasManagement';
-import { useAuth } from '@/firebase';
-import { signOut } from 'firebase/auth';
 
 export default function SettingsContent() {
-  const auth = useAuth();
-
-  const handleLogout = async () => {
-    // With a shared data model, logging out is less critical, but we can still sign out.
-    // The user will be re-authenticated anonymously on the next load.
-    if (auth) {
-        await signOut(auth);
-    }
-  };
-
   const settingsItems = [
     { icon: User, label: 'Profil Akun' },
     { icon: Bell, label: 'Notifikasi' },
@@ -74,13 +62,6 @@ export default function SettingsContent() {
               <ChevronRight size={20} className="text-muted-foreground" />
             </button>
           ))}
-          <button onClick={handleLogout} className="flex items-center justify-between p-4 bg-destructive/10 rounded-xl w-full hover:bg-destructive/20 transition-colors text-destructive">
-              <div className="flex items-center gap-4">
-                <LogOut size={20} />
-                <span className="font-medium">Logout (Sign Out)</span>
-              </div>
-              <ChevronRight size={20} />
-            </button>
         </CardContent>
       </Card>
     </div>
