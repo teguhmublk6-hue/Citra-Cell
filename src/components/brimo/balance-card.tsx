@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -41,7 +42,7 @@ export default function BalanceCard() {
                 <Popover>
                     <PopoverTrigger asChild>
                         <Button variant="ghost" size="icon" className="w-9 h-9 rounded-full text-yellow-500 hover:bg-yellow-500/10 hover:text-yellow-500">
-                            <AlertTriangle className="h-5 w-5" />
+                            <AlertTriangle className="h-5 w-5 animate-pulse" />
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-80">
