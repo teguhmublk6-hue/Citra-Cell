@@ -53,7 +53,9 @@ export type Transaction = {
   date: string;
   amount: number;
   type: 'credit' | 'debit';
-  category?: 'operational' | string;
+  category?: 'operational' | 'transfer' | 'capital' | string;
+  balanceBefore?: number;
+  balanceAfter?: number;
 };
 
 

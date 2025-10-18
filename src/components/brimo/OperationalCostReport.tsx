@@ -109,6 +109,9 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
     }
     
     const batch = writeBatch(firestore);
+    const amount = values.amount;
+    const balanceBefore = sourceAccount.balance;
+    const balanceAfter = balanceBefore - amount;
 
     // 1. Create new transaction for the operational cost
     const transactionRef = doc(collection(firestore, 'users', user.uid, 'kasAccounts', sourceAccount.id, 'transactions'));
@@ -118,16 +121,17 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
       name: values.name,
       account: 'Biaya Operasional',
       date: new Date().toISOString(),
-      amount: values.amount,
+      amount: amount,
       type: 'debit',
       category: 'operational',
+      balanceBefore: balanceBefore,
+      balanceAfter: balanceAfter,
     };
     batch.set(transactionRef, newTransaction);
     
     // 2. Update the balance of the source account
     const sourceAccountRef = doc(firestore, 'users', user.uid, 'kasAccounts', sourceAccount.id);
-    const newBalance = sourceAccount.balance - values.amount;
-    batch.update(sourceAccountRef, { balance: newBalance });
+    batch.update(sourceAccountRef, { balance: balanceAfter });
 
     try {
         await batch.commit();
@@ -241,4 +245,3 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
       </div>
     </div>
   );
-    

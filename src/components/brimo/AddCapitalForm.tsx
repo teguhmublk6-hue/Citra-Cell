@@ -60,11 +60,13 @@ export default function AddCapitalForm({ accounts, onDone }: AddCapitalFormProps
     if (!targetAccount) return;
 
     const batch = writeBatch(firestore);
+    const amount = values.amount;
+    const balanceBefore = targetAccount.balance;
+    const balanceAfter = balanceBefore + amount;
 
     // 1. Update the account balance
     const accountRef = doc(firestore, 'users', user.uid, 'kasAccounts', values.accountId);
-    const newBalance = targetAccount.balance + values.amount;
-    batch.update(accountRef, { balance: newBalance });
+    batch.update(accountRef, { balance: balanceAfter });
     
     // 2. Create a credit transaction
     const transactionRef = doc(collection(firestore, 'users', user.uid, 'kasAccounts', values.accountId, 'transactions'));
@@ -74,9 +76,11 @@ export default function AddCapitalForm({ accounts, onDone }: AddCapitalFormProps
         name: 'Penambahan Modal',
         account: 'Setoran Modal',
         date: new Date().toISOString(),
-        amount: values.amount,
+        amount: amount,
         type: 'credit',
         category: 'capital',
+        balanceBefore: balanceBefore,
+        balanceAfter: balanceAfter,
     };
     batch.set(transactionRef, newTransaction);
 

@@ -103,15 +103,21 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
     const batch = writeBatch(firestore);
     const now = new Date().toISOString();
 
-    // 1. Update balances
-    const sourceNewBalance = sourceAcc.balance - transferAmount - (values.feeDeduction === 'source' ? fee : 0);
-    const destNewBalance = destAcc.balance + transferAmount - (values.feeDeduction === 'destination' ? fee : 0);
+    const feeDeductedFromSource = values.feeDeduction === 'source' ? fee : 0;
+    const feeDeductedFromDest = values.feeDeduction === 'destination' ? fee : 0;
 
+    // Balance calculations
+    const sourceBalanceBefore = sourceAcc.balance;
+    const sourceBalanceAfter = sourceBalanceBefore - transferAmount - feeDeductedFromSource;
+    const destBalanceBefore = destAcc.balance;
+    const destBalanceAfter = destBalanceBefore + transferAmount - feeDeductedFromDest;
+
+    // 1. Update balances
     const sourceRef = doc(firestore, 'users', user.uid, 'kasAccounts', sourceAcc.id);
-    batch.update(sourceRef, { balance: sourceNewBalance });
+    batch.update(sourceRef, { balance: sourceBalanceAfter });
 
     const destRef = doc(firestore, 'users', user.uid, 'kasAccounts', destAcc.id);
-    batch.update(destRef, { balance: destNewBalance });
+    batch.update(destRef, { balance: destBalanceAfter });
 
     // 2. Create debit transaction for source account
     const sourceTrxRef = doc(collection(firestore, 'users', user.uid, 'kasAccounts', sourceAcc.id, 'transactions'));
@@ -124,6 +130,8 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
         amount: transferAmount,
         type: 'debit',
         category: 'transfer',
+        balanceBefore: sourceBalanceBefore,
+        balanceAfter: sourceBalanceBefore - transferAmount, // Balance after transfer, before fee
     };
     batch.set(sourceTrxRef, sourceTrxData);
 
@@ -138,6 +146,8 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
         amount: transferAmount,
         type: 'credit',
         category: 'transfer',
+        balanceBefore: destBalanceBefore,
+        balanceAfter: destBalanceBefore + transferAmount, // Balance after transfer, before fee
     };
     batch.set(destTrxRef, destTrxData);
 
@@ -145,7 +155,9 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
     if (fee > 0) {
         const feeBearerAccountId = values.feeDeduction === 'source' ? sourceAcc.id : destAcc.id;
         const feeBearerAccountLabel = values.feeDeduction === 'source' ? sourceAcc.label : destAcc.label;
-        
+        const feeTrxBalanceBefore = feeBearerAccountId === sourceAcc.id ? sourceBalanceBefore - transferAmount : destBalanceBefore + transferAmount;
+        const feeTrxBalanceAfter = feeTrxBalanceBefore - fee;
+
         const feeTrxRef = doc(collection(firestore, 'users', user.uid, 'kasAccounts', feeBearerAccountId, 'transactions'));
         const feeTrxData: Omit<Transaction, 'id'> = {
             userId: user.uid,
@@ -156,6 +168,8 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
             amount: fee,
             type: 'debit',
             category: 'operational',
+            balanceBefore: feeTrxBalanceBefore,
+            balanceAfter: feeTrxBalanceAfter,
         };
         batch.set(feeTrxRef, feeTrxData);
     }

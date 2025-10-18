@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "KasAccount": {
@@ -74,6 +75,14 @@
         "amount": {
           "type": "number",
           "description": "The amount of the transaction."
+        },
+        "balanceBefore": {
+            "type": "number",
+            "description": "The balance of the kas account before the transaction."
+        },
+        "balanceAfter": {
+            "type": "number",
+            "description": "The balance of the kas account after the transaction."
         }
       },
       "required": [
@@ -83,7 +92,8 @@
         "name",
         "account",
         "date",
-        "amount"
+        "amount",
+        "userId"
       ]
     },
     "UserPreference": {
@@ -119,72 +129,23 @@
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}/preferences/{preferenceId}",
-        "definition": {
-          "entityName": "UserPreference",
-          "schema": {
-            "$ref": "#/backend/entities/UserPreference"
-          },
-          "description": "Stores user preferences. Only the authenticated user can access their own preferences. The 'preferenceId' should always be the user's uid. Since there will be only one document per user, this models a 1:1 relationship.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The ID of the user."
-            },
-            {
-              "name": "preferenceId",
-              "description": "The ID of the user's preference document, should match the userId."
-            }
-          ]
-        }
+    "/users/{userId}/preferences/{preferenceId}": {
+      "schema": {
+        "$ref": "#/entities/UserPreference"
       },
-      {
-        "path": "/users/{userId}/kasAccounts/{kasAccountId}",
-        "definition": {
-          "entityName": "KasAccount",
-          "schema": {
-            "$ref": "#/backend/entities/KasAccount"
-          },
-          "description": "Stores cash account information for each user. Only the authenticated user can access their own kas accounts. The kasAccounts are owned by the user, which allows list and read operations to be secured by path. This models a 1:N relationship between users and KasAccounts.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The ID of the user."
-            },
-            {
-              "name": "kasAccountId",
-              "description": "The ID of the kas account."
-            }
-          ]
-        }
+      "description": "Stores user preferences. Only the authenticated user can access their own preferences. The 'preferenceId' should always be the user's uid. Since there will be only one document per user, this models a 1:1 relationship."
+    },
+    "/users/{userId}/kasAccounts/{kasAccountId}": {
+      "schema": {
+        "$ref": "#/entities/KasAccount"
       },
-      {
-        "path": "/users/{userId}/kasAccounts/{kasAccountId}/transactions/{transactionId}",
-        "definition": {
-          "entityName": "Transaction",
-          "schema": {
-            "$ref": "#/backend/entities/Transaction"
-          },
-          "description": "Stores transaction history for each cash account. Only the authenticated user can access their own transactions. Transactions are owned by the user, which allows list and read operations to be secured by path. This models a 1:N relationship between KasAccounts and Transactions.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The ID of the user."
-            },
-            {
-              "name": "kasAccountId",
-              "description": "The ID of the kas account."
-            },
-            {
-              "name": "transactionId",
-              "description": "The ID of the transaction."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore structure is designed to manage user preferences, cash accounts, and transactions within the BrimoUI application. It prioritizes authorization independence and supports the required query capabilities. User preferences and KasAccounts are stored under the user's document, enabling easy access and management of user-specific data. Transactions are stored as a subcollection of KasAccounts for efficient retrieval. This design supports real-time balance updates and transaction summarization. The chosen structure enables secure list operations (QAPs) since data segregation is enforced via path-based ownership, limiting access to the current user's data only. Authorization Independence is achieved through path-based ownership, eliminating the need for `get()` calls in security rules. This allows for atomic operations and simplifies debugging."
+      "description": "Stores cash account information for each user. Only the authenticated user can access their own kas accounts. The kasAccounts are owned by the user, which allows list and read operations to be secured by path. This models a 1:N relationship between users and KasAccounts."
+    },
+    "/users/{userId}/kasAccounts/{kasAccountId}/transactions/{transactionId}": {
+      "schema": {
+        "$ref": "#/entities/Transaction"
+      },
+      "description": "Stores transaction history for each cash account. Only the authenticated user can access their own transactions. Transactions are owned by the user, which allows list and read operations to be secured by path. This models a 1:N relationship between KasAccounts and Transactions."
+    }
   }
 }
