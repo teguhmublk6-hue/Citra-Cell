@@ -3,22 +3,26 @@
 
 import { useState } from 'react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, writeBatch } from 'firebase/firestore';
 import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import type { KasAccount } from '@/lib/data';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, ShieldAlert } from 'lucide-react';
 import KasAccountForm from './KasAccountForm';
 import DeleteKasAccountDialog from './DeleteKasAccountDialog';
+import DeleteAllKasAccountsDialog from './DeleteAllKasAccountsDialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 export default function KasManagement() {
   const firestore = useFirestore();
+  const { toast } = useToast();
   
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<KasAccount | null>(null);
   const [accountToDelete, setAccountToDelete] = useState<KasAccount | null>(null);
 
@@ -40,7 +44,7 @@ export default function KasManagement() {
 
   const handleDelete = (account: KasAccount) => {
     setAccountToDelete(account);
-    setIsDialogOpen(true);
+    setIsDeleteDialogOpen(true);
   };
 
   const confirmDelete = () => {
@@ -48,8 +52,44 @@ export default function KasManagement() {
       const docRef = doc(firestore, 'kasAccounts', accountToDelete.id);
       deleteDocumentNonBlocking(docRef);
     }
-    setIsDialogOpen(false);
+    setIsDeleteDialogOpen(false);
     setAccountToDelete(null);
+  };
+
+  const confirmDeleteAll = async () => {
+    if (!firestore || !kasAccounts || kasAccounts.length === 0) {
+        toast({
+            variant: "destructive",
+            title: "Tidak Ada Akun",
+            description: "Tidak ada akun kas untuk dihapus.",
+        });
+        return;
+    }
+
+    // NOTE: This does not delete subcollections (transactions). 
+    // A cloud function is required for robust recursive deletion.
+    // For this client-side app, we only delete the account documents.
+    const batch = writeBatch(firestore);
+    kasAccounts.forEach(account => {
+        const docRef = doc(firestore, 'kasAccounts', account.id);
+        batch.delete(docRef);
+    });
+
+    try {
+        await batch.commit();
+        toast({
+            title: "Berhasil",
+            description: "Semua akun kas telah berhasil dihapus.",
+        });
+    } catch (e) {
+        console.error("Error deleting all accounts: ", e);
+        toast({
+            variant: "destructive",
+            title: "Gagal Menghapus",
+            description: "Terjadi kesalahan saat menghapus semua akun kas.",
+        });
+    }
+    setIsDeleteAllDialogOpen(false);
   };
   
   if (isFormOpen) {
@@ -58,10 +98,17 @@ export default function KasManagement() {
 
   return (
     <div className="py-4 h-full flex flex-col">
-        <Button onClick={handleAdd} className="mb-4">
-            <Plus size={16} className="mr-2" />
-            Tambah Akun Kas
-        </Button>
+        <div className="space-y-2 mb-4">
+            <Button onClick={handleAdd} className="w-full">
+                <Plus size={16} className="mr-2" />
+                Tambah Akun Kas
+            </Button>
+             <Button variant="destructive" onClick={() => setIsDeleteAllDialogOpen(true)} className="w-full">
+                <ShieldAlert size={16} className="mr-2" />
+                Hapus Semua Akun
+            </Button>
+        </div>
+        <p className="px-1 text-sm font-semibold mb-2 text-muted-foreground">Daftar Akun</p>
         <ScrollArea className="flex-1">
           {isLoading && (
             <div className="space-y-3 pr-4">
@@ -95,13 +142,23 @@ export default function KasManagement() {
                 </div>
               );
             })}
+             {!isLoading && kasAccounts && kasAccounts.length === 0 && (
+                <div className="text-center py-10">
+                    <p className="text-muted-foreground">Belum ada akun kas.</p>
+                </div>
+            )}
           </div>
         </ScrollArea>
         <DeleteKasAccountDialog
-            isOpen={isDialogOpen}
-            onClose={() => setIsDialogOpen(false)}
+            isOpen={isDeleteDialogOpen}
+            onClose={() => setIsDeleteDialogOpen(false)}
             onConfirm={confirmDelete}
             accountName={accountToDelete?.label}
+        />
+        <DeleteAllKasAccountsDialog
+            isOpen={isDeleteAllDialogOpen}
+            onClose={() => setIsDeleteAllDialogOpen(false)}
+            onConfirm={confirmDeleteAll}
         />
     </div>
   );
