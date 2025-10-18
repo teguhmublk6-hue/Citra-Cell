@@ -86,3 +86,21 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  @keyframes ring-and-pulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+      color: hsl(48, 96%, 58%); /* yellow-400 */
+    }
+    50% {
+      transform: scale(1.2);
+      opacity: 0.75;
+      color: hsl(35, 92%, 60%); /* orange-500 */
+    }
+  }
+  .animate-ring-and-pulse {
+    animation: ring-and-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
