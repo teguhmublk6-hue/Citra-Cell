@@ -28,10 +28,7 @@ const formSchema = z.object({
     numberPreprocessor,
     z.number({ invalid_type_error: "Biaya admin harus angka" }).min(0, 'Biaya admin tidak boleh negatif').optional()
   ),
-  manualAdminFee: z.preprocess(
-    (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(val),
-    z.number({ invalid_type_error: "Biaya admin harus angka" }).min(0, 'Biaya admin tidak boleh negatif').optional()
-  ),
+  manualAdminFee: z.number({ invalid_type_error: "Biaya admin harus angka" }).min(0, 'Biaya admin tidak boleh negatif').optional(),
 }).refine(data => data.sourceAccountId !== data.destinationAccountId, {
   message: "Akun sumber dan tujuan tidak boleh sama",
   path: ["destinationAccountId"],
@@ -281,7 +278,8 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
                                   type="number" 
                                   placeholder="Masukkan nominal"
                                   {...field}
-                                  onChange={event => field.onChange(event.target.valueAsNumber || 0)}
+                                  onChange={event => field.onChange(event.target.value === '' ? 0 : event.target.valueAsNumber)}
+                                  value={field.value ?? 0}
                               />
                           </FormControl>
                           <FormMessage />
@@ -307,3 +305,5 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
     </Form>
   );
 }
+
+    
