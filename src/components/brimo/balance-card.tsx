@@ -22,7 +22,7 @@ export default function BalanceCard() {
 
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
 
-  const totalBalance = kasAccounts?.reduce((sum, acc) => sum + acc.balance, 0) ?? 0;
+  const totalBalance = kasAccounts?.filter(acc => acc.type !== 'Tunai').reduce((sum, acc) => sum + acc.balance, 0) ?? 0;
   const accountsWithLowBalance = kasAccounts?.filter(acc => acc.balance < acc.minimumBalance) ?? [];
   const needsTopUp = accountsWithLowBalance.length > 0;
 
@@ -34,7 +34,7 @@ export default function BalanceCard() {
             <div className="flex items-center gap-2">
               <p className="text-sm text-muted-foreground">Total Saldo</p>
             </div>
-            <p className="text-xs text-muted-foreground">Semua Akun</p>
+            <p className="text-xs text-muted-foreground">Non-Tunai</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
