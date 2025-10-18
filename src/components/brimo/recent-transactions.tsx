@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy } from 'firebase/firestore';
 import type { Transaction, KasAccount } from '@/lib/data';
-import { useEffect, useState } from 'react';
+import { useEffect, useState }from 'react';
 
-type TransactionWithId = Transaction & { id: string };
+type TransactionWithId = Transaction & { id: string, accountLabel?: string };
 
 export default function RecentTransactions() {
   const firestore = useFirestore();
@@ -39,7 +39,11 @@ export default function RecentTransactions() {
                 const q = query(transactionsRef, orderBy('date', 'desc'));
                 const querySnapshot = await getDocs(q);
                 querySnapshot.forEach((doc) => {
-                    allTransactions.push({ ...(doc.data() as Transaction), id: doc.id });
+                    allTransactions.push({ 
+                        ...(doc.data() as Transaction), 
+                        id: doc.id,
+                        accountLabel: account.label, // Add account label to transaction
+                    });
                 });
             }
         }
@@ -88,9 +92,11 @@ export default function RecentTransactions() {
                       <ArrowUpRight size={18} strokeWidth={2} className="text-red-500" />
                     )}
                   </div>
-                  <div>
-                    <p className="font-medium text-sm">{trx.name}</p>
-                    <p className="text-xs text-muted-foreground">{trx.account} • {new Date(trx.date).toLocaleDateString('id-ID', {day: 'numeric', month: 'short'})}</p>
+                  <div className="truncate">
+                    <p className="font-medium text-sm truncate">{trx.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                        {trx.type === 'credit' ? `dari ${trx.account}` : trx.accountLabel} • {new Date(trx.date).toLocaleDateString('id-ID', {day: 'numeric', month: 'short'})}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 cursor-pointer">
@@ -107,5 +113,3 @@ export default function RecentTransactions() {
     </Card>
   );
 }
-
-    

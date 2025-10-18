@@ -33,6 +33,7 @@ export default function GlobalTransactionHistory() {
   const [isLoading, setIsLoading] = useState(true);
 
   const kasAccountsCollection = useMemoFirebase(() => {
+    if (!firestore) return null;
     return collection(firestore, 'kasAccounts');
   }, [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -168,7 +169,9 @@ export default function GlobalTransactionHistory() {
                     </div>
                     <div className="flex-1 truncate">
                         <p className="font-semibold text-sm truncate">{trx.name}</p>
-                        <p className="text-xs text-muted-foreground">{trx.accountLabel} • {formatDateTime(trx.date)}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {trx.type === 'credit' ? `ke ${trx.accountLabel}` : `dari ${trx.accountLabel}`} • {formatDateTime(trx.date)}
+                        </p>
                     </div>
                   </div>
                   <p className={cn(
