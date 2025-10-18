@@ -2,94 +2,55 @@
  * @fileoverview Firestore Security Rules for BrimoUI application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for preferences, cash accounts, and transactions.
- * All data is nested under /users/{userId}, ensuring that only the authenticated user can access their own data.
- * Additionally, the application requires that the data be publicly readable.
+ * This ruleset provides completely open access to all data in the BrimoUI Firestore database. 
+ * All read and write operations are allowed without authentication or authorization checks. 
+ * This configuration is for demonstration or prototyping purposes only.
  *
  * Data Structure:
- * - /users/{userId}/preferences/{preferenceId}: Stores user preferences.
- *   'preferenceId' must match 'userId'.
- * - /users/{userId}/kasAccounts/{kasAccountId}: Stores cash account information.
- * - /users/{userId}/kasAccounts/{kasAccountId}/transactions/{transactionId}: Stores transaction history.
+ * The database stores user preferences, cash accounts (KasAccounts), and transactions, all nested under `/users/{userId}`.
+ *  - /users/{userId}/preferences/{preferenceId}
+ *  - /users/{userId}/kasAccounts/{kasAccountId}
+ *  - /users/{userId}/kasAccounts/{kasAccountId}/transactions/{transactionId}
  *
  * Key Security Decisions:
- * - User listing is disallowed.
- * - All read operations are public.
- *
+ * - No authentication is required, all users have full read and write access.
+ * - Data validation is disabled for prototyping purposes.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows anyone to read any data.
-     * @principle Enables public read access as requested.
-     */
-    match /{document=**} {
-      allow get: if true;
-      allow list: if true;
-    }
-    /**
-     * @description Enforces owner-only access for creating, updating, and deleting user preferences.
+     * @description Allows anyone to read and write user preferences.
      * @path /users/{userId}/preferences/{preferenceId}
-     * @allow (create) request.auth.uid == 'user123' && request.resource.data.id == 'user123'
-     * @deny (create) request.auth.uid != 'user123'
-     * @principle Enforces document ownership for writes.
+     * @allow (get, list, create, update, delete) - Any user can perform any operation on any preference document.
+     * @deny None
+     * @principle Open access for prototyping.
      */
     match /users/{userId}/preferences/{preferenceId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
-      }
-      allow get: if true;
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      allow get, list, create, update, delete: if true;
     }
 
     /**
-     * @description Enforces owner-only access for creating, updating, and deleting cash accounts.
+     * @description Allows anyone to read and write cash accounts.
      * @path /users/{userId}/kasAccounts/{kasAccountId}
-     * @allow (create) request.auth.uid == 'user123'
-     * @deny (update) request.auth.uid != 'user123'
-     * @principle Enforces document ownership for writes.
+     * @allow (get, list, create, update, delete) - Any user can perform any operation on any kasAccount document.
+     * @deny None
+     * @principle Open access for prototyping.
      */
     match /users/{userId}/kasAccounts/{kasAccountId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
-      }
-      allow get: if true;
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow get, list, create, update, delete: if true;
     }
 
     /**
-     * @description Enforces owner-only access for creating, updating, and deleting transactions.
+     * @description Allows anyone to read and write transactions.
      * @path /users/{userId}/kasAccounts/{kasAccountId}/transactions/{transactionId}
-     * @allow (create) request.auth.uid == 'user123'
-     * @deny (delete) request.auth.uid != 'user123'
-     * @principle Enforces document ownership for writes.
+     * @allow (get, list, create, update, delete) - Any user can perform any operation on any transaction document.
+     * @deny None
+     * @principle Open access for prototyping.
      */
     match /users/{userId}/kasAccounts/{kasAccountId}/transactions/{transactionId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
-      }
-      allow get: if true;
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow get, list, create, update, delete: if true;
     }
   }
 }
