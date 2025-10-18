@@ -42,11 +42,17 @@ const formSchema = z.object({
 });
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
-    if (value === null || value === undefined) return 'Rp 0';
-    const num = Number(value);
-    if (isNaN(num)) return 'Rp 0';
+    if (value === null || value === undefined || value === '') return '';
+    const num = Number(String(value).replace(/[^0-9]/g, ''));
+    if (isNaN(num)) return '';
     return `Rp ${num.toLocaleString('id-ID')}`;
 };
+
+const parseRupiah = (value: string | undefined | null): number => {
+    if (!value) return 0;
+    return Number(String(value).replace(/[^0-9]/g, ''));
+}
+
 
 interface TransferBalanceFormProps {
   accounts: KasAccount[];
@@ -131,7 +137,7 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
                         </FormControl>
                         <SelectContent>
                         {accounts.map(account => (
-                            <SelectItem key={account.id} value={account.id}>{account.label} ({formatToRupiah(account.balance)})</SelectItem>
+                            <SelectItem key={account.id} value={account.id}>{account.label} ({formatToRupiah(account.balance) || 'Rp 0'})</SelectItem>
                         ))}
                         </SelectContent>
                     </Select>
@@ -168,23 +174,27 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
                     <FormItem>
                     <FormLabel>Jumlah Transfer</FormLabel>
                     <FormControl>
-                        <Input 
+                        <Input
                             type="text"
                             placeholder="Rp 0"
-                            onFocus={(e) => {
-                                if (e.target.value === 'Rp 0') e.target.value = '';
-                            }}
+                            {...field}
+                            value={formatToRupiah(field.value)}
                             onChange={(e) => {
-                                const value = e.target.value.replace(/[^0-9]/g, "");
-                                field.onChange(Number(value));
+                                field.onChange(parseRupiah(e.target.value));
                             }}
                             onBlur={(e) => {
-                                e.target.value = formatToRupiah(field.value);
+                                const formatted = formatToRupiah(e.target.value);
+                                e.target.value = formatted === "Rp 0" ? "" : formatted;
+                                field.onBlur();
                             }}
-                            defaultValue={formatToRupiah(field.value)}
+                            onFocus={(e) => {
+                                if (e.target.value === "Rp 0") {
+                                    e.target.value = "";
+                                }
+                            }}
                         />
                     </FormControl>
-                     {sourceAccount && <FormDescription>Saldo tersedia: {formatToRupiah(sourceAccount.balance)}</FormDescription>}
+                     {sourceAccount && <FormDescription>Saldo tersedia: {formatToRupiah(sourceAccount.balance) || 'Rp 0'}</FormDescription>}
                     <FormMessage />
                     </FormItem>
                 )}
@@ -229,14 +239,21 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
                             <Input 
                                 type="text"
                                 placeholder="Rp 0"
+                                {...field}
+                                value={formatToRupiah(field.value)}
                                 onChange={(e) => {
-                                    const value = e.target.value.replace(/[^0-9]/g, "");
-                                    field.onChange(Number(value));
+                                    field.onChange(parseRupiah(e.target.value));
                                 }}
                                 onBlur={(e) => {
-                                    e.target.value = formatToRupiah(field.value);
+                                    const formatted = formatToRupiah(e.target.value);
+                                    e.target.value = formatted === "Rp 0" ? "" : formatted;
+                                    field.onBlur();
                                 }}
-                                defaultValue={formatToRupiah(field.value)}
+                                onFocus={(e) => {
+                                    if (e.target.value === "Rp 0") {
+                                        e.target.value = "";
+                                    }
+                                }}
                             />
                         </FormControl>
                         <FormMessage />

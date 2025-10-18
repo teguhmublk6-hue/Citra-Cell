@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from 'react-hook-form';
@@ -12,6 +13,7 @@ import { collection, doc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { accountTypes } from '@/lib/data';
 import { setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useEffect } from 'react';
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
 
@@ -34,11 +36,16 @@ interface KasAccountFormProps {
 }
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
-    if (value === null || value === undefined) return 'Rp 0';
-    const num = Number(value);
-    if (isNaN(num)) return 'Rp 0';
+    if (value === null || value === undefined || value === '') return '';
+    const num = Number(String(value).replace(/[^0-9]/g, ''));
+    if (isNaN(num)) return '';
     return `Rp ${num.toLocaleString('id-ID')}`;
 };
+
+const parseRupiah = (value: string | undefined | null): number => {
+    if (!value) return 0;
+    return Number(String(value).replace(/[^0-9]/g, ''));
+}
 
 
 export default function KasAccountForm({ account, onDone }: KasAccountFormProps) {
@@ -50,10 +57,17 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
     defaultValues: {
       label: account?.label || '',
       type: account?.label || '',
-      balance: account?.balance || 0,
-      minimumBalance: account?.minimumBalance || 0,
+      balance: account?.balance || undefined,
+      minimumBalance: account?.minimumBalance || undefined,
     },
   });
+
+  useEffect(() => {
+    if (account) {
+        form.setValue('balance', account.balance);
+        form.setValue('minimumBalance', account.minimumBalance);
+    }
+  }, [account, form])
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!user) return;
@@ -125,20 +139,24 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
                 <FormItem>
                 <FormLabel>Saldo Awal</FormLabel>
                 <FormControl>
-                    <Input 
-                        type="text"
-                        placeholder="Rp 0"
-                        onFocus={(e) => {
-                            if (e.target.value === 'Rp 0') e.target.value = '';
-                        }}
-                        onChange={(e) => {
-                            const value = e.target.value.replace(/[^0-9]/g, "");
-                            field.onChange(Number(value));
-                        }}
-                        onBlur={(e) => {
-                            e.target.value = formatToRupiah(field.value);
-                        }}
-                        defaultValue={formatToRupiah(field.value)}
+                    <Input
+                      type="text"
+                      placeholder="Rp 0"
+                      {...field}
+                      value={formatToRupiah(field.value)}
+                      onChange={(e) => {
+                          field.onChange(parseRupiah(e.target.value));
+                      }}
+                      onBlur={(e) => {
+                          const formatted = formatToRupiah(e.target.value);
+                          e.target.value = formatted === "Rp 0" ? "" : formatted;
+                          field.onBlur();
+                      }}
+                      onFocus={(e) => {
+                          if (e.target.value === "Rp 0") {
+                              e.target.value = "";
+                          }
+                      }}
                     />
                 </FormControl>
                 <FormMessage />
@@ -153,19 +171,23 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
                 <FormLabel>Saldo Minimal</FormLabel>
                 <FormControl>
                     <Input 
-                        type="text"
-                        placeholder="Rp 0"
-                        onFocus={(e) => {
-                            if (e.target.value === 'Rp 0') e.target.value = '';
-                        }}
-                        onChange={(e) => {
-                            const value = e.target.value.replace(/[^0-9]/g, "");
-                            field.onChange(Number(value));
-                        }}
-                        onBlur={(e) => {
-                            e.target.value = formatToRupiah(field.value);
-                        }}
-                        defaultValue={formatToRupiah(field.value)}
+                      type="text"
+                      placeholder="Rp 0"
+                      {...field}
+                      value={formatToRupiah(field.value)}
+                      onChange={(e) => {
+                          field.onChange(parseRupiah(e.target.value));
+                      }}
+                      onBlur={(e) => {
+                          const formatted = formatToRupiah(e.target.value);
+                          e.target.value = formatted === "Rp 0" ? "" : formatted;
+                          field.onBlur();
+                      }}
+                      onFocus={(e) => {
+                          if (e.target.value === "Rp 0") {
+                              e.target.value = "";
+                          }
+                      }}
                     />
                 </FormControl>
                 <FormMessage />
