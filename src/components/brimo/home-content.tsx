@@ -7,7 +7,7 @@ import RecentTransactions from './recent-transactions';
 import BottomNav from './bottom-nav';
 import PlaceholderContent from './placeholder-content';
 import SettingsContent from './settings-content';
-import { FileText, QrCode, Bell, ArrowRightLeft } from 'lucide-react';
+import { FileText, QrCode, Bell, ArrowRightLeft, Receipt } from 'lucide-react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { KasAccount as KasAccountType } from '@/lib/data';
@@ -77,21 +77,26 @@ export default function HomeContent() {
                           </div>
                         </AccordionTrigger>
 
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
+                        <div className="flex items-center">
                             <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full">
-                              <ArrowRightLeft size={16} />
+                                <Receipt size={16} />
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => setActiveSheet('addCapital')}>
-                              Tambah Modal
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setActiveSheet('transferBalance')}>
-                              Pindah Saldo
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full">
+                                    <ArrowRightLeft size={16} />
+                                </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => setActiveSheet('addCapital')}>
+                                    Tambah Modal
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setActiveSheet('transferBalance')}>
+                                    Pindah Saldo
+                                </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                       </div>
 
                       <AccordionContent className="p-0">
