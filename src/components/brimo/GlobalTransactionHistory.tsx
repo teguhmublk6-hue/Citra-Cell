@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useFirestore, useCollection } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
 import type { KasAccount, Transaction } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -32,7 +32,10 @@ export default function GlobalTransactionHistory() {
   const [transactions, setTransactions] = useState<TransactionWithId[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const { data: kasAccounts } = useCollection<KasAccount>(collection(firestore, 'kasAccounts'));
+  const kasAccountsCollection = useMemoFirebase(() => {
+    return collection(firestore, 'kasAccounts');
+  }, [firestore]);
+  const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -183,3 +186,5 @@ export default function GlobalTransactionHistory() {
     </div>
   );
 }
+
+    

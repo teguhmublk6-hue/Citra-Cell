@@ -35,6 +35,9 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const transactionsCollection = useMemoFirebase(() => {
+    if (!firestore || !account?.id) return null;
+    const baseCollection = collection(firestore, 'kasAccounts', account.id, 'transactions');
+    
     const constraints = [orderBy('date', 'desc')];
     if (dateRange?.from) {
       constraints.push(where('date', '>=', startOfDay(dateRange.from).toISOString()));
@@ -43,11 +46,8 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
       constraints.push(where('date', '<=', endOfDay(dateRange.to).toISOString()));
     }
     
-    return query(
-      collection(firestore, 'kasAccounts', account.id, 'transactions'),
-      ...constraints
-    );
-  }, [firestore, account.id, dateRange]);
+    return query(baseCollection, ...constraints);
+  }, [firestore, account?.id, dateRange]);
   
   const { data: transactions, isLoading } = useCollection<TransactionWithId>(transactionsCollection);
 
@@ -155,3 +155,5 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     </div>
   );
 }
+
+    

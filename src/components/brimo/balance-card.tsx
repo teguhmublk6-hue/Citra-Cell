@@ -103,3 +103,5 @@ export default function BalanceCard({ balanceType }: BalanceCardProps) {
     </div>
   );
 }
+
+    
