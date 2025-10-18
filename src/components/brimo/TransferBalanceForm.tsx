@@ -124,7 +124,7 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
     const sourceTrxData: Omit<Transaction, 'id'> = {
         userId: user.uid,
         kasAccountId: sourceAcc.id,
-        name: `Transfer ke ${destAcc.label}`,
+        name: `Pindah saldo ke ${destAcc.label}`,
         account: destAcc.label,
         date: now,
         amount: transferAmount,
@@ -140,7 +140,7 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
     const destTrxData: Omit<Transaction, 'id'> = {
         userId: user.uid,
         kasAccountId: destAcc.id,
-        name: `Transfer dari ${sourceAcc.label}`,
+        name: `Pindah saldo dari ${sourceAcc.label}`,
         account: sourceAcc.label,
         date: now,
         amount: transferAmount,
@@ -163,7 +163,7 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
             userId: user.uid,
             kasAccountId: feeBearerAccountId,
             name: 'Biaya Admin Transfer',
-            account: `Transfer dari ${sourceAcc.label} ke ${destAcc.label}`,
+            account: `Pindah saldo dari ${sourceAcc.label} ke ${destAcc.label}`,
             date: now,
             amount: fee,
             type: 'debit',
@@ -378,3 +378,5 @@ export default function TransferBalanceForm({ accounts, onDone }: TransferBalanc
     </Form>
   );
 }
+
+  
