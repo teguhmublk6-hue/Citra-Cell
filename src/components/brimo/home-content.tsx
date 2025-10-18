@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -10,7 +11,7 @@ import { FileText, QrCode, Bell } from 'lucide-react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { KasAccount as KasAccountType } from '@/lib/data';
-import { Wallet, Building2, Zap, Smartphone, ShoppingBag } from 'lucide-react';
+import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight } from 'lucide-react';
 import Header from './header';
 import BalanceCard from './balance-card';
 
@@ -48,19 +49,22 @@ export default function HomeContent() {
                 <BalanceCard />
             </div>
             <div className="flex flex-col gap-4 px-4">
-                <div className="mt-4">
-                    <div className="grid grid-cols-2 gap-4">
+                <div className="mt-2">
+                    <div className="flex flex-col gap-3">
                     {kasAccounts?.map((account) => {
                         const Icon = iconMap[account.label] || iconMap['default'];
                         return (
-                        <div key={account.id} className={`p-4 rounded-2xl shadow-md flex items-center gap-4 ${account.color}`}>
-                            <div className="bg-white/20 p-2 rounded-full">
-                                <Icon size={20} className="text-white" />
+                        <div key={account.id} className="p-3 bg-card/80 backdrop-blur-md rounded-2xl shadow-lg border border-border/20 flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${account.color}`}>
+                                    <Icon size={20} className="text-white" />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-sm">{account.label}</p>
+                                    <p className="text-muted-foreground text-xs">Rp{account.balance.toLocaleString('id-ID')}</p>
+                                </div>
                             </div>
-                            <div>
-                            <p className="text-white font-semibold">{account.label}</p>
-                            <p className="text-white/80 text-sm">Rp{account.balance.toLocaleString('id-ID')}</p>
-                            </div>
+                            <ChevronRight size={18} className="text-muted-foreground" />
                         </div>
                         );
                     })}
