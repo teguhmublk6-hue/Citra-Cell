@@ -1,13 +1,75 @@
-import { Bell, User } from 'lucide-react';
+
+"use client";
+
+import { Bell, User, Pencil, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
+import { Input } from '../ui/input';
 
 export default function Header() {
+  const [deviceName, setDeviceName] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+
+  useEffect(() => {
+    // localStorage is only available on the client
+    const storedName = localStorage.getItem('brimoDeviceName');
+    if (storedName) {
+      setDeviceName(storedName);
+      setInputValue(storedName);
+    } else {
+      // If no name is set, automatically enter editing mode.
+      setIsEditing(true);
+    }
+  }, []);
+
+  const handleSave = () => {
+    if (inputValue.trim()) {
+      const newName = inputValue.trim();
+      localStorage.setItem('brimoDeviceName', newName);
+      setDeviceName(newName);
+      setIsEditing(false);
+    }
+  };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    }
+  };
+
   return (
     <header className="bg-gradient-to-br from-orange-500 to-orange-600 text-primary-foreground p-4 pt-8 h-40 rounded-b-3xl">
       <div className="flex justify-between items-center">
         <div>
           <p className="text-sm opacity-90">Selamat datang,</p>
-          <p className="text-xl font-semibold">Pengguna Brimo</p>
+          {isEditing ? (
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Nama Perangkat..."
+                className="h-8 text-black"
+                autoFocus
+              />
+              <Button onClick={handleSave} size="icon" className="h-8 w-8 bg-green-500 hover:bg-green-600">
+                <Check size={16} />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <p className="text-xl font-semibold">{deviceName || 'Pengguna Brimo'}</p>
+              <Button onClick={handleEdit} variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-white/20">
+                <Pencil size={14} />
+              </Button>
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <Button variant="ghost" size="icon" className="bg-white/10 hover:bg-white/20 rounded-full text-primary-foreground">
