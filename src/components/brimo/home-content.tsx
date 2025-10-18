@@ -14,6 +14,12 @@ import type { KasAccount as KasAccountType } from '@/lib/data';
 import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight } from 'lucide-react';
 import Header from './header';
 import BalanceCard from './balance-card';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
 const iconMap: { [key: string]: React.ElementType } = {
   'Tunai': Wallet,
@@ -49,27 +55,34 @@ export default function HomeContent() {
                 <BalanceCard />
             </div>
             <div className="flex flex-col gap-4 px-4">
-                <div className="mt-2">
-                    <div className="flex flex-col gap-3">
-                    {kasAccounts?.map((account) => {
-                        const Icon = iconMap[account.label] || iconMap['default'];
-                        return (
-                        <div key={account.id} className="p-3 bg-card/80 backdrop-blur-md rounded-2xl shadow-lg border border-border/20 flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${account.color}`}>
-                                    <Icon size={20} className="text-white" />
+                <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
+                  <AccordionItem value="item-1" className="border-none">
+                    <AccordionTrigger className="p-3 bg-card/80 backdrop-blur-md rounded-2xl shadow-lg border border-border/20 flex items-center justify-between gap-4 data-[state=open]:rounded-b-none">
+                      <p className="font-semibold text-sm">Kas Terintegrasi</p>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-0">
+                      <div className="flex flex-col gap-0 rounded-b-2xl overflow-hidden border border-t-0 border-border/20 shadow-lg">
+                        {kasAccounts?.map((account) => {
+                            const Icon = iconMap[account.label] || iconMap['default'];
+                            return (
+                            <div key={account.id} className="p-3 bg-card/80 backdrop-blur-md flex items-center justify-between gap-4 border-t border-border/10">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${account.color}`}>
+                                        <Icon size={20} className="text-white" />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-sm">{account.label}</p>
+                                        <p className="text-muted-foreground text-xs">Rp{account.balance.toLocaleString('id-ID')}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="font-semibold text-sm">{account.label}</p>
-                                    <p className="text-muted-foreground text-xs">Rp{account.balance.toLocaleString('id-ID')}</p>
-                                </div>
+                                <ChevronRight size={18} className="text-muted-foreground" />
                             </div>
-                            <ChevronRight size={18} className="text-muted-foreground" />
-                        </div>
-                        );
-                    })}
-                    </div>
-                </div>
+                            );
+                        })}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
                 <QuickServices />
                 <RecentTransactions />
             </div>
