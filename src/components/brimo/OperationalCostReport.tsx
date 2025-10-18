@@ -13,8 +13,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, X } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '../ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
     if (value === null || value === undefined || value === '') return '';
@@ -31,7 +31,6 @@ const parseRupiah = (value: string | undefined | null): number => {
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
 
 const costFormSchema = z.object({
-  sourceAccountId: z.string().min(1, 'Akun sumber harus dipilih'),
   name: z.string().min(1, 'Keterangan harus diisi'),
   amount: z.preprocess(
     numberPreprocessor,
@@ -47,6 +46,7 @@ interface OperationalCostReportProps {
 export default function OperationalCostReport({ accounts, onDone }: OperationalCostReportProps) {
   const firestore = useFirestore();
   const { user } = useUser();
+  const { toast } = useToast();
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [operationalCosts, setOperationalCosts] = useState<Transaction[]>([]);
@@ -55,7 +55,6 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
   const form = useForm<z.infer<typeof costFormSchema>>({
     resolver: zodResolver(costFormSchema),
     defaultValues: {
-      sourceAccountId: '',
       name: '',
       amount: undefined,
     },
@@ -94,14 +93,18 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
   const handleAddCost = async (values: z.infer<typeof costFormSchema>) => {
     if (!user || !firestore) return;
 
-    const sourceAccount = accounts.find(acc => acc.id === values.sourceAccountId);
+    const sourceAccount = accounts.find(acc => acc.label.toLowerCase() === 'laci' && acc.type === 'Tunai');
     if (!sourceAccount) {
-      console.error("Akun sumber tidak ditemukan.");
+      toast({
+        variant: "destructive",
+        title: "Akun Kas 'laci' tidak ditemukan.",
+        description: "Pastikan Anda memiliki akun kas tunai dengan nama 'laci'.",
+      });
       return;
     }
 
     if (sourceAccount.balance < values.amount) {
-        form.setError('amount', { message: 'Saldo akun sumber tidak mencukupi' });
+        form.setError('amount', { message: 'Saldo akun laci tidak mencukupi' });
         return;
     }
     
@@ -132,8 +135,17 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
         setShowAddForm(false);
         // Manually add to local state to reflect update instantly
         setOperationalCosts(prev => [{...newTransaction, id: transactionRef.id}, ...prev]);
+        toast({
+            title: "Biaya berhasil ditambahkan.",
+            description: `${values.name} sebesar ${formatToRupiah(values.amount)} telah dicatat.`,
+        });
     } catch(e) {
         console.error("Gagal menambahkan biaya operasional", e)
+        toast({
+            variant: "destructive",
+            title: "Terjadi kesalahan",
+            description: "Gagal menyimpan biaya operasional.",
+        });
     }
   };
 
@@ -159,28 +171,6 @@ export default function OperationalCostReport({ accounts, onDone }: OperationalC
         <div className="px-1 mb-4">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleAddCost)} className="space-y-4 p-4 border rounded-lg">
-               <FormField
-                control={form.control}
-                name="sourceAccountId"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Ambil dari Akun Kas</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Pilih akun sumber biaya" />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                        {accounts.map(account => (
-                            <SelectItem key={account.id} value={account.id}>{account.label} ({formatToRupiah(account.balance) || 'Rp 0'})</SelectItem>
-                        ))}
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
               <FormField
                 control={form.control}
                 name="name"
