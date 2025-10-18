@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useFirestore, useUser, addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase';
+import { collection, doc, addDoc, setDoc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { accountTypes } from '@/lib/data';
+import { setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 const formSchema = z.object({
   label: z.string().min(1, 'Nama akun harus diisi'),
