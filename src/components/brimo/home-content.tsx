@@ -7,7 +7,7 @@ import RecentTransactions from './recent-transactions';
 import BottomNav from './bottom-nav';
 import PlaceholderContent from './placeholder-content';
 import SettingsContent from './settings-content';
-import { FileText, QrCode, Bell, Receipt, DollarSign } from 'lucide-react';
+import { FileText, QrCode, Bell, Receipt, Plus } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, CollectionReference, DocumentData } from 'firebase/firestore';
 import type { KasAccount as KasAccountType, Transaction } from '@/lib/data';
@@ -172,7 +172,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={(e) => e.stopPropagation()}>
-                                    <DollarSign size={16} />
+                                    <Plus size={16} />
                                 </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
@@ -247,5 +247,3 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     </>
   );
 }
-
-    
