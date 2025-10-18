@@ -25,10 +25,7 @@ const formSchema = z.object({
     numberPreprocessor,
     z.number({ invalid_type_error: "Jumlah harus angka" }).positive('Jumlah harus lebih dari 0')
   ),
-  adminFee: z.preprocess(
-    (val) => Number(val),
-    z.number().min(0, "Biaya admin tidak boleh negatif")
-  ),
+  adminFee: z.string(), // This should just be a string to hold the radio value
   manualAdminFee: z.number({ invalid_type_error: "Nominal harus angka" }).min(0, "Biaya admin tidak boleh negatif").optional(),
   description: z.string().optional(),
 }).refine(data => data.sourceAccountId !== data.destinationAccountId, {
@@ -69,7 +66,7 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
       sourceAccountId: '',
       destinationAccountId: '',
       amount: undefined,
-      adminFee: 0,
+      adminFee: "0",
       manualAdminFee: 0,
       description: '',
     },
@@ -89,7 +86,7 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
       return;
     }
 
-    const fee = String(values.adminFee) === '-1' ? (values.manualAdminFee || 0) : values.adminFee;
+    const fee = values.adminFee === '-1' ? (values.manualAdminFee || 0) : Number(values.adminFee);
     const totalDebit = values.amount + fee;
 
     if (sourceAccount.balance < totalDebit) {
@@ -330,6 +327,5 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
     </Form>
   );
 }
-
 
     
