@@ -17,6 +17,7 @@ export default function RecentTransactions() {
   const [isLoading, setIsLoading] = useState(true);
 
   const kasAccountsCollection = useMemoFirebase(() => {
+    if (!firestore) return null;
     return collection(firestore, 'kasAccounts');
   }, [firestore]);
 
@@ -95,7 +96,7 @@ export default function RecentTransactions() {
                   <div className="truncate">
                     <p className="font-medium text-sm truncate">{trx.name}</p>
                     <p className="text-xs text-muted-foreground truncate">
-                        {trx.type === 'credit' ? `dari ${trx.account}` : trx.accountLabel} • {new Date(trx.date).toLocaleDateString('id-ID', {day: 'numeric', month: 'short'})}
+                        {trx.type === 'credit' ? `dari ${trx.account}` : `ke ${trx.account}`} • {new Date(trx.date).toLocaleDateString('id-ID', {day: 'numeric', month: 'short'})}
                     </p>
                   </div>
                 </div>
