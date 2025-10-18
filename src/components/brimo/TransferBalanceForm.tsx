@@ -89,7 +89,7 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
       return;
     }
 
-    const fee = values.adminFee === -1 ? (values.manualAdminFee || 0) : values.adminFee;
+    const fee = String(values.adminFee) === '-1' ? (values.manualAdminFee || 0) : values.adminFee;
     const totalDebit = values.amount + fee;
 
     if (sourceAccount.balance < totalDebit) {
@@ -283,7 +283,7 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
               )}
             />
 
-            {form.watch('adminFee') === -1 && (
+            {String(form.watch('adminFee')) === '-1' && (
                 <FormField
                     control={form.control}
                     name="manualAdminFee"
@@ -330,5 +330,3 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
     </Form>
   );
 }
-
-    
