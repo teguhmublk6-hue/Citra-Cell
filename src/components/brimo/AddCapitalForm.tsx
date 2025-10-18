@@ -71,7 +71,7 @@ export default function AddCapitalForm({ accounts, onDone }: AddCapitalFormProps
     const transactionRef = doc(collection(firestore, 'kasAccounts', values.accountId, 'transactions'));
     const newTransaction: Omit<Transaction, 'id' | 'userId'> = {
         kasAccountId: values.accountId,
-        name: 'Penambahan Modal',
+        name: `Tambah modal ke: ${targetAccount.label}`,
         account: 'Setoran Modal',
         date: new Date().toISOString(),
         amount: amount,
