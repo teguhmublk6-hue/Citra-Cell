@@ -1,3 +1,4 @@
+
 "use client"
 
 // Inspired by react-hot-toast library
@@ -142,6 +143,8 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
+const DURATION_IN_MS = 2000;
+
 function toast({ ...props }: Toast) {
   const id = genId()
 
@@ -163,6 +166,10 @@ function toast({ ...props }: Toast) {
       },
     },
   })
+
+  setTimeout(() => {
+    dismiss()
+  }, DURATION_IN_MS)
 
   return {
     id: id,
