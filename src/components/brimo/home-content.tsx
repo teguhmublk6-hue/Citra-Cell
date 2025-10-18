@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import QuickServices from './quick-services';
 import RecentTransactions from './recent-transactions';
 import BottomNav from './bottom-nav';
@@ -9,7 +9,7 @@ import PlaceholderContent from './placeholder-content';
 import SettingsContent from './settings-content';
 import { FileText, QrCode, Bell, ArrowRightLeft, Receipt } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, CollectionReference, DocumentData } from 'firebase/firestore';
 import type { KasAccount as KasAccountType, Transaction } from '@/lib/data';
 import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight } from 'lucide-react';
 import Header from './header';
@@ -59,16 +59,25 @@ export default function HomeContent() {
   const [currentSlide, setCurrentSlide] = useState(0)
   
   const firestore = useFirestore();
+  const [revalidationKey, setRevalidationKey] = useState(0);
+
+  const revalidateData = useCallback(() => {
+    setRevalidationKey(prev => prev + 1);
+  }, []);
 
   const plugin = useRef(
     Autoplay({ delay: 2000, stopOnInteraction: true })
   );
 
   const kasAccountsCollection = useMemoFirebase(() => {
+    if (!firestore) return null;
+    // We add revalidationKey to the dependency array to force re-memoization
+    // which in turn forces useCollection to re-fetch data.
+    console.log(`Re-fetching kasAccounts with key: ${revalidationKey}`);
     return collection(firestore, 'kasAccounts');
-  }, [firestore]);
+  }, [firestore, revalidationKey]);
 
-  const { data: kasAccounts } = useCollection<KasAccountType>(kasAccountsCollection);
+  const { data: kasAccounts, isLoading: isAccountsLoading } = useCollection<KasAccountType>(kasAccountsCollection);
   
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
@@ -92,7 +101,7 @@ export default function HomeContent() {
     };
 
     fetchTransactions();
-  }, [firestore, kasAccounts]);
+  }, [firestore, kasAccounts, revalidationKey]);
 
 
   useEffect(() => {
@@ -118,7 +127,7 @@ export default function HomeContent() {
       case 'home':
         return (
           <>
-            <Header />
+            <Header onSync={revalidateData} isSyncing={isAccountsLoading} />
             <div className="px-4 -mt-16">
               <Carousel 
                 setApi={setCarouselApi}
@@ -247,5 +256,3 @@ export default function HomeContent() {
     </>
   );
 }
-
-    

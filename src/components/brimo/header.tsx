@@ -1,12 +1,17 @@
 
 "use client";
 
-import { Bell, User } from 'lucide-react';
+import { Bell, RefreshCw, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { Input } from '../ui/input';
 
-export default function Header() {
+interface HeaderProps {
+    onSync: () => void;
+    isSyncing: boolean;
+}
+
+export default function Header({ onSync, isSyncing }: HeaderProps) {
   const [deviceName, setDeviceName] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -37,7 +42,7 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-gradient-to-br from-orange-500 to-orange-600 text-primary-foreground p-4 pt-8 h-40 rounded-b-3xl">
+    <header className="bg-gradient-to-br from-primary to-orange-500 text-primary-foreground p-4 pt-8 h-40 rounded-b-3xl">
       <div className="flex justify-between items-center">
         <div>
           <p className="text-sm opacity-90">Selamat datang,</p>
@@ -66,8 +71,8 @@ export default function Header() {
           <Button variant="ghost" size="icon" className="bg-white/10 hover:bg-white/20 rounded-full text-primary-foreground">
             <Bell size={20} />
           </Button>
-          <Button variant="ghost" size="icon" className="bg-white/10 hover:bg-white/20 rounded-full text-primary-foreground">
-            <User size={20} />
+          <Button variant="ghost" size="icon" className="bg-white/10 hover:bg-white/20 rounded-full text-primary-foreground" onClick={onSync} disabled={isSyncing}>
+            <RefreshCw size={20} className={isSyncing ? "animate-spin" : ""} />
           </Button>
         </div>
       </div>
