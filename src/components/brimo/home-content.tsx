@@ -70,18 +70,20 @@ export default function HomeContent() {
                 <Sheet open={!!activeSheet} onOpenChange={(isOpen) => !isOpen && setActiveSheet(null)}>
                   <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
                     <AccordionItem value="item-1" className="border-none">
-                      <AccordionTrigger className="p-3 bg-card/80 backdrop-blur-md rounded-2xl shadow-lg border border-border/20 flex items-center justify-between gap-4 data-[state=open]:rounded-b-none">
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold text-sm">Kas Terintegrasi</p>
-                        </div>
+                      <div className="p-3 bg-card/80 backdrop-blur-md rounded-2xl shadow-lg border border-border/20 flex items-center justify-between gap-2 data-[state=open]:rounded-b-none">
+                        <AccordionTrigger className="flex-1 p-0 justify-start">
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-sm">Kas Terintegrasi</p>
+                          </div>
+                        </AccordionTrigger>
 
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full">
                               <MoreHorizontal size={18} />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={() => setActiveSheet('addCapital')}>
                               Tambah Modal
                             </DropdownMenuItem>
@@ -90,8 +92,8 @@ export default function HomeContent() {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
+                      </div>
 
-                      </AccordionTrigger>
                       <AccordionContent className="p-0">
                         <div className="flex flex-col gap-0 rounded-b-2xl overflow-hidden border border-t-0 border-border/20 shadow-lg">
                           {kasAccounts?.map((account) => {
