@@ -13,8 +13,9 @@ import { cn } from '@/lib/utils';
 import type { CarouselApi } from "@/components/ui/carousel"
 import React from 'react';
 
+type ServiceType = 'customerTransfer' | 'withdraw';
 interface QuickServicesProps {
-    onServiceClick: (service: 'customerTransfer') => void;
+    onServiceClick: (service: ServiceType) => void;
 }
 
 export default function QuickServices({ onServiceClick }: QuickServicesProps) {
@@ -43,6 +44,9 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
   const handleServiceClick = (label: string) => {
     if (label === 'Transfer') {
         onServiceClick('customerTransfer');
+    }
+    if (label === 'Tarik Tunai') {
+        onServiceClick('withdraw');
     }
     // Handle other services if needed
   }

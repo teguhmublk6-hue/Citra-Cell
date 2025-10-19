@@ -12,10 +12,9 @@ import { Separator } from '@/components/ui/separator';
 
 interface BalanceCardProps {
   balanceType: 'non-tunai' | 'tunai';
-  onClick?: () => void;
 }
 
-export default function BalanceCard({ balanceType, onClick }: BalanceCardProps) {
+export default function BalanceCard({ balanceType }: BalanceCardProps) {
   const [showBalance, setShowBalance] = useState(true);
   const firestore = useFirestore();
 
@@ -40,7 +39,7 @@ export default function BalanceCard({ balanceType, onClick }: BalanceCardProps) 
   const title = balanceType === 'non-tunai' ? 'Total Saldo' : 'Saldo Tunai';
   const subtitle = balanceType === 'non-tunai' ? 'Non-Tunai' : 'Uang Fisik';
 
-  const CardContent = (
+  return (
     <div className="bg-card/80 backdrop-blur-md rounded-2xl p-5 text-card-foreground shadow-lg border border-border/20 w-full text-left relative">
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-center gap-2">
@@ -113,14 +112,6 @@ export default function BalanceCard({ balanceType, onClick }: BalanceCardProps) 
       )}
     </div>
   );
-
-  if (onClick) {
-    return (
-      <div onClick={onClick} className="w-full text-left cursor-pointer" role="button" tabIndex={0}>
-        {CardContent}
-      </div>
-    )
-  }
-
-  return CardContent;
 }
+
+    

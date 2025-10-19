@@ -33,3 +33,28 @@ export type CustomerTransfer = {
     paymentToKasTransferAmount?: number;
     deviceName: string;
 }
+
+export const CustomerWithdrawalFormSchema = z.object({
+  customerBankSource: z.string().min(1, 'Bank/E-wallet pelanggan harus dipilih'),
+  customerName: z.string().min(1, 'Nama penarik harus diisi'),
+  withdrawalAmount: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Nominal harus angka" }).positive('Nominal penarikan harus lebih dari 0')),
+  serviceFee: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Biaya harus angka" }).min(0, 'Biaya jasa tidak boleh negatif')),
+  destinationAccountId: z.string().min(1, 'Akun kas tujuan harus dipilih'),
+});
+
+export type CustomerWithdrawalFormValues = z.infer<typeof CustomerWithdrawalFormSchema>;
+
+export type CustomerWithdrawal = {
+    id: string;
+    date: string;
+    customerName: string;
+    customerBankSource: string;
+    withdrawalAmount: number;
+    serviceFee: number;
+    totalTransfer: number;
+    destinationKasAccountId: string;
+    sourceKasTunaiAccountId: string;
+    deviceName: string;
+}
+
+    

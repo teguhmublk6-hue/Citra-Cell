@@ -31,9 +31,11 @@ import AddCapitalForm from './AddCapitalForm';
 import WithdrawBalanceForm from './WithdrawBalanceForm';
 import CustomerTransferForm from './CustomerTransferForm';
 import CustomerTransferReview from './CustomerTransferReview';
-import type { CustomerTransferFormValues } from '@/lib/types';
+import type { CustomerTransferFormValues, CustomerWithdrawalFormValues } from '@/lib/types';
 import BookkeepingReport from './BookkeepingReport';
 import AdminPasscodeDialog from './AdminPasscodeDialog';
+import CustomerWithdrawalForm from './CustomerWithdrawalForm';
+import CustomerWithdrawalReview from './CustomerWithdrawalReview';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -46,7 +48,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'admin' | 'settings';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'bookkeepingReport';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'bookkeepingReport' | 'customerWithdrawal' | 'customerWithdrawalReview';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -59,7 +61,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
   const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
   const [currentSlide, setCurrentSlide] = useState(0)
-  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | null>(null);
+  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | null>(null);
   const [isAdminAccessGranted, setIsAdminAccessGranted] = useState(false);
   const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
   const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -133,13 +135,21 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     }, 150);
   }
   
-  const handleQuickServiceClick = (service: 'customerTransfer') => {
-    setActiveSheet(service);
+  const handleQuickServiceClick = (service: 'customerTransfer' | 'withdraw') => {
+    if (service === 'customerTransfer') {
+      setActiveSheet('customerTransfer');
+    } else if (service === 'withdraw') {
+      setActiveSheet('customerWithdrawal');
+    }
   }
 
-  const handleReview = (data: CustomerTransferFormValues) => {
+  const handleReview = (data: CustomerTransferFormValues | CustomerWithdrawalFormValues) => {
     setReviewData(data);
-    setActiveSheet('customerTransferReview');
+    if ('destinationBank' in data) {
+      setActiveSheet('customerTransferReview');
+    } else {
+      setActiveSheet('customerWithdrawalReview');
+    }
   }
 
   const closeAllSheets = () => {
@@ -200,10 +210,11 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                     <BalanceCard balanceType="non-tunai" />
                   </CarouselItem>
                   <CarouselItem>
-                    <BalanceCard 
-                      balanceType="tunai" 
-                      onClick={() => virtualTunaiAccount && handleAccountClick(virtualTunaiAccount)}
-                    />
+                    <div role="button" tabIndex={0} onClick={() => virtualTunaiAccount && handleAccountClick(virtualTunaiAccount)} className="w-full text-left cursor-pointer">
+                      <BalanceCard 
+                        balanceType="tunai" 
+                      />
+                    </div>
                   </CarouselItem>
                 </CarouselContent>
               </Carousel>
@@ -274,9 +285,11 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                           <SheetTitle>
                             {activeSheet === 'transfer' && 'Pindah Saldo'}
                             {activeSheet === 'addCapital' && 'Tambah Modal'}
-                            {activeSheet === 'withdraw' && 'Tarik Saldo'}
+                            {activeSheet === 'withdraw' && 'Tarik Saldo Pribadi'}
                             {activeSheet === 'customerTransfer' && 'Transfer Pelanggan'}
                             {activeSheet === 'customerTransferReview' && 'Review Transaksi Transfer'}
+                            {activeSheet === 'customerWithdrawal' && 'Tarik Tunai Pelanggan'}
+                            {activeSheet === 'customerWithdrawalReview' && 'Review Tarik Tunai'}
                             {activeSheet === 'bookkeepingReport' && 'Laporan Pembukuan'}
                           </SheetTitle>
                       </SheetHeader>
@@ -284,7 +297,9 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                       {activeSheet === 'addCapital' && <AddCapitalForm onDone={closeAllSheets} />}
                       {activeSheet === 'withdraw' && <WithdrawBalanceForm onDone={closeAllSheets} />}
                       {activeSheet === 'customerTransfer' && <CustomerTransferForm onReview={handleReview} onDone={closeAllSheets} />}
-                      {activeSheet === 'customerTransferReview' && reviewData && <CustomerTransferReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerTransfer')} />}
+                      {activeSheet === 'customerTransferReview' && reviewData && 'destinationBank' in reviewData && <CustomerTransferReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerTransfer')} />}
+                      {activeSheet === 'customerWithdrawal' && <CustomerWithdrawalForm onReview={handleReview} onDone={closeAllSheets} />}
+                      {activeSheet === 'customerWithdrawalReview' && reviewData && 'customerBankSource' in reviewData && <CustomerWithdrawalReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerWithdrawal')} />}
                       {activeSheet === 'bookkeepingReport' && <BookkeepingReport onDone={closeAllSheets} />}
                   </SheetContent>
                 </Sheet>
@@ -340,7 +355,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                         <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
                             <TrendingDown size={24} />
                         </div>
-                        <span className="text-sm font-medium">Tarik Saldo</span>
+                        <span className="text-sm font-medium">Tarik Pribadi</span>
                     </button>
                 </div>
             </SheetContent>
@@ -349,3 +364,5 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     </>
   );
 }
+
+    
