@@ -260,6 +260,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                         <TableRow>
                             <TableHead className="w-[40px]">No.</TableHead>
                             <TableHead>Nama Layanan</TableHead>
+                            <TableHead>Akun Kas</TableHead>
                             <TableHead>Tujuan</TableHead>
                             <TableHead>Deskripsi</TableHead>
                             <TableHead className="text-right">Harga Modal</TableHead>
@@ -269,7 +270,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                     </TableHeader>
                     <TableBody>
                         <TableRow>
-                            <TableCell colSpan={7} className="text-center text-muted-foreground pt-8">
+                            <TableCell colSpan={8} className="text-center text-muted-foreground pt-8">
                                 Belum ada transaksi PPOB untuk tanggal ini.
                             </TableCell>
                         </TableRow>
@@ -280,5 +281,3 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
     </div>
   );
 }
-
-    
