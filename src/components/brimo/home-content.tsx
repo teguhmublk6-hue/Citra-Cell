@@ -33,6 +33,7 @@ import CustomerTransferForm from './CustomerTransferForm';
 import CustomerTransferReview from './CustomerTransferReview';
 import type { CustomerTransferFormValues } from '@/lib/types';
 import BookkeepingReport from './BookkeepingReport';
+import AdminPasscodeDialog from './AdminPasscodeDialog';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -59,6 +60,14 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
   const [currentSlide, setCurrentSlide] = useState(0)
   const [reviewData, setReviewData] = useState<CustomerTransferFormValues | null>(null);
+  const [isAdminAccessGranted, setIsAdminAccessGranted] = useState(false);
+  const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
+
+  useEffect(() => {
+    // Check sessionStorage on initial load
+    const hasAccess = sessionStorage.getItem('brimoAdminAccess') === 'true';
+    setIsAdminAccessGranted(hasAccess);
+  }, []);
   
   const firestore = useFirestore();
 
@@ -120,6 +129,22 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
   const handleReportClick = () => {
     setActiveSheet('bookkeepingReport');
   }
+
+  const handleTabChange = (tab: ActiveTab) => {
+    if (tab === 'admin' && !isAdminAccessGranted) {
+      setIsPasscodeDialogOpen(true);
+    } else {
+      setActiveTab(tab);
+    }
+  };
+
+  const handlePasscodeSuccess = () => {
+    sessionStorage.setItem('brimoAdminAccess', 'true');
+    setIsAdminAccessGranted(true);
+    setActiveTab('admin');
+    setIsPasscodeDialogOpen(false);
+  };
+
 
   const renderContent = () => {
     switch (activeTab) {
@@ -234,7 +259,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
       case 'mutasi':
         return <GlobalTransactionHistory />;
       case 'admin':
-        return <AdminPlaceholder />;
+        return isAdminAccessGranted ? <AdminPlaceholder /> : null;
       default:
         return <div className="px-4"><QuickServices onServiceClick={handleQuickServiceClick}/></div>;
     }
@@ -243,7 +268,12 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
   return (
     <>
       {renderContent()}
-      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab}>
+      <AdminPasscodeDialog
+        isOpen={isPasscodeDialogOpen}
+        onClose={() => setIsPasscodeDialogOpen(false)}
+        onSuccess={handlePasscodeSuccess}
+      />
+      <BottomNav activeTab={activeTab} setActiveTab={handleTabChange}>
          <Sheet>
             <SheetTrigger asChild>
                 <button id="mutation-menu-trigger" className="h-14 w-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center -mt-4 shadow-lg shadow-primary/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
