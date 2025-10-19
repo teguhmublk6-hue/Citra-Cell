@@ -16,6 +16,7 @@ import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '../ui/scroll-area';
 import { Card, CardContent } from '../ui/card';
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface BookkeepingReportProps {
   onDone: () => void;
@@ -28,17 +29,6 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
     const num = Number(String(value).replace(/[^0-9]/g, ''));
     if (isNaN(num)) return 'Rp 0';
     return `Rp ${num.toLocaleString('id-ID')}`;
-};
-
-const formatDateTime = (date: Date | string) => {
-    const d = typeof date === 'string' ? new Date(date) : date;
-    return d.toLocaleString('id-ID', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
 };
 
 export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
@@ -174,20 +164,15 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                     />
                 </PopoverContent>
             </Popover>
-            <Card>
-                <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground">Total Laba Bersih</p>
-                    <p className="text-2xl font-bold">{formatToRupiah(totalProfit)}</p>
-                </CardContent>
-            </Card>
         </div>
       
-        <ScrollArea className="flex-1 px-4">
+        <div className="flex-1 overflow-auto">
             {isLoading && (
-            <div className="space-y-4">
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-20 w-full" />
+            <div className="px-4 space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
             </div>
             )}
             {!isLoading && reports.length === 0 && (
@@ -198,56 +183,59 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                 </div>
             )}
             {!isLoading && reports.length > 0 && (
-                <div className="space-y-3 pb-4">
-                    {reports.map((report) => (
-                        <Card key={report.id}>
-                            <CardContent className="p-3">
-                                {report.transactionType === 'Transfer' && (
-                                    <div className="flex items-start gap-3">
-                                        <div className="w-9 h-9 flex-shrink-0 rounded-full flex items-center justify-center bg-blue-500/10">
-                                            <Send size={16} className="text-blue-500" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="flex justify-between items-start">
-                                                <p className="font-semibold">Transfer: {report.destinationAccountName}</p>
-                                                <p className="font-bold text-green-500">{formatToRupiah(report.netProfit)}</p>
-                                            </div>
-                                            <p className="text-xs text-muted-foreground">
-                                                {formatToRupiah(report.transferAmount)} (Jasa: {formatToRupiah(report.serviceFee)})
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                {getAccountLabel(report.sourceKasAccountId)} → {report.destinationBankName}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground/80 mt-1">{formatDateTime(report.date)} oleh {report.deviceName}</p>
-                                        </div>
-                                    </div>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-[50px]">No</TableHead>
+                            <TableHead>Layanan</TableHead>
+                            <TableHead>Akun Kas</TableHead>
+                            <TableHead>Bank/Tujuan</TableHead>
+                            <TableHead>Nama</TableHead>
+                            <TableHead className="text-right">Nominal</TableHead>
+                            <TableHead className="text-right">Admin Bank</TableHead>
+                            <TableHead className="text-right">Jasa</TableHead>
+                            <TableHead>Oleh</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {reports.map((report, index) => (
+                            <TableRow key={report.id}>
+                                <TableCell>{index + 1}</TableCell>
+                                {report.transactionType === 'Transfer' ? (
+                                    <>
+                                        <TableCell>Transfer</TableCell>
+                                        <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                                        <TableCell>{report.destinationBankName}</TableCell>
+                                        <TableCell>{report.destinationAccountName}</TableCell>
+                                        <TableCell className="text-right">{formatToRupiah(report.transferAmount)}</TableCell>
+                                        <TableCell className="text-right">{formatToRupiah(report.bankAdminFee)}</TableCell>
+                                        <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.netProfit)}</TableCell>
+                                        <TableCell>{report.deviceName}</TableCell>
+                                    </>
+                                ) : (
+                                    <>
+                                        <TableCell>Tarik Tunai</TableCell>
+                                        <TableCell>{getAccountLabel(report.destinationKasAccountId)}</TableCell>
+                                        <TableCell>{report.customerBankSource}</TableCell>
+                                        <TableCell>{report.customerName}</TableCell>
+                                        <TableCell className="text-right">{formatToRupiah(report.withdrawalAmount)}</TableCell>
+                                        <TableCell className="text-right">Rp 0</TableCell>
+                                        <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
+                                        <TableCell>{report.deviceName}</TableCell>
+                                    </>
                                 )}
-                                {report.transactionType === 'Tarik Tunai' && (
-                                    <div className="flex items-start gap-3">
-                                        <div className="w-9 h-9 flex-shrink-0 rounded-full flex items-center justify-center bg-gray-500/10">
-                                            <Wallet size={16} className="text-gray-500" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="flex justify-between items-start">
-                                                <p className="font-semibold">Tarik Tunai: {report.customerName}</p>
-                                                <p className="font-bold text-green-500">{formatToRupiah(report.serviceFee)}</p>
-                                            </div>
-                                            <p className="text-xs text-muted-foreground">
-                                                {formatToRupiah(report.withdrawalAmount)} (Total: {formatToRupiah(report.totalTransfer)})
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                {report.customerBankSource} → {getAccountLabel(report.destinationKasAccountId)}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground/80 mt-1">{formatDateTime(report.date)} oleh {report.deviceName}</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                     <TableFooter>
+                        <TableRow>
+                            <TableCell colSpan={7} className="font-bold">Total Laba Bersih</TableCell>
+                            <TableCell colSpan={2} className="text-right font-bold text-lg text-green-500">{formatToRupiah(totalProfit)}</TableCell>
+                        </TableRow>
+                    </TableFooter>
+                </Table>
             )}
-        </ScrollArea>
+        </div>
     </div>
   );
 }
