@@ -48,7 +48,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'admin' | 'settings';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'bookkeepingReport' | 'customerWithdrawal' | 'customerWithdrawalReview';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -64,10 +64,10 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
   const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | null>(null);
   const [isAdminAccessGranted, setIsAdminAccessGranted] = useState(false);
   const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
+  const [isReportVisible, setIsReportVisible] = useState(false);
   const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Check sessionStorage on initial load
     const hasAccess = sessionStorage.getItem('brimoAdminAccess') === 'true';
     setIsAdminAccessGranted(hasAccess);
   }, []);
@@ -81,8 +81,6 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
         adminTimeoutRef.current = setTimeout(() => {
             setIsAdminAccessGranted(false);
             sessionStorage.removeItem('brimoAdminAccess');
-            // Optionally, you can add a toast notification here
-            // to inform the user that their admin session has expired.
         }, 10000); // 10 seconds
     }
 
@@ -159,7 +157,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
   }
 
   const handleReportClick = () => {
-    setActiveSheet('bookkeepingReport');
+    setIsReportVisible(true);
   }
 
   const handleTabChange = (tab: ActiveTab) => {
@@ -186,11 +184,14 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
       label: 'Semua Akun Tunai',
       type: 'Tunai',
       balance: totalBalance,
-      minimumBalance: 0, // Not applicable for virtual account
+      minimumBalance: 0,
       color: 'bg-green-500',
     };
   }, [kasAccounts]);
 
+  if (isReportVisible) {
+    return <BookkeepingReport onDone={() => setIsReportVisible(false)} />;
+  }
 
   const renderContent = () => {
     switch (activeTab) {
@@ -290,7 +291,6 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                             {activeSheet === 'customerTransferReview' && 'Review Transaksi Transfer'}
                             {activeSheet === 'customerWithdrawal' && 'Tarik Tunai Pelanggan'}
                             {activeSheet === 'customerWithdrawalReview' && 'Review Tarik Tunai'}
-                            {activeSheet === 'bookkeepingReport' && 'Laporan Pembukuan'}
                           </SheetTitle>
                       </SheetHeader>
                       {activeSheet === 'transfer' && <TransferBalanceForm onDone={closeAllSheets} />}
@@ -300,7 +300,6 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                       {activeSheet === 'customerTransferReview' && reviewData && 'destinationBank' in reviewData && <CustomerTransferReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerTransfer')} />}
                       {activeSheet === 'customerWithdrawal' && <CustomerWithdrawalForm onReview={handleReview} onDone={closeAllSheets} />}
                       {activeSheet === 'customerWithdrawalReview' && reviewData && 'customerBankSource' in reviewData && <CustomerWithdrawalReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerWithdrawal')} />}
-                      {activeSheet === 'bookkeepingReport' && <BookkeepingReport onDone={closeAllSheets} />}
                   </SheetContent>
                 </Sheet>
 
@@ -364,5 +363,3 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     </>
   );
 }
-
-    
