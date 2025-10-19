@@ -1,17 +1,19 @@
 
 "use client";
 
-import { Bell, RotateCw, Check } from 'lucide-react';
+import { BookText, Check, FileText, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { Input } from '../ui/input';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 
 interface HeaderProps {
     onSync: () => void;
     isSyncing: boolean;
+    onReportClick: () => void;
 }
 
-export default function Header({ onSync, isSyncing }: HeaderProps) {
+export default function Header({ onSync, isSyncing, onReportClick }: HeaderProps) {
   const [deviceName, setDeviceName] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -80,9 +82,19 @@ export default function Header({ onSync, isSyncing }: HeaderProps) {
           )}
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" size="icon" className="bg-white/10 hover:bg-white/20 rounded-full text-primary-foreground">
-            <Bell size={20} />
-          </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="bg-white/10 hover:bg-white/20 rounded-full text-primary-foreground">
+                        <BookText size={20} />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={onReportClick}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        <span>Laporan Pembukuan</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
           <Button variant="ghost" size="icon" className="bg-white/10 hover:bg-white/20 rounded-full text-primary-foreground" onClick={onSync} disabled={isSyncing}>
             <RotateCw size={20} className={isSyncing ? "animate-spin" : ""} />
           </Button>

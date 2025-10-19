@@ -32,6 +32,7 @@ import WithdrawBalanceForm from './WithdrawBalanceForm';
 import CustomerTransferForm from './CustomerTransferForm';
 import CustomerTransferReview from './CustomerTransferReview';
 import type { CustomerTransferFormValues } from '@/lib/types';
+import BookkeepingReport from './BookkeepingReport';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -44,7 +45,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'inbox' | 'settings';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'bookkeepingReport';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -116,13 +117,16 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     revalidateData();
   }
 
+  const handleReportClick = () => {
+    setActiveSheet('bookkeepingReport');
+  }
 
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
         return (
           <>
-            <Header onSync={revalidateData} isSyncing={isAccountsLoading} />
+            <Header onSync={revalidateData} isSyncing={isAccountsLoading} onReportClick={handleReportClick} />
             <div className="px-4 -mt-16">
               <Carousel 
                 setApi={setCarouselApi}
@@ -209,6 +213,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                             {activeSheet === 'withdraw' && 'Tarik Saldo'}
                             {activeSheet === 'customerTransfer' && 'Transfer Pelanggan'}
                             {activeSheet === 'customerTransferReview' && 'Review Transaksi Transfer'}
+                            {activeSheet === 'bookkeepingReport' && 'Laporan Pembukuan'}
                           </SheetTitle>
                       </SheetHeader>
                       {activeSheet === 'transfer' && <TransferBalanceForm onDone={closeAllSheets} />}
@@ -216,6 +221,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                       {activeSheet === 'withdraw' && <WithdrawBalanceForm onDone={closeAllSheets} />}
                       {activeSheet === 'customerTransfer' && <CustomerTransferForm onReview={handleReview} onDone={closeAllSheets} />}
                       {activeSheet === 'customerTransferReview' && reviewData && <CustomerTransferReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerTransfer')} />}
+                      {activeSheet === 'bookkeepingReport' && <BookkeepingReport onDone={closeAllSheets} />}
                   </SheetContent>
                 </Sheet>
 
@@ -274,4 +280,3 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     </>
   );
 }
-

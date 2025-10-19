@@ -17,4 +17,19 @@ export const CustomerTransferFormSchema = z.object({
 
 export type CustomerTransferFormValues = z.infer<typeof CustomerTransferFormSchema>;
 
-    
+export type CustomerTransfer = {
+    id: string;
+    date: string;
+    sourceKasAccountId: string;
+    destinationBankName: string;
+    destinationAccountName: string;
+    transferAmount: number;
+    bankAdminFee: number;
+    serviceFee: number;
+    netProfit: number;
+    paymentMethod: "Tunai" | "Transfer" | "Split";
+    paymentToKasTunaiAmount?: number;
+    paymentToKasTransferAccountId?: string | null;
+    paymentToKasTransferAmount?: number;
+    deviceName: string;
+}
