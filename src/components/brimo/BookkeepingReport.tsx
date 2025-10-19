@@ -227,12 +227,6 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                             </TableRow>
                         ))}
                     </TableBody>
-                     <TableFooter>
-                        <TableRow>
-                            <TableCell colSpan={7} className="font-bold">Total Laba Bersih</TableCell>
-                            <TableCell colSpan={2} className="text-right font-bold text-lg text-green-500">{formatToRupiah(totalProfit)}</TableCell>
-                        </TableRow>
-                    </TableFooter>
                 </Table>
             )}
         </div>
