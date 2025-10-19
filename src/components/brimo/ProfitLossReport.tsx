@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
-import type { CustomerTransfer, CustomerWithdrawal } from '@/lib/types';
+import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ interface ProfitLossReportProps {
   onDone: () => void;
 }
 
-type ReportItem = (CustomerTransfer & { id: string; transactionType: 'Transfer' }) | (CustomerWithdrawal & { id: string; transactionType: 'Tarik Tunai' });
+type ReportItem = (CustomerTransfer & { id: string; transactionType: 'Transfer' }) | (CustomerWithdrawal & { id: string; transactionType: 'Tarik Tunai' }) | (CustomerTopUp & { id: string; transactionType: 'Top Up' });
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
     if (value === null || value === undefined || value === '') return 'Rp 0';
@@ -48,22 +48,16 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
         setIsLoading(true);
 
         try {
-            const transfersQuery = query(
-                collection(firestore, 'customerTransfers'),
-                ...(dateRange?.from ? [where('date', '>=', Timestamp.fromDate(startOfDay(dateRange.from)))] : []),
-                ...(dateRange?.to ? [where('date', '<=', Timestamp.fromDate(endOfDay(dateRange.to)))] : [])
-            );
+            const dateFrom = dateRange?.from ? Timestamp.fromDate(startOfDay(dateRange.from)) : null;
+            const dateTo = dateRange?.to ? Timestamp.fromDate(endOfDay(dateRange.to)) : null;
 
-            const withdrawalsQuery = query(
-                collection(firestore, 'customerWithdrawals'),
-                ...(dateRange?.from ? [where('date', '>=', Timestamp.fromDate(startOfDay(dateRange.from)))] : []),
-                ...(dateRange?.to ? [where('date', '<=', Timestamp.fromDate(endOfDay(dateRange.to)))] : [])
-            );
-
-            const [transfersSnapshot, withdrawalsSnapshot] = await Promise.all([
-                getDocs(transfersQuery),
-                getDocs(withdrawalsQuery)
-            ]);
+            const queries = [
+                getDocs(query(collection(firestore, 'customerTransfers'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+                getDocs(query(collection(firestore, 'customerWithdrawals'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+                getDocs(query(collection(firestore, 'customerTopUps'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : [])))
+            ];
+            
+            const [transfersSnapshot, withdrawalsSnapshot, topUpsSnapshot] = await Promise.all(queries);
 
             const combinedReports: ReportItem[] = [];
 
@@ -84,6 +78,16 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                     ...(data as CustomerWithdrawal),
                     date: (data.date as Timestamp).toDate(),
                     transactionType: 'Tarik Tunai' 
+                });
+            });
+
+            topUpsSnapshot.forEach((doc) => {
+                const data = doc.data();
+                combinedReports.push({
+                    id: doc.id,
+                    ...(data as CustomerTopUp),
+                    date: (data.date as Timestamp).toDate(),
+                    transactionType: 'Top Up'
                 });
             });
 
@@ -115,7 +119,10 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
         acc.labaRugi += report.netProfit;
     } else if (report.transactionType === 'Tarik Tunai') {
         acc.nominal += report.withdrawalAmount;
-        // admin bank is 0 for withdrawal
+        acc.jasa += report.serviceFee;
+        acc.labaRugi += report.serviceFee;
+    } else if (report.transactionType === 'Top Up') {
+        acc.nominal += report.topUpAmount;
         acc.jasa += report.serviceFee;
         acc.labaRugi += report.serviceFee;
     }
@@ -219,13 +226,25 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                             <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.netProfit)}</TableCell>
                                             <TableCell>{report.deviceName}</TableCell>
                                         </>
-                                    ) : (
+                                    ) : report.transactionType === 'Tarik Tunai' ? (
                                         <>
                                             <TableCell>Tarik Tunai</TableCell>
                                             <TableCell>{getAccountLabel(report.destinationKasAccountId)}</TableCell>
                                             <TableCell>{report.customerBankSource}</TableCell>
                                             <TableCell>{report.customerName}</TableCell>
                                             <TableCell className="text-right">{formatToRupiah(report.withdrawalAmount)}</TableCell>
+                                            <TableCell className="text-right">Rp 0</TableCell>
+                                            <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
+                                            <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
+                                            <TableCell>{report.deviceName}</TableCell>
+                                        </>
+                                    ) : ( // Top Up
+                                        <>
+                                            <TableCell>Top Up</TableCell>
+                                            <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                                            <TableCell>{report.destinationEwallet}</TableCell>
+                                            <TableCell>{report.customerName}</TableCell>
+                                            <TableCell className="text-right">{formatToRupiah(report.topUpAmount)}</TableCell>
                                             <TableCell className="text-right">Rp 0</TableCell>
                                             <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
                                             <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>

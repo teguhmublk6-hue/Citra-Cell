@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
-import type { CustomerTransfer, CustomerWithdrawal } from '@/lib/types';
+import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ interface BookkeepingReportProps {
   onDone: () => void;
 }
 
-type ReportItem = (CustomerTransfer & { id: string; transactionType: 'Transfer' }) | (CustomerWithdrawal & { id: string; transactionType: 'Tarik Tunai' });
+type ReportItem = (CustomerTransfer & { id: string; transactionType: 'Transfer' }) | (CustomerWithdrawal & { id: string; transactionType: 'Tarik Tunai' }) | (CustomerTopUp & { id: string; transactionType: 'Top Up' });
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
     if (value === null || value === undefined || value === '') return 'Rp 0';
@@ -49,22 +49,16 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
         setIsLoading(true);
 
         try {
-            const transfersQuery = query(
-                collection(firestore, 'customerTransfers'),
-                ...(dateRange?.from ? [where('date', '>=', Timestamp.fromDate(startOfDay(dateRange.from)))] : []),
-                ...(dateRange?.to ? [where('date', '<=', Timestamp.fromDate(endOfDay(dateRange.to)))] : [])
-            );
+            const dateFrom = dateRange?.from ? Timestamp.fromDate(startOfDay(dateRange.from)) : null;
+            const dateTo = dateRange?.to ? Timestamp.fromDate(endOfDay(dateRange.to)) : null;
 
-            const withdrawalsQuery = query(
-                collection(firestore, 'customerWithdrawals'),
-                ...(dateRange?.from ? [where('date', '>=', Timestamp.fromDate(startOfDay(dateRange.from)))] : []),
-                ...(dateRange?.to ? [where('date', '<=', Timestamp.fromDate(endOfDay(dateRange.to)))] : [])
-            );
+            const queries = [
+                getDocs(query(collection(firestore, 'customerTransfers'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+                getDocs(query(collection(firestore, 'customerWithdrawals'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+                getDocs(query(collection(firestore, 'customerTopUps'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : [])))
+            ];
 
-            const [transfersSnapshot, withdrawalsSnapshot] = await Promise.all([
-                getDocs(transfersQuery),
-                getDocs(withdrawalsQuery)
-            ]);
+            const [transfersSnapshot, withdrawalsSnapshot, topUpsSnapshot] = await Promise.all(queries);
 
             const combinedReports: ReportItem[] = [];
 
@@ -85,6 +79,16 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                     ...data,
                     date: (data.date as Timestamp).toDate(),
                     transactionType: 'Tarik Tunai' 
+                } as any);
+            });
+
+            topUpsSnapshot.forEach((doc) => {
+                const data = doc.data();
+                combinedReports.push({
+                    id: doc.id,
+                    ...data,
+                    date: (data.date as Timestamp).toDate(),
+                    transactionType: 'Top Up'
                 } as any);
             });
 
@@ -115,6 +119,9 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
     if (report.transactionType === 'Tarik Tunai') {
         return sum + report.serviceFee;
     }
+    if (report.transactionType === 'Top Up') {
+        return sum + report.serviceFee;
+    }
     return sum;
   }, 0);
 
@@ -124,7 +131,7 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
             <Button variant="ghost" size="icon" onClick={onDone}>
                 <ArrowLeft />
             </Button>
-            <h1 className="text-lg font-semibold">Laporan BRILink</h1>
+            <h1 className="text-lg font-semibold">Laporan Transaksi BRILink</h1>
         </header>
 
         <div className="p-4 space-y-4">
@@ -208,13 +215,22 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                                         <TableCell className="text-right">{formatToRupiah(report.transferAmount)}</TableCell>
                                         <TableCell>{report.deviceName}</TableCell>
                                     </>
-                                ) : (
+                                ) : report.transactionType === 'Tarik Tunai' ? (
                                     <>
                                         <TableCell>Tarik Tunai</TableCell>
                                         <TableCell>{getAccountLabel(report.destinationKasAccountId)}</TableCell>
                                         <TableCell>{report.customerBankSource}</TableCell>
                                         <TableCell>{report.customerName}</TableCell>
                                         <TableCell className="text-right">{formatToRupiah(report.withdrawalAmount)}</TableCell>
+                                        <TableCell>{report.deviceName}</TableCell>
+                                    </>
+                                ) : ( // Top Up
+                                    <>
+                                        <TableCell>Top Up</TableCell>
+                                        <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                                        <TableCell>{report.destinationEwallet}</TableCell>
+                                        <TableCell>{report.customerName}</TableCell>
+                                        <TableCell className="text-right">{formatToRupiah(report.topUpAmount)}</TableCell>
                                         <TableCell>{report.deviceName}</TableCell>
                                     </>
                                 )}
