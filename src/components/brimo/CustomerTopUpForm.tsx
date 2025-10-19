@@ -47,9 +47,14 @@ const parseRupiah = (value: string | undefined | null): number => {
 }
 
 const calculateServiceFee = (amount: number): number => {
-    if (amount >= 10000 && amount <= 1000000) return 2000;
-    if (amount > 1000000) return 2500;
-    return 1500;
+    if (amount >= 10000 && amount <= 299000) return 3000;
+    if (amount >= 300000 && amount <= 999000) return 5000;
+    if (amount >= 1000000 && amount <= 1999000) return 7000;
+    if (amount >= 2000000 && amount <= 3499000) return 10000;
+    if (amount >= 3500000 && amount <= 5999000) return 15000;
+    if (amount >= 6000000 && amount <= 7999000) return 20000;
+    if (amount >= 8000000 && amount <= 10000000) return 25000;
+    return 0; // Default fee if no range matches
 };
 
 
@@ -299,4 +304,5 @@ export default function CustomerTopUpForm({ onReview, onDone }: CustomerTopUpFor
   );
 }
 
+    
     
