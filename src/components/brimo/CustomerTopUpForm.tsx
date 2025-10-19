@@ -19,6 +19,7 @@ import type { CustomerTopUpFormValues } from '@/lib/types';
 import { CustomerTopUpFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 
 interface CustomerTopUpFormProps {
@@ -27,11 +28,11 @@ interface CustomerTopUpFormProps {
 }
 
 const ewallets = [
-    { name: 'DANA', icon: '/ewallet-icons/dana.png'},
-    { name: 'OVO', icon: '/ewallet-icons/ovo.png'},
-    { name: 'GoPay', icon: '/ewallet-icons/gopay.png'},
-    { name: 'ShopeePay', icon: '/ewallet-icons/shopeepay.png'},
-    { name: 'LinkAja', icon: '/ewallet-icons/linkaja.png'},
+    { name: 'DANA', icon: 'https://cdn.antaranews.com/cache/1200x800/2022/04/17/DANA-Logo.jpg', hint: 'dana logo' },
+    { name: 'OVO', icon: 'https://upload.wikimedia.org/wikipedia/commons/e/eb/Logo_ovo_purple.svg', hint: 'ovo logo' },
+    { name: 'GoPay', icon: 'https://upload.wikimedia.org/wikipedia/commons/8/86/Gopay_logo.svg', hint: 'gopay logo' },
+    { name: 'ShopeePay', icon: 'https://upload.wikimedia.org/wikipedia/commons/f/fe/ShopeePay_logo.svg', hint: 'shopeepay logo' },
+    { name: 'LinkAja', icon: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/LinkAja.svg/2560px-LinkAja.svg.png', hint: 'linkaja logo' },
 ]
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
@@ -137,8 +138,10 @@ export default function CustomerTopUpForm({ onReview, onDone }: CustomerTopUpFor
                                 onClick={() => field.onChange(wallet.name)}
                                 className={cn("cursor-pointer", field.value === wallet.name && "ring-2 ring-primary")}
                             >
-                                <CardContent className="p-2 flex items-center justify-center">
-                                    <img src={wallet.icon} alt={wallet.name} className="h-8 object-contain" />
+                                <CardContent className="p-2 flex items-center justify-center aspect-[2/1]">
+                                    <div className="relative w-full h-full">
+                                        <Image src={wallet.icon} alt={wallet.name} fill style={{ objectFit: 'contain' }} data-ai-hint={wallet.hint} />
+                                    </div>
                                 </CardContent>
                             </Card>
                         ))}
@@ -304,5 +307,4 @@ export default function CustomerTopUpForm({ onReview, onDone }: CustomerTopUpFor
   );
 }
 
-    
     
