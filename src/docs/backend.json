@@ -221,6 +221,89 @@
         "sourceKasTunaiAccountId",
         "deviceName"
       ]
+    },
+    "CustomerTopUp": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CustomerTopUp",
+      "type": "object",
+      "description": "Represents an E-Wallet top-up service transaction for a customer.",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "sourceKasAccountId": { "type": "string" },
+        "destinationEwallet": { "type": "string" },
+        "customerName": { "type": "string" },
+        "topUpAmount": { "type": "number" },
+        "serviceFee": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["Tunai", "Transfer", "Split"] },
+        "paymentToKasTunaiAmount": { "type": "number" },
+        "paymentToKasTransferAccountId": { "type": "string" },
+        "paymentToKasTransferAmount": { "type": "number" },
+        "deviceName": { "type": "string" }
+      },
+      "required": [
+        "date",
+        "sourceKasAccountId",
+        "destinationEwallet",
+        "customerName",
+        "topUpAmount",
+        "serviceFee",
+        "paymentMethod",
+        "deviceName"
+      ]
+    },
+    "PPOBTransaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PPOBTransaction",
+      "type": "object",
+      "description": "Represents a PPOB (Payment Point Online Bank) transaction for auditing profit and loss.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "serviceName": {
+          "type": "string",
+          "description": "The name of the PPOB service (e.g., Token Listrik, Pulsa, BPJS)."
+        },
+        "destination": {
+          "type": "string",
+          "description": "The target of the transaction, e.g., phone number, customer ID, token number."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the transaction."
+        },
+        "costPrice": {
+          "type": "number",
+          "description": "The capital or modal price for the service."
+        },
+        "sellingPrice": {
+          "type": "number",
+          "description": "The final price paid by the customer."
+        },
+        "profit": {
+          "type": "number",
+          "description": "The calculated profit (sellingPrice - costPrice)."
+        },
+        "deviceName": {
+          "type": "string",
+          "description": "The name of the device that processed the transaction."
+        }
+      },
+      "required": [
+        "date",
+        "serviceName",
+        "destination",
+        "description",
+        "costPrice",
+        "sellingPrice",
+        "profit",
+        "deviceName"
+      ]
     }
   },
   "firestore": {
@@ -247,6 +330,18 @@
         "$ref": "#/entities/CustomerWithdrawal"
       },
       "description": "Stores a log of all customer cash withdrawal service transactions for auditing."
+    },
+    "/customerTopUps/{customerTopUpId}": {
+      "schema": {
+        "$ref": "#/entities/CustomerTopUp"
+      },
+      "description": "Stores a log of all customer e-wallet top-up transactions for auditing."
+    },
+    "/ppobTransactions/{ppobTransactionId}": {
+      "schema": {
+        "$ref": "#/entities/PPOBTransaction"
+      },
+      "description": "Stores a log of all PPOB service transactions for auditing profit and loss."
     }
   }
 }

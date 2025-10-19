@@ -31,12 +31,14 @@ import AddCapitalForm from './AddCapitalForm';
 import WithdrawBalanceForm from './WithdrawBalanceForm';
 import CustomerTransferForm from './CustomerTransferForm';
 import CustomerTransferReview from './CustomerTransferReview';
-import type { CustomerTransferFormValues, CustomerWithdrawalFormValues } from '@/lib/types';
+import type { CustomerTopUpFormValues, CustomerTransferFormValues, CustomerWithdrawalFormValues } from '@/lib/types';
 import BookkeepingReport from './BookkeepingReport';
 import AdminPasscodeDialog from './AdminPasscodeDialog';
 import CustomerWithdrawalForm from './CustomerWithdrawalForm';
 import CustomerWithdrawalReview from './CustomerWithdrawalReview';
 import ProfitLossReport from './ProfitLossReport';
+import CustomerTopUpForm from './CustomerTopUpForm';
+import CustomerTopUpReview from './CustomerTopUpReview';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -49,7 +51,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'admin' | 'settings';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -61,7 +63,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
   const [currentSlide, setCurrentSlide] = useState(0)
-  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | null>(null);
+  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | null>(null);
   const [isAdminAccessGranted, setIsAdminAccessGranted] = useState(false);
   const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
   const [isReportVisible, setIsReportVisible] = useState(false);
@@ -134,20 +136,24 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     }, 150);
   }
   
-  const handleQuickServiceClick = (service: 'customerTransfer' | 'withdraw') => {
+  const handleQuickServiceClick = (service: 'customerTransfer' | 'withdraw' | 'topUp') => {
     if (service === 'customerTransfer') {
       setActiveSheet('customerTransfer');
     } else if (service === 'withdraw') {
       setActiveSheet('customerWithdrawal');
+    } else if (service === 'topUp') {
+        setActiveSheet('customerTopUp');
     }
   }
 
-  const handleReview = (data: CustomerTransferFormValues | CustomerWithdrawalFormValues) => {
+  const handleReview = (data: CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues) => {
     setReviewData(data);
     if ('destinationBank' in data) {
       setActiveSheet('customerTransferReview');
-    } else {
+    } else if ('customerBankSource' in data) {
       setActiveSheet('customerWithdrawalReview');
+    } else if ('destinationEwallet' in data) {
+        setActiveSheet('customerTopUpReview');
     }
   }
 
@@ -300,6 +306,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                             {activeSheet === 'customerTransferReview' && 'Review Transaksi Transfer'}
                             {activeSheet === 'customerWithdrawal' && 'Tarik Tunai Pelanggan'}
                             {activeSheet === 'customerWithdrawalReview' && 'Review Tarik Tunai'}
+                            {activeSheet === 'customerTopUp' && 'Top Up E-Wallet'}
+                            {activeSheet === 'customerTopUpReview' && 'Review Top Up E-Wallet'}
                           </SheetTitle>
                       </SheetHeader>
                       {activeSheet === 'transfer' && <TransferBalanceForm onDone={closeAllSheets} />}
@@ -309,6 +317,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                       {activeSheet === 'customerTransferReview' && reviewData && 'destinationBank' in reviewData && <CustomerTransferReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerTransfer')} />}
                       {activeSheet === 'customerWithdrawal' && <CustomerWithdrawalForm onReview={handleReview} onDone={closeAllSheets} />}
                       {activeSheet === 'customerWithdrawalReview' && reviewData && 'customerBankSource' in reviewData && <CustomerWithdrawalReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerWithdrawal')} />}
+                      {activeSheet === 'customerTopUp' && <CustomerTopUpForm onReview={handleReview} onDone={closeAllSheets} />}
+                      {activeSheet === 'customerTopUpReview' && reviewData && 'destinationEwallet' in reviewData && <CustomerTopUpReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerTopUp')} />}
                   </SheetContent>
                 </Sheet>
 
@@ -372,3 +382,5 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     </>
   );
 }
+
+    

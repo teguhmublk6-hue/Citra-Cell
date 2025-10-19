@@ -57,4 +57,32 @@ export type CustomerWithdrawal = {
     deviceName: string;
 }
 
+export const CustomerTopUpFormSchema = z.object({
+  sourceAccountId: z.string().min(1, 'Akun kas asal harus dipilih'),
+  destinationEwallet: z.string().min(1, 'E-wallet tujuan harus dipilih'),
+  customerName: z.string().min(1, 'Nama pelanggan harus diisi'),
+  topUpAmount: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Nominal harus angka" }).positive('Nominal top up harus lebih dari 0')),
+  serviceFee: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Biaya harus angka" }).min(0, 'Biaya jasa tidak boleh negatif')),
+  paymentMethod: z.enum(['Tunai', 'Transfer', 'Split'], { required_error: 'Metode pembayaran harus dipilih' }),
+  paymentToKasTransferAccountId: z.string().optional(),
+  splitTunaiAmount: z.preprocess(numberPreprocessor, z.number().optional()),
+});
+
+export type CustomerTopUpFormValues = z.infer<typeof CustomerTopUpFormSchema>;
+
+export type CustomerTopUp = {
+    id: string;
+    date: string;
+    sourceKasAccountId: string;
+    destinationEwallet: string;
+    customerName: string;
+    topUpAmount: number;
+    serviceFee: number;
+    paymentMethod: "Tunai" | "Transfer" | "Split";
+    paymentToKasTunaiAmount?: number;
+    paymentToKasTransferAccountId?: string | null;
+    paymentToKasTransferAmount?: number;
+    deviceName: string;
+}
+
     
