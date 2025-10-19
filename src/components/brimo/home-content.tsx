@@ -4,9 +4,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import QuickServices from './quick-services';
 import BottomNav from './bottom-nav';
-import PlaceholderContent from './placeholder-content';
+import AdminPlaceholder from './AdminPlaceholder';
 import SettingsContent from './settings-content';
-import { Bell, ArrowRightLeft, TrendingUp, TrendingDown, RotateCw } from 'lucide-react';
+import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { KasAccount as KasAccountType } from '@/lib/data';
@@ -44,7 +44,7 @@ const iconMap: { [key: string]: React.ElementType } = {
   'default': Wallet,
 };
 
-export type ActiveTab = 'home' | 'mutasi' | 'inbox' | 'settings';
+export type ActiveTab = 'home' | 'mutasi' | 'admin' | 'settings';
 type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'bookkeepingReport';
 
 interface HomeContentProps {
@@ -233,8 +233,8 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
         return <SettingsContent />;
       case 'mutasi':
         return <GlobalTransactionHistory />;
-      case 'inbox':
-        return <PlaceholderContent icon={Bell} title="Halaman Inbox" />;
+      case 'admin':
+        return <AdminPlaceholder />;
       default:
         return <div className="px-4"><QuickServices onServiceClick={handleQuickServiceClick}/></div>;
     }

@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { Wallet, Building2, Zap, Smartphone, ShoppingBag, Send, CreditCard, Gift, FileText, QrCode, Bell, Settings, Home, MoreHorizontal, Phone, Wifi, Lightbulb, Droplets, HeartPulse, Plus } from 'lucide-react';
+import { Wallet, Building2, Zap, Smartphone, ShoppingBag, Send, CreditCard, Gift, FileText, QrCode, UserCog, Settings, Home, MoreHorizontal, Phone, Wifi, Lightbulb, Droplets, HeartPulse, Plus } from 'lucide-react';
 
 export type KasAccount = {
   id: string;
@@ -66,7 +66,7 @@ export const recentTransactions: Transaction[] = [];
 
 
 export type NavItem = {
-    id: 'home' | 'mutasi' | 'qris' | 'inbox' | 'settings';
+    id: 'home' | 'mutasi' | 'qris' | 'admin' | 'settings';
     icon: LucideIcon;
     label: string;
 };
@@ -75,7 +75,7 @@ export const navItems: NavItem[] = [
     { id: 'home', icon: Home, label: 'Beranda' },
     { id: 'mutasi', icon: FileText, label: 'Riwayat' },
     { id: 'qris', icon: Plus, label: 'Mutasi' },
-    { id: 'inbox', icon: Bell, label: 'Inbox' },
+    { id: 'admin', icon: UserCog, label: 'Admin' },
     { id: 'settings', icon: Settings, label: 'Akun' },
 ];
 
@@ -86,3 +86,4 @@ export const accountTypes = [
     { value: 'PPOB', label: 'PPOB', color: 'bg-yellow-500' },
     { value: 'Merchant', label: 'Merchant', color: 'bg-orange-500' },
 ];
+
