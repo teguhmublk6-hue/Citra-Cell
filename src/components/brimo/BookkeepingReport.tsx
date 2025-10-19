@@ -82,6 +82,7 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                   <TableHead className="text-right px-2">Nominal</TableHead>
                   <TableHead className="text-right px-2">Admin Bank</TableHead>
                   <TableHead className="text-right px-2">Jasa</TableHead>
+                  <TableHead className="px-2">Oleh</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -94,6 +95,7 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                     <TableCell className="text-right px-2">{formatToRupiah(report.transferAmount)}</TableCell>
                     <TableCell className="text-right text-red-500 px-2">{formatToRupiah(report.bankAdminFee)}</TableCell>
                     <TableCell className="text-right text-green-500 px-2">{formatToRupiah(report.serviceFee)}</TableCell>
+                    <TableCell className="px-2">{report.deviceName}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

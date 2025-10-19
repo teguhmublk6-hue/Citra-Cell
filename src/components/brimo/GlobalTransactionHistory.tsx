@@ -294,7 +294,7 @@ export default function GlobalTransactionHistory() {
                      <p className="text-xs text-muted-foreground mt-0.5">
                       {trx.type === 'credit' ? `ke ${trx.accountLabel}` : `dari ${trx.accountLabel}`} • {formatDateTime(trx.date)}
                     </p>
-                    {trx.deviceName && <p className="text-xs text-muted-foreground/80 mt-0.5">oleh: {trx.deviceName}</p>}
+                    {trx.deviceName && <p className="text-xs text-muted-foreground/80 mt-0.5">Oleh: {trx.deviceName}</p>}
                 </div>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
