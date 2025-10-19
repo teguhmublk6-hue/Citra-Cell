@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import QuickServices from './quick-services';
-import RecentTransactions from './recent-transactions';
 import BottomNav from './bottom-nav';
 import PlaceholderContent from './placeholder-content';
 import SettingsContent from './settings-content';
@@ -225,7 +224,6 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                 </Sheet>
 
                 <QuickServices />
-                <RecentTransactions />
             </div>
           </>
         );
@@ -236,7 +234,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
       case 'inbox':
         return <PlaceholderContent icon={Bell} title="Halaman Inbox" />;
       default:
-        return <div className="px-4"><QuickServices /><RecentTransactions /></div>;
+        return <div className="px-4"><QuickServices /></div>;
     }
   };
 
