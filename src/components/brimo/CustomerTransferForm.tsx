@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import bankData from '@/lib/banks.json';
 import { useState } from 'react';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '../ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -153,7 +153,7 @@ export default function CustomerTransferForm({ onDone }: CustomerTransferFormPro
                             {bankData.map((bank) => (
                                 <CommandItem
                                 value={bank.name}
-                                key={bank.code}
+                                key={bank.name}
                                 onSelect={() => {
                                     form.setValue("destinationBank", bank.name)
                                     setBankPopoverOpen(false)
@@ -317,4 +317,5 @@ export default function CustomerTransferForm({ onDone }: CustomerTransferFormPro
   );
 }
 
+    
     
