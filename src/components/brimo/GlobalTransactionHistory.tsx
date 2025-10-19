@@ -3,19 +3,24 @@
 
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, where, Timestamp, doc, writeBatch } from 'firebase/firestore';
 import type { KasAccount, Transaction } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Calendar as CalendarIcon, ArrowDownLeft, ArrowUpRight, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
-import { Separator } from '../ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import DeleteTransactionDialog from './DeleteTransactionDialog';
+import { useToast } from '@/hooks/use-toast';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../ui/sheet';
+import EditTransactionNameForm from './EditTransactionNameForm';
+
 
 type TransactionWithId = Transaction & { id: string, accountLabel?: string };
 
@@ -28,59 +33,143 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 
 export default function GlobalTransactionHistory() {
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [transactions, setTransactions] = useState<TransactionWithId[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
+  const [transactionToDelete, setTransactionToDelete] = useState<TransactionWithId | null>(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [transactionToEdit, setTransactionToEdit] = useState<TransactionWithId | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  
   const kasAccountsCollection = useMemoFirebase(() => {
     if (!firestore) return null;
     return collection(firestore, 'kasAccounts');
   }, [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      if (!kasAccounts) {
-        setIsLoading(false);
-        return;
-      };
-
-      setIsLoading(true);
-      let allTransactions: TransactionWithId[] = [];
-      try {
-        for (const account of kasAccounts) {
-          const transactionsRef = collection(firestore, 'kasAccounts', account.id, 'transactions');
-          
-          const constraints = [];
-          if (dateRange?.from) {
-            constraints.push(where('date', '>=', Timestamp.fromDate(startOfDay(dateRange.from))));
-          }
-          if (dateRange?.to) {
-            constraints.push(where('date', '<=', Timestamp.fromDate(endOfDay(dateRange.to))));
-          }
-
-          const q = query(transactionsRef, ...constraints);
-
-          const querySnapshot = await getDocs(q);
-          querySnapshot.forEach((doc) => {
-            allTransactions.push({ 
-              ...(doc.data() as Transaction), 
-              id: doc.id,
-              accountLabel: account.label
-            });
-          });
-        }
-        allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setTransactions(allTransactions);
-      } catch (error) {
-        console.error("Error fetching transactions: ", error);
-      } finally {
-        setIsLoading(false);
-      }
+  const fetchTransactions = async () => {
+    if (!kasAccounts) {
+      if (firestore) setIsLoading(false);
+      return;
     };
 
+    setIsLoading(true);
+    let allTransactions: TransactionWithId[] = [];
+    try {
+      for (const account of kasAccounts) {
+        const transactionsRef = collection(firestore, 'kasAccounts', account.id, 'transactions');
+        
+        const constraints = [];
+        if (dateRange?.from) {
+          constraints.push(where('date', '>=', Timestamp.fromDate(startOfDay(dateRange.from))));
+        }
+        if (dateRange?.to) {
+          constraints.push(where('date', '<=', Timestamp.fromDate(endOfDay(dateRange.to))));
+        }
+
+        const q = query(transactionsRef, ...constraints);
+
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach((doc) => {
+          allTransactions.push({ 
+            ...(doc.data() as Transaction), 
+            id: doc.id,
+            accountLabel: account.label
+          });
+        });
+      }
+      allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setTransactions(allTransactions);
+    } catch (error) {
+      console.error("Error fetching transactions: ", error);
+      toast({ variant: "destructive", title: "Error", description: "Gagal memuat riwayat transaksi." });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+  useEffect(() => {
     fetchTransactions();
   }, [firestore, kasAccounts, dateRange]);
+
+  const handleDeleteClick = (trx: TransactionWithId) => {
+    setTransactionToDelete(trx);
+    setIsDeleteOpen(true);
+  };
+
+  const handleEditClick = (trx: TransactionWithId) => {
+    setTransactionToEdit(trx);
+    setIsEditOpen(true);
+  }
+
+  const handleDeleteTransaction = async () => {
+    if (!transactionToDelete || !firestore || !kasAccounts) return;
+
+    toast({ title: "Memproses...", description: "Menghapus transaksi dan mengembalikan saldo." });
+
+    try {
+        const batch = writeBatch(firestore);
+        const { kasAccountId, type, amount, category } = transactionToDelete;
+
+        const primaryAccountRef = doc(firestore, 'kasAccounts', kasAccountId);
+        const primaryAccount = kasAccounts.find(acc => acc.id === kasAccountId);
+        if (!primaryAccount) throw new Error("Akun utama tidak ditemukan");
+
+        // Case 1: It's a transfer transaction
+        if (category === 'transfer' && transactionToDelete.sourceKasAccountId && transactionToDelete.destinationKasAccountId) {
+            const sourceAccRef = doc(firestore, 'kasAccounts', transactionToDelete.sourceKasAccountId);
+            const destAccRef = doc(firestore, 'kasAccounts', transactionToDelete.destinationKasAccountId);
+            const sourceAcc = kasAccounts.find(acc => acc.id === transactionToDelete.sourceKasAccountId);
+            const destAcc = kasAccounts.find(acc => acc.id === transactionToDelete.destinationKasAccountId);
+            if (!sourceAcc || !destAcc) throw new Error("Akun sumber atau tujuan transfer tidak ditemukan");
+
+            // Find the fee if it exists to revert it
+            const feeDebitQuery = query(
+                collection(sourceAccRef, 'transactions'),
+                where('category', '==', 'operational'),
+                where('date', '==', transactionToDelete.date) // Assuming date is unique enough for this context
+            );
+            const feeSnapshot = await getDocs(feeDebitQuery);
+            let totalRevertAmount = amount;
+            
+            feeSnapshot.forEach(feeDoc => {
+                totalRevertAmount += feeDoc.data().amount;
+                batch.delete(feeDoc.ref); // Delete the fee transaction
+            });
+
+            // Revert balances
+            batch.update(sourceAccRef, { balance: sourceAcc.balance + totalRevertAmount });
+            batch.update(destAccRef, { balance: destAcc.balance - amount });
+
+            // Delete both sides of the transfer
+            const debitTransactionQuery = query(collection(sourceAccRef, 'transactions'), where('date', '==', transactionToDelete.date), where('category', '==', 'transfer'));
+            const creditTransactionQuery = query(collection(destAccRef, 'transactions'), where('date', '==', transactionToDelete.date), where('category', '==', 'transfer'));
+            
+            const [debitSnapshot, creditSnapshot] = await Promise.all([getDocs(debitTransactionQuery), getDocs(creditTransactionQuery)]);
+            debitSnapshot.forEach(doc => batch.delete(doc.ref));
+            creditSnapshot.forEach(doc => batch.delete(doc.ref));
+
+        } else { // Case 2: It's a simple credit/debit (capital, operational, etc.)
+            const newBalance = type === 'debit' ? primaryAccount.balance + amount : primaryAccount.balance - amount;
+            batch.update(primaryAccountRef, { balance: newBalance });
+            const trxRef = doc(primaryAccountRef, 'transactions', transactionToDelete.id);
+            batch.delete(trxRef);
+        }
+
+        await batch.commit();
+        toast({ title: "Berhasil", description: "Transaksi telah dihapus dan saldo dikembalikan." });
+        fetchTransactions(); // Re-fetch to update the UI
+    } catch (error: any) {
+        console.error("Error deleting transaction: ", error);
+        toast({ variant: "destructive", title: "Gagal", description: error.message || "Terjadi kesalahan saat menghapus transaksi." });
+    } finally {
+        setIsDeleteOpen(false);
+        setTransactionToDelete(null);
+    }
+  };
+
 
   const formatDateTime = (isoString: string) => {
     return new Date(isoString).toLocaleString('id-ID', {
@@ -158,7 +247,7 @@ export default function GlobalTransactionHistory() {
           <div className="space-y-2">
             {transactions.map((trx) => (
               <div key={trx.id} className="p-3 bg-card rounded-lg border flex items-start gap-3">
-                <div className={`w-9 h-9 flex-shrink-0 rounded-full flex items-center justify-center ${trx.type === 'credit' ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+                 <div className={`w-9 h-9 flex-shrink-0 rounded-full flex items-center justify-center ${trx.type === 'credit' ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
                     {trx.type === 'credit' ? (
                     <ArrowDownLeft size={16} strokeWidth={2.5} className="text-green-500" />
                     ) : (
@@ -175,16 +264,55 @@ export default function GlobalTransactionHistory() {
                             {trx.type === 'credit' ? '+' : '-'} {formatToRupiah(trx.amount)}
                         </p>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                     <p className="text-xs text-muted-foreground mt-0.5">
                       {trx.type === 'credit' ? `ke ${trx.accountLabel}` : `dari ${trx.accountLabel}`} • {formatDateTime(trx.date)}
                     </p>
                     {trx.deviceName && <p className="text-xs text-muted-foreground/80 mt-0.5">oleh: {trx.deviceName}</p>}
                 </div>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2">
+                            <MoreVertical size={16} />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => handleEditClick(trx)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            <span>Ubah Nama</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDeleteClick(trx)} className="text-red-500 focus:text-red-500">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Hapus</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             ))}
           </div>
         )}
       </ScrollArea>
+       <DeleteTransactionDialog
+            isOpen={isDeleteOpen}
+            onClose={() => setIsDeleteOpen(false)}
+            onConfirm={handleDeleteTransaction}
+            transactionName={transactionToDelete?.name}
+        />
+        <Sheet open={isEditOpen} onOpenChange={setIsEditOpen}>
+            <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
+                <SheetHeader>
+                    <SheetTitle>Ubah Nama Transaksi</SheetTitle>
+                </SheetHeader>
+                {transactionToEdit && (
+                    <EditTransactionNameForm 
+                        transaction={transactionToEdit}
+                        onDone={() => {
+                            setIsEditOpen(false);
+                            fetchTransactions();
+                        }}
+                    />
+                )}
+            </SheetContent>
+        </Sheet>
     </div>
   );
 }
