@@ -1,0 +1,320 @@
+
+"use client";
+
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Button } from '@/components/ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection } from 'firebase/firestore';
+import type { KasAccount } from '@/lib/data';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useToast } from '@/hooks/use-toast';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import bankData from '@/lib/banks.json';
+import { useState } from 'react';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '../ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
+
+const formSchema = z.object({
+  sourceAccountId: z.string().min(1, 'Akun kas asal harus dipilih'),
+  destinationBank: z.string().min(1, 'Bank tujuan harus dipilih'),
+  destinationAccountName: z.string().min(1, 'Nama pemilik rekening harus diisi'),
+  transferAmount: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Nominal harus angka" }).positive('Nominal transfer harus lebih dari 0')),
+  bankAdminFee: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Biaya harus angka" }).min(0, 'Biaya admin tidak boleh negatif').optional()),
+  serviceFee: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Biaya harus angka" }).min(0, 'Biaya jasa tidak boleh negatif')),
+  paymentMethod: z.enum(['Tunai', 'Transfer', 'Split'], { required_error: 'Metode pembayaran harus dipilih' }),
+  paymentToKasTransferAccountId: z.string().optional(),
+  splitTunaiAmount: z.preprocess(numberPreprocessor, z.number().optional()),
+});
+
+
+interface CustomerTransferFormProps {
+  onDone: () => void;
+}
+
+const formatToRupiah = (value: number | string | undefined | null): string => {
+    if (value === null || value === undefined || value === '') return '';
+    const num = Number(String(value).replace(/[^0-9]/g, ''));
+    if (isNaN(num)) return '';
+    return `Rp ${num.toLocaleString('id-ID')}`;
+};
+
+const parseRupiah = (value: string | undefined | null): number => {
+    if (!value) return 0;
+    return Number(String(value).replace(/[^0-9]/g, ''));
+}
+
+
+export default function CustomerTransferForm({ onDone }: CustomerTransferFormProps) {
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const [bankPopoverOpen, setBankPopoverOpen] = useState(false);
+
+  
+  const kasAccountsCollection = useMemoFirebase(() => {
+    return collection(firestore, 'kasAccounts');
+  }, [firestore]);
+
+  const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+        sourceAccountId: '',
+        destinationBank: '',
+        destinationAccountName: '',
+        transferAmount: undefined,
+        bankAdminFee: 0,
+        serviceFee: undefined,
+        paymentMethod: undefined,
+        paymentToKasTransferAccountId: '',
+        splitTunaiAmount: undefined,
+    },
+  });
+
+  const paymentMethod = form.watch('paymentMethod');
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    // TODO: Implement review and save logic
+    console.log(values);
+    toast({ title: "Fitur Dalam Pengembangan", description: "Logika penyimpanan dan review belum diimplementasikan." });
+    onDone();
+  };
+  
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 flex flex-col h-full">
+        <ScrollArea className="flex-1 -mx-6 px-6">
+          <div className="space-y-4 pt-4 pb-6">
+            
+            {/* Akun Kas Asal */}
+            <FormField
+              control={form.control}
+              name="sourceAccountId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Akun Kas Asal (Pengirim)</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih akun pengirim" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {kasAccounts?.map(acc => (
+                        <SelectItem key={acc.id} value={acc.id}>{acc.label} ({formatToRupiah(acc.balance)})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Bank Tujuan */}
+            <FormField
+                control={form.control}
+                name="destinationBank"
+                render={({ field }) => (
+                <FormItem className="flex flex-col">
+                    <FormLabel>Bank Tujuan</FormLabel>
+                    <Popover open={bankPopoverOpen} onOpenChange={setBankPopoverOpen}>
+                    <PopoverTrigger asChild>
+                        <FormControl>
+                        <Button
+                            variant="outline"
+                            role="combobox"
+                            className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                            )}
+                        >
+                            {field.value
+                            ? bankData.find((bank) => bank.name === field.value)?.name
+                            : "Pilih bank"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                        </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
+                        <Command>
+                        <CommandInput placeholder="Cari bank..." />
+                        <CommandEmpty>Bank tidak ditemukan.</CommandEmpty>
+                        <CommandGroup>
+                            <ScrollArea className="h-72">
+                            {bankData.map((bank) => (
+                                <CommandItem
+                                value={bank.name}
+                                key={bank.code}
+                                onSelect={() => {
+                                    form.setValue("destinationBank", bank.name)
+                                    setBankPopoverOpen(false)
+                                }}
+                                >
+                                <Check
+                                    className={cn(
+                                    "mr-2 h-4 w-4",
+                                    bank.name === field.value ? "opacity-100" : "opacity-0"
+                                    )}
+                                />
+                                {bank.name}
+                                </CommandItem>
+                            ))}
+                            </ScrollArea>
+                        </CommandGroup>
+                        </Command>
+                    </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            
+            {/* Nama Pemilik Rekening */}
+            <FormField control={form.control} name="destinationAccountName" render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Nama Pemilik Rekening</FormLabel>
+                    <FormControl>
+                        <Input placeholder="Masukkan nama" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+            )}/>
+
+            {/* Nominal & Biaya */}
+            <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="transferAmount" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Nominal Transfer</FormLabel>
+                        <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}/>
+                <FormField control={form.control} name="serviceFee" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Biaya Jasa (Laba)</FormLabel>
+                        <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}/>
+            </div>
+             <FormField control={form.control} name="bankAdminFee" render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Biaya Admin Bank</FormLabel>
+                    <FormControl><Input type="text" placeholder="Rp 0 (Opsional)" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                    <FormMessage />
+                </FormItem>
+            )}/>
+
+            {/* Metode Pembayaran */}
+            <FormField
+              control={form.control}
+              name="paymentMethod"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Metode Pembayaran Pelanggan</FormLabel>
+                  <FormControl>
+                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl><RadioGroupItem value="Tunai" /></FormControl>
+                        <FormLabel className="font-normal">Tunai</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl><RadioGroupItem value="Transfer" /></FormControl>
+                        <FormLabel className="font-normal">Transfer</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl><RadioGroupItem value="Split" /></FormControl>
+                        <FormLabel className="font-normal">Split Bill</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Conditional Fields */}
+            {paymentMethod === 'Transfer' && (
+                 <FormField
+                    control={form.control}
+                    name="paymentToKasTransferAccountId"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Akun Penerima Bayaran</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Pilih akun penerima" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            {kasAccounts?.map(acc => (
+                                <SelectItem key={acc.id} value={acc.id}>{acc.label}</SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            )}
+
+            {paymentMethod === 'Split' && (
+                <div className='p-4 border rounded-lg space-y-4'>
+                    <FormField control={form.control} name="splitTunaiAmount" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Jumlah Dibayar Tunai</FormLabel>
+                            <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}/>
+                    <FormField
+                        control={form.control}
+                        name="paymentToKasTransferAccountId"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Akun Penerima Sisa Bayaran (Transfer)</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Pilih akun penerima" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {kasAccounts?.map(acc => (
+                                    <SelectItem key={acc.id} value={acc.id}>{acc.label}</SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+            )}
+
+          </div>
+        </ScrollArea>
+        <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
+          <Button type="button" variant="outline" onClick={onDone} className="w-full">
+            Batal
+          </Button>
+          <Button type="submit" className="w-full">
+            Review
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
+    

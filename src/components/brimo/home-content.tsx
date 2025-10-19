@@ -30,6 +30,7 @@ import GlobalTransactionHistory from './GlobalTransactionHistory';
 import TransferBalanceForm from './TransferBalanceForm';
 import AddCapitalForm from './AddCapitalForm';
 import WithdrawBalanceForm from './WithdrawBalanceForm';
+import CustomerTransferForm from './CustomerTransferForm';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -42,7 +43,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'inbox' | 'settings';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -70,28 +71,6 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
   const { data: kasAccounts } = useCollection<KasAccountType>(kasAccountsCollection);
   
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      if (kasAccounts === null) return;
-      
-      let allTransactions: Transaction[] = [];
-      if (kasAccounts.length > 0) {
-        for (const account of kasAccounts) {
-          const transactionsRef = collection(firestore, 'kasAccounts', account.id, 'transactions');
-          const q = query(transactionsRef, orderBy('date', 'desc'));
-          const querySnapshot = await getDocs(q);
-          querySnapshot.forEach((doc) => {
-            allTransactions.push({ ...(doc.data() as Transaction), id: doc.id });
-          });
-        }
-      }
-      allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setTransactions(allTransactions);
-    };
-
-    fetchTransactions();
-  }, [firestore, kasAccounts]);
 
 
   useEffect(() => {
@@ -124,6 +103,11 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
       setActiveSheet(sheet);
     }, 150);
   }
+  
+  const handleQuickServiceClick = (service: 'customerTransfer') => {
+    setActiveSheet(service);
+  }
+
 
   const renderContent = () => {
     switch (activeTab) {
@@ -161,8 +145,8 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                 ))}
             </div>
             </div>
-            <div className="flex flex-col gap-4 px-4">
-                <Sheet open={activeSheet !== null && activeSheet !== 'transfer' && activeSheet !== 'addCapital' && activeSheet !== 'withdraw'} onOpenChange={(isOpen) => !isOpen && setActiveSheet(null)}>
+            <div className="flex flex-col gap-4 px-4 pb-28">
+                <Sheet open={activeSheet !== null && activeSheet !== 'transfer' && activeSheet !== 'addCapital' && activeSheet !== 'withdraw' && activeSheet !== 'customerTransfer' } onOpenChange={(isOpen) => !isOpen && setActiveSheet(null)}>
                   <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="item-1" className="border-none">
                       <div className="p-3 bg-card/80 backdrop-blur-md rounded-2xl shadow-lg border border-border/20 flex items-center justify-between gap-2 data-[state=open]:rounded-b-none">
@@ -208,22 +192,24 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                   </SheetContent>
                 </Sheet>
 
-                <Sheet open={activeSheet === 'transfer' || activeSheet === 'addCapital' || activeSheet === 'withdraw'} onOpenChange={(isOpen) => !isOpen && setActiveSheet(null)}>
+                <Sheet open={activeSheet === 'transfer' || activeSheet === 'addCapital' || activeSheet === 'withdraw' || activeSheet === 'customerTransfer'} onOpenChange={(isOpen) => !isOpen && setActiveSheet(null)}>
                   <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
                       <SheetHeader>
                           <SheetTitle>
                             {activeSheet === 'transfer' && 'Pindah Saldo'}
                             {activeSheet === 'addCapital' && 'Tambah Modal'}
                             {activeSheet === 'withdraw' && 'Tarik Saldo'}
+                            {activeSheet === 'customerTransfer' && 'Transfer Pelanggan'}
                           </SheetTitle>
                       </SheetHeader>
                       {activeSheet === 'transfer' && <TransferBalanceForm onDone={() => setActiveSheet(null)} />}
                       {activeSheet === 'addCapital' && <AddCapitalForm onDone={() => setActiveSheet(null)} />}
                       {activeSheet === 'withdraw' && <WithdrawBalanceForm onDone={() => setActiveSheet(null)} />}
+                      {activeSheet === 'customerTransfer' && <CustomerTransferForm onDone={() => setActiveSheet(null)} />}
                   </SheetContent>
                 </Sheet>
 
-                <QuickServices />
+                <QuickServices onServiceClick={handleQuickServiceClick} />
             </div>
           </>
         );
@@ -234,7 +220,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
       case 'inbox':
         return <PlaceholderContent icon={Bell} title="Halaman Inbox" />;
       default:
-        return <div className="px-4"><QuickServices /></div>;
+        return <div className="px-4"><QuickServices onServiceClick={handleQuickServiceClick}/></div>;
     }
   };
 
@@ -278,3 +264,5 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     </>
   );
 }
+
+    

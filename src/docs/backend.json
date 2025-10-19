@@ -77,20 +77,24 @@
           "description": "The amount of the transaction."
         },
         "balanceBefore": {
-            "type": "number",
-            "description": "The balance of the kas account before the transaction."
+          "type": "number",
+          "description": "The balance of the kas account before the transaction."
         },
         "balanceAfter": {
-            "type": "number",
-            "description": "The balance of the kas account after the transaction."
+          "type": "number",
+          "description": "The balance of the kas account after the transaction."
         },
         "sourceKasAccountId": {
-            "type": "string",
-            "description": "For transfers, the ID of the source KasAccount."
+          "type": "string",
+          "description": "For transfers, the ID of the source KasAccount."
         },
         "destinationKasAccountId": {
-            "type": "string",
-            "description": "For transfers, the ID of the destination KasAccount."
+          "type": "string",
+          "description": "For transfers, the ID of the destination KasAccount."
+        },
+        "deviceName": {
+          "type": "string",
+          "description": "The name of the device that created the transaction."
         }
       },
       "required": [
@@ -101,6 +105,85 @@
         "account",
         "date",
         "amount"
+      ]
+    },
+    "CustomerTransfer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CustomerTransfer",
+      "type": "object",
+      "description": "Represents a transfer service transaction for a customer.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the CustomerTransfer transaction."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp of the transaction."
+        },
+        "sourceKasAccountId": {
+          "type": "string",
+          "description": "The ID of the internal KasAccount used to send the money."
+        },
+        "destinationBankName": {
+          "type": "string",
+          "description": "The name of the customer's destination bank."
+        },
+        "destinationAccountName": {
+          "type": "string",
+          "description": "The name of the recipient account holder."
+        },
+        "transferAmount": {
+          "type": "number",
+          "description": "The principal amount transferred to the customer's destination."
+        },
+        "bankAdminFee": {
+          "type": "number",
+          "description": "The fee charged by the bank for the transfer."
+        },
+        "serviceFee": {
+          "type": "number",
+          "description": "The service fee charged to the customer (our profit)."
+        },
+        "netProfit": {
+          "type": "number",
+          "description": "The calculated net profit (serviceFee - bankAdminFee)."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["Tunai", "Transfer", "Split"],
+          "description": "How the customer paid for the service."
+        },
+        "paymentToKasTunaiAmount": {
+          "type": "number",
+          "description": "Portion of the payment made in cash."
+        },
+        "paymentToKasTransferAccountId": {
+          "type": "string",
+          "description": "ID of the KasAccount that received the transfer portion of the payment."
+        },
+        "paymentToKasTransferAmount": {
+          "type": "number",
+          "description": "Portion of the payment made via transfer."
+        },
+        "deviceName": {
+          "type": "string",
+          "description": "The name of the device that processed the transaction."
+        }
+      },
+      "required": [
+        "id",
+        "date",
+        "sourceKasAccountId",
+        "destinationBankName",
+        "destinationAccountName",
+        "transferAmount",
+        "bankAdminFee",
+        "serviceFee",
+        "netProfit",
+        "paymentMethod",
+        "deviceName"
       ]
     }
   },
@@ -116,6 +199,14 @@
         "$ref": "#/entities/Transaction"
       },
       "description": "Stores transaction history for each cash account in a global, public subcollection. All users can read and write transactions for any account."
+    },
+    "/customerTransfers/{customerTransferId}": {
+       "schema": {
+        "$ref": "#/entities/CustomerTransfer"
+      },
+      "description": "Stores a log of all customer transfer service transactions for auditing and business intelligence."
     }
   }
 }
+
+    

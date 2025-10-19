@@ -1,3 +1,4 @@
+
 "use client";
 
 import { quickServices, ppobServices } from '@/lib/data';
@@ -12,7 +13,11 @@ import { cn } from '@/lib/utils';
 import type { CarouselApi } from "@/components/ui/carousel"
 import React from 'react';
 
-export default function QuickServices() {
+interface QuickServicesProps {
+    onServiceClick: (service: 'customerTransfer') => void;
+}
+
+export default function QuickServices({ onServiceClick }: QuickServicesProps) {
   const [api, setApi] = React.useState<CarouselApi>()
   const [current, setCurrent] = React.useState(0)
   const [count, setCount] = React.useState(0)
@@ -34,6 +39,13 @@ export default function QuickServices() {
       setCurrent(api.selectedScrollSnap())
     })
   }, [api])
+
+  const handleServiceClick = (label: string) => {
+    if (label === 'Transfer') {
+        onServiceClick('customerTransfer');
+    }
+    // Handle other services if needed
+  }
 
   return (
     <Card className="bg-card/80 backdrop-blur-md border-border/20 shadow-lg">
@@ -64,6 +76,7 @@ export default function QuickServices() {
                       {group.services.map((service, idx) => (
                         <button
                           key={idx}
+                          onClick={() => handleServiceClick(service.label)}
                           className="flex flex-col items-center gap-2 group"
                           aria-label={service.label}
                         >
@@ -82,3 +95,5 @@ export default function QuickServices() {
     </Card>
   );
 }
+
+    
