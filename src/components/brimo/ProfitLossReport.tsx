@@ -106,15 +106,20 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
     return kasAccounts?.find(acc => acc.id === accountId)?.label || accountId;
   };
   
-  const totalProfit = reports.reduce((sum, report) => {
+  const totals = reports.reduce((acc, report) => {
     if (report.transactionType === 'Transfer') {
-        return sum + report.netProfit;
+        acc.nominal += report.transferAmount;
+        acc.adminBank += report.bankAdminFee;
+        acc.jasa += report.serviceFee;
+        acc.labaRugi += report.netProfit;
+    } else if (report.transactionType === 'Tarik Tunai') {
+        acc.nominal += report.withdrawalAmount;
+        // admin bank is 0 for withdrawal
+        acc.jasa += report.serviceFee;
+        acc.labaRugi += report.serviceFee;
     }
-    if (report.transactionType === 'Tarik Tunai') {
-        return sum + report.serviceFee;
-    }
-    return sum;
-  }, 0);
+    return acc;
+  }, { nominal: 0, adminBank: 0, jasa: 0, labaRugi: 0 });
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -207,7 +212,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                         <TableCell>{report.destinationAccountName}</TableCell>
                                         <TableCell className="text-right">{formatToRupiah(report.transferAmount)}</TableCell>
                                         <TableCell className="text-right">{formatToRupiah(report.bankAdminFee)}</TableCell>
-                                        <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.netProfit)}</TableCell>
+                                        <TableCell className="text-right text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
                                         <TableCell>{report.deviceName}</TableCell>
                                     </>
                                 ) : (
@@ -218,7 +223,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                         <TableCell>{report.customerName}</TableCell>
                                         <TableCell className="text-right">{formatToRupiah(report.withdrawalAmount)}</TableCell>
                                         <TableCell className="text-right">Rp 0</TableCell>
-                                        <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
+                                        <TableCell className="text-right text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
                                         <TableCell>{report.deviceName}</TableCell>
                                     </>
                                 )}
@@ -226,10 +231,16 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                         ))}
                     </TableBody>
                     <TableFooter>
-                        <TableRow>
-                            <TableCell colSpan={7} className="font-bold">Total Laba Bersih</TableCell>
-                            <TableCell className="text-right font-bold text-green-500">{formatToRupiah(totalProfit)}</TableCell>
+                        <TableRow className="font-bold bg-muted/50">
+                            <TableCell colSpan={5}>Total</TableCell>
+                            <TableCell className="text-right">{formatToRupiah(totals.nominal)}</TableCell>
+                            <TableCell className="text-right">{formatToRupiah(totals.adminBank)}</TableCell>
+                            <TableCell className="text-right">{formatToRupiah(totals.jasa)}</TableCell>
                             <TableCell></TableCell>
+                        </TableRow>
+                         <TableRow className="font-bold text-lg bg-muted">
+                            <TableCell colSpan={7}>Total Laba Bersih</TableCell>
+                            <TableCell colSpan={2} className="text-right text-green-600">{formatToRupiah(totals.labaRugi)}</TableCell>
                         </TableRow>
                     </TableFooter>
                 </Table>
@@ -238,5 +249,3 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
     </div>
   );
 }
-
-    
