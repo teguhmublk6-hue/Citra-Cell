@@ -98,6 +98,8 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
         const batch = writeBatch(firestore);
         const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
 
+        const now = new Date().toISOString();
+
         // Source account refs
         const sourceDocRef = doc(firestore, 'kasAccounts', sourceAccount.id);
         const sourceTransactionRef = doc(collection(sourceDocRef, 'transactions'));
@@ -106,7 +108,6 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
         const destinationDocRef = doc(firestore, 'kasAccounts', destinationAccount.id);
         const destinationTransactionRef = doc(collection(destinationDocRef, 'transactions'));
 
-        const now = new Date().toISOString();
 
         // Update balances
         batch.update(sourceDocRef, { balance: sourceAccount.balance - totalDebit });
@@ -152,11 +153,13 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
                 type: 'debit',
                 name: `Biaya Admin Transfer ke ${destinationAccount.label}`,
                 account: 'Biaya Transaksi',
-                date: now,
+                date: now, // IMPORTANT: Use the same timestamp
                 amount: fee,
                 balanceBefore: sourceAccount.balance - values.amount, // Balance after transfer, before fee
                 balanceAfter: sourceAccount.balance - totalDebit, // Final balance
                 category: 'operational',
+                sourceKasAccountId: sourceAccount.id, // Add for context
+                destinationKasAccountId: destinationAccount.id, // Add for context
                 deviceName: deviceName,
             });
         }
@@ -331,3 +334,5 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
     </Form>
   );
 }
+
+    

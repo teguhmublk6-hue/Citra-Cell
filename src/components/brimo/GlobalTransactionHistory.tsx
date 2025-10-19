@@ -111,50 +111,77 @@ export default function GlobalTransactionHistory() {
 
     try {
         const batch = writeBatch(firestore);
-        const { kasAccountId, type, amount, category } = transactionToDelete;
+        const { kasAccountId, type, amount, category, date, sourceKasAccountId, destinationKasAccountId } = transactionToDelete;
 
-        const primaryAccountRef = doc(firestore, 'kasAccounts', kasAccountId);
         const primaryAccount = kasAccounts.find(acc => acc.id === kasAccountId);
-        if (!primaryAccount) throw new Error("Akun utama tidak ditemukan");
+        if (!primaryAccount) throw new Error(`Akun dengan ID ${kasAccountId} tidak ditemukan.`);
 
-        // Case 1: It's a transfer transaction
-        if (category === 'transfer' && transactionToDelete.sourceKasAccountId && transactionToDelete.destinationKasAccountId) {
-            const sourceAccRef = doc(firestore, 'kasAccounts', transactionToDelete.sourceKasAccountId);
-            const destAccRef = doc(firestore, 'kasAccounts', transactionToDelete.destinationKasAccountId);
-            const sourceAcc = kasAccounts.find(acc => acc.id === transactionToDelete.sourceKasAccountId);
-            const destAcc = kasAccounts.find(acc => acc.id === transactionToDelete.destinationKasAccountId);
+        // Case 1: It's a transfer transaction (can be 'transfer' or 'operational' for the fee)
+        if (category === 'transfer' || (category === 'operational' && sourceKasAccountId && destinationKasAccountId)) {
+            if (!sourceKasAccountId || !destinationKasAccountId) throw new Error("Transaksi transfer tidak memiliki ID sumber/tujuan.");
+
+            const sourceAccRef = doc(firestore, 'kasAccounts', sourceKasAccountId);
+            const destAccRef = doc(firestore, 'kasAccounts', destinationKasAccountId);
+            const sourceAcc = kasAccounts.find(acc => acc.id === sourceKasAccountId);
+            const destAcc = kasAccounts.find(acc => acc.id === destinationKasAccountId);
             if (!sourceAcc || !destAcc) throw new Error("Akun sumber atau tujuan transfer tidak ditemukan");
 
-            // Find the fee if it exists to revert it
-            const feeDebitQuery = query(
-                collection(sourceAccRef, 'transactions'),
-                where('category', '==', 'operational'),
-                where('date', '==', transactionToDelete.date) // Assuming date is unique enough for this context
+            // Find all related transactions by the exact same date (timestamp)
+            const transferPrincipalQuery = query(
+                collection(firestore, 'kasAccounts', sourceKasAccountId, 'transactions'),
+                where('date', '==', date),
+                where('category', '==', 'transfer')
             );
-            const feeSnapshot = await getDocs(feeDebitQuery);
-            let totalRevertAmount = amount;
-            
-            feeSnapshot.forEach(feeDoc => {
-                totalRevertAmount += feeDoc.data().amount;
-                batch.delete(feeDoc.ref); // Delete the fee transaction
+            const feeQuery = query(
+                collection(firestore, 'kasAccounts', sourceKasAccountId, 'transactions'),
+                where('date', '==', date),
+                where('category', '==', 'operational')
+            );
+             const creditQuery = query(
+                collection(firestore, 'kasAccounts', destinationKasAccountId, 'transactions'),
+                where('date', '==', date),
+                where('category', '==', 'transfer')
+            );
+
+            const [principalSnapshot, feeSnapshot, creditSnapshot] = await Promise.all([
+                getDocs(transferPrincipalQuery),
+                getDocs(feeQuery),
+                getDocs(creditQuery)
+            ]);
+
+            let principalAmount = 0;
+            let feeAmount = 0;
+
+            principalSnapshot.forEach(doc => {
+                principalAmount += doc.data().amount;
+                batch.delete(doc.ref);
             });
 
-            // Revert balances
-            batch.update(sourceAccRef, { balance: sourceAcc.balance + totalRevertAmount });
-            batch.update(destAccRef, { balance: destAcc.balance - amount });
-
-            // Delete both sides of the transfer
-            const debitTransactionQuery = query(collection(sourceAccRef, 'transactions'), where('date', '==', transactionToDelete.date), where('category', '==', 'transfer'));
-            const creditTransactionQuery = query(collection(destAccRef, 'transactions'), where('date', '==', transactionToDelete.date), where('category', '==', 'transfer'));
+            feeSnapshot.forEach(doc => {
+                feeAmount += doc.data().amount;
+                batch.delete(doc.ref);
+            });
             
-            const [debitSnapshot, creditSnapshot] = await Promise.all([getDocs(debitTransactionQuery), getDocs(creditTransactionQuery)]);
-            debitSnapshot.forEach(doc => batch.delete(doc.ref));
-            creditSnapshot.forEach(doc => batch.delete(doc.ref));
+            creditSnapshot.forEach(doc => {
+                // principalAmount should be the same as doc.data().amount
+                batch.delete(doc.ref);
+            });
 
-        } else { // Case 2: It's a simple credit/debit (capital, operational, etc.)
-            const newBalance = type === 'debit' ? primaryAccount.balance + amount : primaryAccount.balance - amount;
-            batch.update(primaryAccountRef, { balance: newBalance });
-            const trxRef = doc(primaryAccountRef, 'transactions', transactionToDelete.id);
+            if (principalAmount === 0) {
+                 throw new Error("Transaksi pokok transfer tidak ditemukan untuk dibatalkan.");
+            }
+
+            // Revert balances
+            batch.update(sourceAccRef, { balance: sourceAcc.balance + principalAmount + feeAmount });
+            batch.update(destAccRef, { balance: destAcc.balance - principalAmount });
+
+        } else { // Case 2: It's a simple credit/debit (e.g. capital, withdrawal)
+            const newBalance = type === 'debit' 
+                ? primaryAccount.balance + amount 
+                : primaryAccount.balance - amount;
+                
+            batch.update(doc(firestore, 'kasAccounts', kasAccountId), { balance: newBalance });
+            const trxRef = doc(firestore, 'kasAccounts', kasAccountId, 'transactions', transactionToDelete.id);
             batch.delete(trxRef);
         }
 
@@ -316,3 +343,5 @@ export default function GlobalTransactionHistory() {
     </div>
   );
 }
+
+    
