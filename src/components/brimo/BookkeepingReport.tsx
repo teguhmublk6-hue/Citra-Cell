@@ -5,7 +5,6 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import type { CustomerTransfer } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { BookText } from 'lucide-react';
@@ -56,26 +55,24 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
 
   return (
     <div className="h-full flex flex-col pt-4">
-      <ScrollArea className="flex-1 -mx-6">
-        <div className="px-6">
-          {isLoadingData && (
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
-            </div>
-          )}
-          {!isLoadingData && (!reports || reports.length === 0) && (
-            <div className="flex flex-col items-center justify-center h-full py-20 text-center">
-              <BookText size={48} strokeWidth={1} className="text-muted-foreground mb-4" />
-              <p className="font-semibold">Belum Ada Laporan</p>
-              <p className="text-sm text-muted-foreground">Belum ada transaksi transfer pelanggan yang tercatat.</p>
-            </div>
-          )}
-        </div>
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {isLoadingData && (
+          <div className="px-6 space-y-2">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+        )}
+        {!isLoadingData && (!reports || reports.length === 0) && (
+          <div className="flex flex-col items-center justify-center h-full text-center px-6">
+            <BookText size={48} strokeWidth={1} className="text-muted-foreground mb-4" />
+            <p className="font-semibold">Belum Ada Laporan</p>
+            <p className="text-sm text-muted-foreground">Belum ada transaksi transfer pelanggan yang tercatat.</p>
+          </div>
+        )}
         {!isLoadingData && reports && reports.length > 0 && (
-          <div className="w-full overflow-x-auto px-6">
-            <Table className="min-w-max whitespace-nowrap">
+          <div className="overflow-x-auto">
+            <Table className="whitespace-nowrap">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[50px] px-2 text-center">No</TableHead>
@@ -103,8 +100,8 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
             </Table>
           </div>
         )}
-      </ScrollArea>
-      <div className="mt-4 px-6 pb-4">
+      </div>
+      <div className="mt-auto px-6 pb-4 pt-4">
         <Button variant="outline" className="w-full" onClick={onDone}>Tutup</Button>
       </div>
     </div>
