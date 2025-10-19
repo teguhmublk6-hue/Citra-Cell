@@ -62,6 +62,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
   const [reviewData, setReviewData] = useState<CustomerTransferFormValues | null>(null);
   const [isAdminAccessGranted, setIsAdminAccessGranted] = useState(false);
   const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
+  const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Check sessionStorage on initial load
@@ -69,6 +70,27 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     setIsAdminAccessGranted(hasAccess);
   }, []);
   
+  useEffect(() => {
+    if (adminTimeoutRef.current) {
+        clearTimeout(adminTimeoutRef.current);
+    }
+
+    if (isAdminAccessGranted && activeTab !== 'admin') {
+        adminTimeoutRef.current = setTimeout(() => {
+            setIsAdminAccessGranted(false);
+            sessionStorage.removeItem('brimoAdminAccess');
+            // Optionally, you can add a toast notification here
+            // to inform the user that their admin session has expired.
+        }, 10000); // 10 seconds
+    }
+
+    return () => {
+        if (adminTimeoutRef.current) {
+            clearTimeout(adminTimeoutRef.current);
+        }
+    };
+  }, [activeTab, isAdminAccessGranted]);
+
   const firestore = useFirestore();
 
   const plugin = useRef(
@@ -310,3 +332,5 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     </>
   );
 }
+
+    
