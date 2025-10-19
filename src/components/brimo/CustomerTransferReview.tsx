@@ -71,26 +71,28 @@ export default function CustomerTransferReview({ formData, onConfirm, onBack }: 
             const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
             const now = new Date().toISOString();
             const laciAccountName = 'Laci';
-            const auditLogRef = doc(collection(firestore, 'customerTransfers'));
-            const auditLogData = {
-                id: auditLogRef.id,
-                date: now,
-                sourceKasAccountId: formData.sourceAccountId,
-                destinationBankName: formData.destinationBank,
-                destinationAccountName: formData.destinationAccountName,
-                transferAmount: formData.transferAmount,
-                bankAdminFee: formData.bankAdminFee || 0,
-                serviceFee: formData.serviceFee,
-                netProfit,
-                paymentMethod: formData.paymentMethod,
-                paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
-                paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? formData.paymentToKasTransferAccountId : null,
-                paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTransferAmount : 0),
-                deviceName
-            };
-
+            
             await runTransaction(firestore, async (transaction) => {
+                // Define the audit log reference INSIDE the transaction
+                const auditLogRef = doc(collection(firestore, 'customerTransfers'));
                 
+                const auditLogData = {
+                    id: auditLogRef.id,
+                    date: now,
+                    sourceKasAccountId: formData.sourceAccountId,
+                    destinationBankName: formData.destinationBank,
+                    destinationAccountName: formData.destinationAccountName,
+                    transferAmount: formData.transferAmount,
+                    bankAdminFee: formData.bankAdminFee || 0,
+                    serviceFee: formData.serviceFee,
+                    netProfit,
+                    paymentMethod: formData.paymentMethod,
+                    paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
+                    paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? formData.paymentToKasTransferAccountId : null,
+                    paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTransferAmount : 0),
+                    deviceName
+                };
+
                 // 1. Get or Create 'Laci' Account
                 let laciAccount: KasAccount | undefined;
                 const kasAccountQuery = query(collection(firestore, 'kasAccounts'), where("label", "==", laciAccountName));
@@ -182,7 +184,7 @@ export default function CustomerTransferReview({ formData, onConfirm, onBack }: 
                         break;
                 }
 
-                // 4. Create main audit log in /customerTransfers
+                // 4. Create main audit log in /customerTransfers - this now uses the correct reference
                 transaction.set(auditLogRef, auditLogData);
             });
 
