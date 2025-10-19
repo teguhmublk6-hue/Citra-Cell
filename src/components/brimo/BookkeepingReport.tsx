@@ -78,25 +78,25 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
             <Table className="min-w-max">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[50px]">No</TableHead>
-                  <TableHead>Akun Kas</TableHead>
-                  <TableHead>Bank/Tujuan</TableHead>
-                  <TableHead>Nama</TableHead>
-                  <TableHead className="text-right">Nominal</TableHead>
-                  <TableHead className="text-right">Admin Bank</TableHead>
-                  <TableHead className="text-right">Jasa</TableHead>
+                  <TableHead className="w-[50px] px-2">No</TableHead>
+                  <TableHead className="px-2">Akun Kas</TableHead>
+                  <TableHead className="px-2">Bank/Tujuan</TableHead>
+                  <TableHead className="px-2">Nama</TableHead>
+                  <TableHead className="text-right px-2">Nominal</TableHead>
+                  <TableHead className="text-right px-2">Admin Bank</TableHead>
+                  <TableHead className="text-right px-2">Jasa</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {reports.map((report, index) => (
                   <TableRow key={report.id}>
-                    <TableCell className="font-medium">{reports.length - index}</TableCell>
-                    <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
-                    <TableCell>{report.destinationBankName}</TableCell>
-                    <TableCell>{report.destinationAccountName}</TableCell>
-                    <TableCell className="text-right">{formatToRupiah(report.transferAmount)}</TableCell>
-                    <TableCell className="text-right text-red-500">{formatToRupiah(report.bankAdminFee)}</TableCell>
-                    <TableCell className="text-right text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
+                    <TableCell className="font-medium px-2">{reports.length - index}</TableCell>
+                    <TableCell className="px-2">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                    <TableCell className="px-2">{report.destinationBankName}</TableCell>
+                    <TableCell className="px-2">{report.destinationAccountName}</TableCell>
+                    <TableCell className="text-right px-2">{formatToRupiah(report.transferAmount)}</TableCell>
+                    <TableCell className="text-right text-red-500 px-2">{formatToRupiah(report.bankAdminFee)}</TableCell>
+                    <TableCell className="text-right text-green-500 px-2">{formatToRupiah(report.serviceFee)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
