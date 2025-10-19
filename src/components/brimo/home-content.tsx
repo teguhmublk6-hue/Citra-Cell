@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import QuickServices from './quick-services';
 import BottomNav from './bottom-nav';
-import AdminPlaceholder from './AdminPlaceholder';
+import AdminContent from './AdminContent';
 import SettingsContent from './settings-content';
 import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -36,6 +36,7 @@ import BookkeepingReport from './BookkeepingReport';
 import AdminPasscodeDialog from './AdminPasscodeDialog';
 import CustomerWithdrawalForm from './CustomerWithdrawalForm';
 import CustomerWithdrawalReview from './CustomerWithdrawalReview';
+import ProfitLossReport from './ProfitLossReport';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -65,6 +66,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
   const [isAdminAccessGranted, setIsAdminAccessGranted] = useState(false);
   const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
   const [isReportVisible, setIsReportVisible] = useState(false);
+  const [isProfitLossReportVisible, setIsProfitLossReportVisible] = useState(false);
   const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -160,6 +162,10 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     setIsReportVisible(true);
   }
 
+  const handleProfitLossReportClick = () => {
+    setIsProfitLossReportVisible(true);
+  }
+
   const handleTabChange = (tab: ActiveTab) => {
     if (tab === 'admin' && !isAdminAccessGranted) {
       setIsPasscodeDialogOpen(true);
@@ -191,6 +197,10 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
 
   if (isReportVisible) {
     return <BookkeepingReport onDone={() => setIsReportVisible(false)} />;
+  }
+
+  if (isProfitLossReportVisible) {
+    return <ProfitLossReport onDone={() => setIsProfitLossReportVisible(false)} />;
   }
 
   const renderContent = () => {
@@ -312,7 +322,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
       case 'mutasi':
         return <GlobalTransactionHistory />;
       case 'admin':
-        return isAdminAccessGranted ? <AdminPlaceholder /> : null;
+        return isAdminAccessGranted ? <AdminContent onProfitLossReportClick={handleProfitLossReportClick} /> : null;
       default:
         return <div className="px-4"><QuickServices onServiceClick={handleQuickServiceClick}/></div>;
     }
@@ -363,3 +373,5 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     </>
   );
 }
+
+    
