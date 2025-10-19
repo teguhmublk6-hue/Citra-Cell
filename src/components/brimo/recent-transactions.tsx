@@ -85,31 +85,31 @@ export default function RecentTransactions() {
         ) : (
           <div className="space-y-4">
             {recentTransactions.map((trx) => (
-              <div key={trx.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${trx.type === 'credit' ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+              <div key={trx.id} className="flex items-start gap-3">
+                <div className={`w-9 h-9 flex-shrink-0 rounded-full flex items-center justify-center ${trx.type === 'credit' ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
                     {trx.type === 'credit' ? (
-                      <ArrowDownLeft size={18} strokeWidth={2} className="text-green-500" />
+                      <ArrowDownLeft size={16} strokeWidth={2.5} className="text-green-500" />
                     ) : (
-                      <ArrowUpRight size={18} strokeWidth={2} className="text-red-500" />
+                      <ArrowUpRight size={16} strokeWidth={2.5} className="text-red-500" />
                     )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">{trx.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                        {trx.type === 'credit' ? `dari ${trx.account}` : `ke ${trx.account}`} • {new Date(trx.date).toLocaleDateString('id-ID', {day: 'numeric', month: 'short'})}
-                    </p>
-                     {trx.deviceName && <p className="text-xs text-muted-foreground/80 truncate">oleh: {trx.deviceName}</p>}
-                  </div>
                 </div>
-                <div className="flex items-center gap-2 cursor-pointer flex-shrink-0">
-                  <p className={cn(
-                      "font-semibold text-sm",
-                      trx.type === 'credit' ? 'text-green-500' : ''
-                    )}>
-                    {trx.type === 'credit' ? '+' : '-'} Rp {trx.amount.toLocaleString('id-ID')}
-                  </p>
-                  <ChevronRight size={16} className="text-muted-foreground" />
+                <div className="flex-1 flex justify-between items-start min-w-0">
+                    <div className="flex-1 min-w-0 pr-2">
+                        <p className="font-medium text-sm">{trx.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                            {trx.type === 'credit' ? `dari ${trx.account}` : `ke ${trx.account}`} • {new Date(trx.date).toLocaleDateString('id-ID', {day: 'numeric', month: 'short'})}
+                        </p>
+                        {trx.deviceName && <p className="text-xs text-muted-foreground/80">oleh: {trx.deviceName}</p>}
+                    </div>
+                    <div className="flex items-center gap-1 cursor-pointer flex-shrink-0">
+                      <p className={cn(
+                          "font-semibold text-sm text-right",
+                          trx.type === 'credit' ? 'text-green-500' : ''
+                        )}>
+                        {trx.type === 'credit' ? '+' : '-'} Rp{trx.amount.toLocaleString('id-ID')}
+                      </p>
+                      <ChevronRight size={16} className="text-muted-foreground" />
+                    </div>
                 </div>
               </div>
             ))}
