@@ -15,7 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import bankData from '@/lib/banks.json';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Check, ChevronsUpDown } from 'lucide-react';
@@ -52,6 +52,17 @@ const parseRupiah = (value: string | undefined | null): number => {
     return Number(String(value).replace(/[^0-9]/g, ''));
 }
 
+const calculateServiceFee = (amount: number): number => {
+    if (amount >= 10000 && amount <= 39000) return 3000;
+    if (amount >= 40000 && amount <= 999000) return 5000;
+    if (amount >= 1000000 && amount <= 1999000) return 7000;
+    if (amount >= 2000000 && amount <= 3499000) return 10000;
+    if (amount >= 3500000 && amount <= 5999000) return 15000;
+    if (amount >= 6000000 && amount <= 7999000) return 20000;
+    if (amount >= 8000000 && amount <= 10000000) return 25000;
+    return 0;
+};
+
 
 export default function CustomerTransferForm({ onDone }: CustomerTransferFormProps) {
   const firestore = useFirestore();
@@ -81,6 +92,14 @@ export default function CustomerTransferForm({ onDone }: CustomerTransferFormPro
   });
 
   const paymentMethod = form.watch('paymentMethod');
+  const transferAmount = form.watch('transferAmount');
+
+  useEffect(() => {
+    if (transferAmount !== undefined) {
+      const fee = calculateServiceFee(transferAmount);
+      form.setValue('serviceFee', fee, { shouldValidate: true });
+    }
+  }, [transferAmount, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     // TODO: Implement review and save logic
@@ -201,7 +220,7 @@ export default function CustomerTransferForm({ onDone }: CustomerTransferFormPro
                 <FormField control={form.control} name="serviceFee" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Biaya Jasa (Laba)</FormLabel>
-                        <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                        <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} readOnly className="bg-muted/50" /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}/>
@@ -317,5 +336,4 @@ export default function CustomerTransferForm({ onDone }: CustomerTransferFormPro
   );
 }
 
-    
     
