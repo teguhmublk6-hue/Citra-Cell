@@ -52,65 +52,56 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
     return kasAccounts?.find(acc => acc.id === accountId)?.label || accountId;
   }
 
-  const formatDateTime = (isoString: string) => {
-    if (!isoString) return 'Tanggal tidak valid';
-    return new Date(isoString).toLocaleString('id-ID', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   const isLoadingData = isLoading || (kasAccounts === undefined);
 
   return (
     <div className="h-full flex flex-col pt-4">
-      <ScrollArea className="flex-1 -mx-6 px-1">
-        {isLoadingData && (
-          <div className="space-y-2 px-4">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-20 w-full" />
-          </div>
-        )}
-        {!isLoadingData && (!reports || reports.length === 0) && (
-          <div className="flex flex-col items-center justify-center h-full py-20 text-center">
-            <BookText size={48} strokeWidth={1} className="text-muted-foreground mb-4" />
-            <p className="font-semibold">Belum Ada Laporan</p>
-            <p className="text-sm text-muted-foreground">Belum ada transaksi transfer pelanggan yang tercatat.</p>
-          </div>
-        )}
+      <ScrollArea className="flex-1 -mx-6">
+        <div className="px-6">
+          {isLoadingData && (
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          )}
+          {!isLoadingData && (!reports || reports.length === 0) && (
+            <div className="flex flex-col items-center justify-center h-full py-20 text-center">
+              <BookText size={48} strokeWidth={1} className="text-muted-foreground mb-4" />
+              <p className="font-semibold">Belum Ada Laporan</p>
+              <p className="text-sm text-muted-foreground">Belum ada transaksi transfer pelanggan yang tercatat.</p>
+            </div>
+          )}
+        </div>
         {!isLoadingData && reports && reports.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[40px]">#</TableHead>
-                <TableHead>Detail Transaksi</TableHead>
-                <TableHead className="text-right">Jasa</TableHead>
-                <TableHead className="text-right">Admin</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {reports.map((report, index) => (
-                <TableRow key={report.id}>
-                  <TableCell className="font-medium">{reports.length - index}</TableCell>
-                  <TableCell>
-                    <div className="font-medium truncate">
-                      {getAccountLabel(report.sourceKasAccountId)} ke {report.destinationBankName}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {formatToRupiah(report.transferAmount)} a/n {report.destinationAccountName}
-                    </div>
-                     <div className="text-xs text-muted-foreground mt-1">{formatDateTime(report.date)}</div>
-                  </TableCell>
-                  <TableCell className="text-right text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
-                  <TableCell className="text-right text-red-500">{formatToRupiah(report.bankAdminFee)}</TableCell>
+          <div className="w-full overflow-x-auto">
+            <Table className="min-w-max">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[50px]">No</TableHead>
+                  <TableHead>Akun Kas</TableHead>
+                  <TableHead>Bank/Tujuan</TableHead>
+                  <TableHead>Nama</TableHead>
+                  <TableHead className="text-right">Nominal</TableHead>
+                  <TableHead className="text-right">Admin Bank</TableHead>
+                  <TableHead className="text-right">Jasa</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {reports.map((report, index) => (
+                  <TableRow key={report.id}>
+                    <TableCell className="font-medium">{reports.length - index}</TableCell>
+                    <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                    <TableCell>{report.destinationBankName}</TableCell>
+                    <TableCell>{report.destinationAccountName}</TableCell>
+                    <TableCell className="text-right">{formatToRupiah(report.transferAmount)}</TableCell>
+                    <TableCell className="text-right text-red-500">{formatToRupiah(report.bankAdminFee)}</TableCell>
+                    <TableCell className="text-right text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </ScrollArea>
       <div className="mt-4 px-6">
