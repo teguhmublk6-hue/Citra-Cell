@@ -74,11 +74,11 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
           )}
         </div>
         {!isLoadingData && reports && reports.length > 0 && (
-          <div className="w-full overflow-x-auto">
-            <Table className="min-w-max">
+          <div className="w-full overflow-x-auto px-6">
+            <Table className="min-w-max whitespace-nowrap">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[50px] px-2">No</TableHead>
+                  <TableHead className="w-[50px] px-2 text-center">No</TableHead>
                   <TableHead className="px-2">Akun Kas</TableHead>
                   <TableHead className="px-2">Bank/Tujuan</TableHead>
                   <TableHead className="px-2">Nama</TableHead>
@@ -90,7 +90,7 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
               <TableBody>
                 {reports.map((report, index) => (
                   <TableRow key={report.id}>
-                    <TableCell className="font-medium px-2">{reports.length - index}</TableCell>
+                    <TableCell className="font-medium px-2 text-center">{reports.length - index}</TableCell>
                     <TableCell className="px-2">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
                     <TableCell className="px-2">{report.destinationBankName}</TableCell>
                     <TableCell className="px-2">{report.destinationAccountName}</TableCell>
@@ -104,7 +104,7 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
           </div>
         )}
       </ScrollArea>
-      <div className="mt-4 px-6">
+      <div className="mt-4 px-6 pb-4">
         <Button variant="outline" className="w-full" onClick={onDone}>Tutup</Button>
       </div>
     </div>
