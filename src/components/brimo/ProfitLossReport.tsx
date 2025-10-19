@@ -197,6 +197,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                             <TableHead className="text-right">Nominal</TableHead>
                             <TableHead className="text-right">Admin Bank</TableHead>
                             <TableHead className="text-right">Jasa</TableHead>
+                            <TableHead className="text-right">Laba/Rugi</TableHead>
                             <TableHead>Oleh</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -212,7 +213,8 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                         <TableCell>{report.destinationAccountName}</TableCell>
                                         <TableCell className="text-right">{formatToRupiah(report.transferAmount)}</TableCell>
                                         <TableCell className="text-right">{formatToRupiah(report.bankAdminFee)}</TableCell>
-                                        <TableCell className="text-right text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
+                                        <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
+                                        <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.netProfit)}</TableCell>
                                         <TableCell>{report.deviceName}</TableCell>
                                     </>
                                 ) : (
@@ -223,7 +225,8 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                         <TableCell>{report.customerName}</TableCell>
                                         <TableCell className="text-right">{formatToRupiah(report.withdrawalAmount)}</TableCell>
                                         <TableCell className="text-right">Rp 0</TableCell>
-                                        <TableCell className="text-right text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
+                                        <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
+                                        <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
                                         <TableCell>{report.deviceName}</TableCell>
                                     </>
                                 )}
@@ -236,10 +239,11 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                             <TableCell className="text-right">{formatToRupiah(totals.nominal)}</TableCell>
                             <TableCell className="text-right">{formatToRupiah(totals.adminBank)}</TableCell>
                             <TableCell className="text-right">{formatToRupiah(totals.jasa)}</TableCell>
+                            <TableCell className="text-right">{formatToRupiah(totals.labaRugi)}</TableCell>
                             <TableCell></TableCell>
                         </TableRow>
                          <TableRow className="font-bold text-lg bg-muted">
-                            <TableCell colSpan={7}>Total Laba Bersih</TableCell>
+                            <TableCell colSpan={8}>Total Laba Bersih</TableCell>
                             <TableCell colSpan={2} className="text-right text-green-600">{formatToRupiah(totals.labaRugi)}</TableCell>
                         </TableRow>
                     </TableFooter>
