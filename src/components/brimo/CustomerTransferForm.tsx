@@ -344,7 +344,7 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
                                 <FormControl>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Pilih akun penerima" />
-                                </Trigger>
+                                </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
                                 {kasAccounts?.map(acc => (
