@@ -373,5 +373,3 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
     </Form>
   );
 }
-
-    
