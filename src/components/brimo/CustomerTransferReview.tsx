@@ -72,45 +72,15 @@ export default function CustomerTransferReview({ formData, onConfirm, onBack }: 
             const now = new Date().toISOString();
             const laciAccountName = 'Laci';
             
+            // This transaction will only handle the balance updates and subcollection transactions
             await runTransaction(firestore, async (transaction) => {
-                // Define the audit log reference INSIDE the transaction
-                const auditLogRef = doc(collection(firestore, 'customerTransfers'));
-                
-                const auditLogData = {
-                    id: auditLogRef.id,
-                    date: now,
-                    sourceKasAccountId: formData.sourceAccountId,
-                    destinationBankName: formData.destinationBank,
-                    destinationAccountName: formData.destinationAccountName,
-                    transferAmount: formData.transferAmount,
-                    bankAdminFee: formData.bankAdminFee || 0,
-                    serviceFee: formData.serviceFee,
-                    netProfit,
-                    paymentMethod: formData.paymentMethod,
-                    paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
-                    paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? formData.paymentToKasTransferAccountId : null,
-                    paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTransferAmount : 0),
-                    deviceName
-                };
-
-                // 1. Get or Create 'Laci' Account
-                let laciAccount: KasAccount | undefined;
                 const kasAccountQuery = query(collection(firestore, 'kasAccounts'), where("label", "==", laciAccountName));
-                
-                // Note: getDocs cannot be used in a transaction. We will fetch this outside if needed.
-                // For now, we will assume Laci account must exist or handle creation separately.
-                // This logic needs adjustment if Laci might not exist.
                 const kasAccountSnapshot = await getDocs(kasAccountQuery);
 
+                let laciAccount: KasAccount;
                 if (kasAccountSnapshot.empty) {
                     const newLaciRef = doc(collection(firestore, 'kasAccounts'));
-                    const newLaciData: Omit<KasAccount, 'id'> = {
-                        label: laciAccountName,
-                        type: 'Tunai',
-                        balance: 0,
-                        minimumBalance: 0,
-                        color: 'bg-green-500'
-                    };
+                    const newLaciData: Omit<KasAccount, 'id'> = { label: laciAccountName, type: 'Tunai', balance: 0, minimumBalance: 0, color: 'bg-green-500' };
                     transaction.set(newLaciRef, newLaciData);
                     laciAccount = { ...newLaciData, id: newLaciRef.id };
                 } else {
@@ -183,28 +153,57 @@ export default function CustomerTransferReview({ formData, onConfirm, onBack }: 
                         });
                         break;
                 }
+            });
 
-                // 4. Create main audit log in /customerTransfers - this now uses the correct reference
-                transaction.set(auditLogRef, auditLogData);
+            // After the transaction is successful, create the audit log using addDoc
+            const auditLogCollectionRef = collection(firestore, 'customerTransfers');
+            const auditLogData = {
+                date: now,
+                sourceKasAccountId: formData.sourceAccountId,
+                destinationBankName: formData.destinationBank,
+                destinationAccountName: formData.destinationAccountName,
+                transferAmount: formData.transferAmount,
+                bankAdminFee: formData.bankAdminFee || 0,
+                serviceFee: formData.serviceFee,
+                netProfit,
+                paymentMethod: formData.paymentMethod,
+                paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
+                paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? formData.paymentToKasTransferAccountId : null,
+                paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTransferAmount : 0),
+                deviceName
+            };
+            
+            await addDoc(auditLogCollectionRef, auditLogData).catch(error => {
+                // If even the audit log fails, we need to report it.
+                // This indicates a deeper permission issue on the customerTransfers collection.
+                 const permissionError = new FirestorePermissionError({
+                    path: 'customerTransfers',
+                    operation: 'create', // Explicitly 'create' because we are using addDoc
+                    requestResourceData: auditLogData
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                // We throw to make sure the final success toast isn't shown
+                throw permissionError;
             });
 
             toast({ title: "Sukses", description: "Transaksi berhasil disimpan." });
             onConfirm();
         } catch (error: any) {
-            const permissionError = new FirestorePermissionError({
-                path: 'customerTransfers', // This is a transaction, path is complex, using collection for now
-                operation: 'write',
-                requestResourceData: { 
-                    formData,
-                    summary: {
-                        totalDebitFromSource,
-                        totalPaymentByCustomer,
-                        netProfit
+            // This will now catch errors from the transaction OR the addDoc call.
+            // If the error is not already a FirestorePermissionError, we create one for consistency.
+            if (!(error instanceof FirestorePermissionError)) {
+                 const permissionError = new FirestorePermissionError({
+                    path: 'customerTransfers_transaction', // Generic path for transaction failure
+                    operation: 'write',
+                    requestResourceData: { 
+                        error: error.message,
+                        formData,
+                        summary: { totalDebitFromSource, totalPaymentByCustomer, netProfit }
                     }
-                }
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            // We no longer show a toast here, the global listener will handle it.
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            }
+            // If it was already a permission error, it would have been emitted, so no need to re-emit.
         } finally {
             setIsSaving(false);
         }
