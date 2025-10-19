@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, where } from 'firebase/firestore';
+import { collection, query, orderBy, where, getDocs } from 'firebase/firestore';
 import type { KasAccount, Transaction } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,6 +15,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { Separator } from '../ui/separator';
+import { useToast } from '@/hooks/use-toast';
 
 interface TransactionHistoryProps {
   account: KasAccount;
@@ -33,23 +34,68 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 export default function TransactionHistory({ account, onDone }: TransactionHistoryProps) {
   const firestore = useFirestore();
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [transactions, setTransactions] = useState<TransactionWithId[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
-  const transactionsCollection = useMemoFirebase(() => {
-    if (!firestore || !account?.id) return null;
-    const baseCollection = collection(firestore, 'kasAccounts', account.id, 'transactions');
-    
-    const constraints = [orderBy('date', 'desc')];
-    if (dateRange?.from) {
-      constraints.push(where('date', '>=', startOfDay(dateRange.from).toISOString()));
-    }
-    if (dateRange?.to) {
-      constraints.push(where('date', '<=', endOfDay(dateRange.to).toISOString()));
-    }
-    
-    return query(baseCollection, ...constraints);
-  }, [firestore, account?.id, dateRange]);
-  
-  const { data: transactions, isLoading } = useCollection<TransactionWithId>(transactionsCollection);
+  const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
+  const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      if (!firestore || !account) return;
+      setIsLoading(true);
+
+      try {
+        let fetchedTransactions: TransactionWithId[] = [];
+
+        if (account.id === 'tunai-gabungan') {
+          // Fetch from all 'Tunai' accounts
+          const tunaiAccounts = kasAccounts?.filter(acc => acc.type === 'Tunai') || [];
+          for (const tunaiAccount of tunaiAccounts) {
+            const transactionsRef = collection(firestore, 'kasAccounts', tunaiAccount.id, 'transactions');
+            const constraints = [orderBy('date', 'desc')];
+            if (dateRange?.from) constraints.push(where('date', '>=', startOfDay(dateRange.from).toISOString()));
+            if (dateRange?.to) constraints.push(where('date', '<=', endOfDay(dateRange.to).toISOString()));
+            
+            const q = query(transactionsRef, ...constraints);
+            const querySnapshot = await getDocs(q);
+            querySnapshot.forEach(doc => {
+              fetchedTransactions.push({ id: doc.id, ...(doc.data() as Transaction) });
+            });
+          }
+        } else {
+          // Fetch from a single specified account
+          const transactionsRef = collection(firestore, 'kasAccounts', account.id, 'transactions');
+          const constraints = [orderBy('date', 'desc')];
+          if (dateRange?.from) constraints.push(where('date', '>=', startOfDay(dateRange.from).toISOString()));
+          if (dateRange?.to) constraints.push(where('date', '<=', endOfDay(dateRange.to).toISOString()));
+          
+          const q = query(transactionsRef, ...constraints);
+          const querySnapshot = await getDocs(q);
+          querySnapshot.forEach(doc => {
+            fetchedTransactions.push({ id: doc.id, ...(doc.data() as Transaction) });
+          });
+        }
+        
+        // Sort all transactions by date after fetching
+        fetchedTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setTransactions(fetchedTransactions);
+
+      } catch (error) {
+        console.error("Error fetching transaction history: ", error);
+        toast({
+          variant: "destructive",
+          title: "Gagal Memuat Transaksi",
+          description: "Terjadi kesalahan saat mengambil data riwayat mutasi.",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTransactions();
+  }, [firestore, account, dateRange, kasAccounts, toast]);
 
   const formatDateTime = (isoString: string) => {
     return new Date(isoString).toLocaleString('id-ID', {
@@ -60,6 +106,8 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
       minute: '2-digit',
     });
   };
+  
+  const getAccountLabel = (id: string) => kasAccounts?.find(acc => acc.id === id)?.label || 'Tidak diketahui';
 
   return (
     <div className="h-full flex flex-col pt-4">
@@ -130,19 +178,24 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
                         {trx.type === 'credit' ? '+' : '-'} {formatToRupiah(trx.amount)}
                     </p>
                 </div>
-                <p className="text-xs text-muted-foreground mb-3">{formatDateTime(trx.date)}</p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  {account.id === 'tunai-gabungan' && `(${getAccountLabel(trx.kasAccountId)}) • `}
+                  {formatDateTime(trx.date)}
+                </p>
                 
-                <div className="flex items-center justify-between text-xs bg-card-foreground/5 p-3 rounded-md">
-                    <div className="text-center">
-                        <p className="text-muted-foreground">Saldo Awal</p>
-                        <p className="font-medium">{formatToRupiah(trx.balanceBefore)}</p>
-                    </div>
-                    <ArrowRight size={16} className="text-muted-foreground" />
-                    <div className="text-center">
-                        <p className="text-muted-foreground">Saldo Akhir</p>
-                        <p className="font-medium">{formatToRupiah(trx.balanceAfter)}</p>
-                    </div>
-                </div>
+                {trx.balanceBefore !== undefined && trx.balanceAfter !== undefined && (
+                   <div className="flex items-center justify-between text-xs bg-card-foreground/5 p-3 rounded-md">
+                      <div className="text-center">
+                          <p className="text-muted-foreground">Saldo Awal</p>
+                          <p className="font-medium">{formatToRupiah(trx.balanceBefore)}</p>
+                      </div>
+                      <ArrowRight size={16} className="text-muted-foreground" />
+                      <div className="text-center">
+                          <p className="text-muted-foreground">Saldo Akhir</p>
+                          <p className="font-medium">{formatToRupiah(trx.balanceAfter)}</p>
+                      </div>
+                  </div>
+                )}
                  <Separator className="mt-4" />
               </div>
             ))}
@@ -155,5 +208,3 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     </div>
   );
 }
-
-    

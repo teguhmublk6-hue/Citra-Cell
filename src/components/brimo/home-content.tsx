@@ -167,6 +167,20 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     setIsPasscodeDialogOpen(false);
   };
 
+  const virtualTunaiAccount = useMemo<KasAccountType | null>(() => {
+    if (!kasAccounts) return null;
+    const tunaiAccounts = kasAccounts.filter(acc => acc.type === 'Tunai');
+    const totalBalance = tunaiAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+    return {
+      id: 'tunai-gabungan',
+      label: 'Semua Akun Tunai',
+      type: 'Tunai',
+      balance: totalBalance,
+      minimumBalance: 0, // Not applicable for virtual account
+      color: 'bg-green-500',
+    };
+  }, [kasAccounts]);
+
 
   const renderContent = () => {
     switch (activeTab) {
@@ -186,7 +200,10 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                     <BalanceCard balanceType="non-tunai" />
                   </CarouselItem>
                   <CarouselItem>
-                    <BalanceCard balanceType="tunai" />
+                    <BalanceCard 
+                      balanceType="tunai" 
+                      onClick={() => virtualTunaiAccount && handleAccountClick(virtualTunaiAccount)}
+                    />
                   </CarouselItem>
                 </CarouselContent>
               </Carousel>
@@ -332,5 +349,3 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     </>
   );
 }
-
-    

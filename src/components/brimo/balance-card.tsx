@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { Eye, EyeOff, AlertTriangle, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
@@ -12,9 +12,10 @@ import { Separator } from '@/components/ui/separator';
 
 interface BalanceCardProps {
   balanceType: 'non-tunai' | 'tunai';
+  onClick?: () => void;
 }
 
-export default function BalanceCard({ balanceType }: BalanceCardProps) {
+export default function BalanceCard({ balanceType, onClick }: BalanceCardProps) {
   const [showBalance, setShowBalance] = useState(true);
   const firestore = useFirestore();
 
@@ -24,12 +25,14 @@ export default function BalanceCard({ balanceType }: BalanceCardProps) {
 
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
 
-  const totalBalance = kasAccounts?.filter(acc => {
+  const relevantAccounts = kasAccounts?.filter(acc => {
     if (balanceType === 'non-tunai') {
       return acc.type !== 'Tunai';
     }
     return acc.type === 'Tunai';
-  }).reduce((sum, acc) => sum + acc.balance, 0) ?? 0;
+  });
+
+  const totalBalance = relevantAccounts?.reduce((sum, acc) => sum + acc.balance, 0) ?? 0;
 
   const accountsWithLowBalance = kasAccounts?.filter(acc => acc.balance < acc.minimumBalance) ?? [];
   const needsTopUp = accountsWithLowBalance.length > 0 && balanceType === 'non-tunai';
@@ -37,8 +40,8 @@ export default function BalanceCard({ balanceType }: BalanceCardProps) {
   const title = balanceType === 'non-tunai' ? 'Total Saldo' : 'Saldo Tunai';
   const subtitle = balanceType === 'non-tunai' ? 'Non-Tunai' : 'Uang Fisik';
 
-  return (
-    <div className="bg-card/80 backdrop-blur-md rounded-2xl p-5 text-card-foreground shadow-lg border border-border/20">
+  const CardContent = (
+    <div className="bg-card/80 backdrop-blur-md rounded-2xl p-5 text-card-foreground shadow-lg border border-border/20 w-full text-left relative">
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-center gap-2">
           <div>
@@ -85,7 +88,10 @@ export default function BalanceCard({ balanceType }: BalanceCardProps) {
                 </Popover>
             )}
             <Button
-            onClick={() => setShowBalance(!showBalance)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowBalance(!showBalance);
+            }}
             variant="ghost"
             size="icon"
             className="w-9 h-9 rounded-full"
@@ -100,8 +106,21 @@ export default function BalanceCard({ balanceType }: BalanceCardProps) {
           ? `Rp ${totalBalance.toLocaleString('id-ID')}`
           : 'Rp •••••••'}
       </p>
+      {balanceType === 'tunai' && (
+        <div className="absolute right-4 bottom-4">
+          <ChevronRight size={24} className="text-muted-foreground/50" />
+        </div>
+      )}
     </div>
   );
-}
 
-    
+  if (onClick) {
+    return (
+      <button onClick={onClick} className="w-full text-left">
+        {CardContent}
+      </button>
+    )
+  }
+
+  return CardContent;
+}
