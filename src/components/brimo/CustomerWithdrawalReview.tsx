@@ -65,11 +65,13 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
 
         setIsSaving(true);
         toast({ title: "Memproses...", description: "Menyimpan transaksi tarik tunai." });
+        
+        const now = new Date();
+        const nowISO = now.toISOString();
+        const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
 
         try {
             await runTransaction(firestore, async (transaction) => {
-                const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
-                const now = new Date().toISOString();
                 
                 // --- PHASE 1: READS ---
                 const destAccountRef = doc(firestore, 'kasAccounts', destinationAccount.id);
@@ -100,7 +102,7 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
                     type: 'credit',
                     name: `Trf Masuk Tarik Tunai a/n ${formData.customerName}`,
                     account: formData.customerBankSource,
-                    date: now,
+                    date: nowISO,
                     amount: totalTransferFromCustomer,
                     balanceBefore: currentDestBalance,
                     balanceAfter: newDestBalance,
@@ -117,7 +119,7 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
                     type: 'debit',
                     name: `Tarik Tunai a/n ${formData.customerName}`,
                     account: 'Pelanggan',
-                    date: now,
+                    date: nowISO,
                     amount: withdrawalAmount,
                     balanceBefore: currentLaciBalance,
                     balanceAfter: newLaciBalance,
@@ -128,7 +130,7 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
 
             // --- PHASE 3: AUDIT LOG (after transaction) ---
             await addDoc(collection(firestore, 'customerWithdrawals'), {
-                date: new Date().toISOString(),
+                date: now, // Use Date object here
                 customerName: formData.customerName,
                 customerBankSource: formData.customerBankSource,
                 withdrawalAmount: formData.withdrawalAmount,
@@ -136,7 +138,7 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
                 totalTransfer: totalTransferFromCustomer,
                 destinationKasAccountId: formData.destinationAccountId,
                 sourceKasTunaiAccountId: laciAccount!.id,
-                deviceName: localStorage.getItem('brimoDeviceName') || 'Unknown Device'
+                deviceName: deviceName
             });
 
             toast({ title: "Sukses", description: "Transaksi tarik tunai berhasil disimpan." });
@@ -206,5 +208,4 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
         </div>
     );
 }
-
     

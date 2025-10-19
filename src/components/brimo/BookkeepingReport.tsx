@@ -30,8 +30,9 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
     return `Rp ${num.toLocaleString('id-ID')}`;
 };
 
-const formatDateTime = (isoString: string) => {
-    return new Date(isoString).toLocaleString('id-ID', {
+const formatDateTime = (date: Date | string) => {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleString('id-ID', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -78,11 +79,23 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
             const combinedReports: ReportItem[] = [];
 
             transfersSnapshot.forEach((doc) => {
-                combinedReports.push({ id: doc.id, ...(doc.data() as CustomerTransfer), transactionType: 'Transfer' });
+                const data = doc.data();
+                combinedReports.push({ 
+                    id: doc.id, 
+                    ...data,
+                    date: (data.date as Timestamp).toDate(),
+                    transactionType: 'Transfer' 
+                } as any);
             });
 
             withdrawalsSnapshot.forEach((doc) => {
-                combinedReports.push({ id: doc.id, ...(doc.data() as CustomerWithdrawal), transactionType: 'Tarik Tunai' });
+                const data = doc.data();
+                combinedReports.push({ 
+                    id: doc.id, 
+                    ...data,
+                    date: (data.date as Timestamp).toDate(),
+                    transactionType: 'Tarik Tunai' 
+                } as any);
             });
 
             combinedReports.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -238,3 +251,4 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
     </div>
   );
 }
+    

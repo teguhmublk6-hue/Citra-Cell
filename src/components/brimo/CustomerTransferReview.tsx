@@ -3,7 +3,7 @@
 
 import type { CustomerTransferFormValues } from "@/lib/types";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, doc, writeBatch, runTransaction, getDocs, query, where, addDoc, getDoc } from "firebase/firestore";
+import { collection, doc, writeBatch, runTransaction, getDocs, query, where, addDoc, getDoc, type DocumentReference } from "firebase/firestore";
 import type { KasAccount } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -67,60 +67,70 @@ export default function CustomerTransferReview({ formData, onConfirm, onBack }: 
         setIsSaving(true);
         toast({ title: "Memproses...", description: "Menyimpan transaksi transfer." });
 
+        const now = new Date();
+        const nowISO = now.toISOString();
+        const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
+        
         try {
             await runTransaction(firestore, async (transaction) => {
-                const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
-                const now = new Date().toISOString();
                 const laciAccountName = 'Laci';
                 
                 // --- PHASE 1: READS ---
-                
-                // 1. Read source account
                 const sourceAccountRef = doc(firestore, 'kasAccounts', sourceAccount.id);
-                const sourceAccountDoc = await transaction.get(sourceAccountRef);
-                if (!sourceAccountDoc.exists()) {
+                
+                let laciAccountRef: DocumentReference | null = null;
+                const laciQuery = query(collection(firestore, 'kasAccounts'), where("label", "==", laciAccountName));
+                const laciSnapshot = await getDocs(laciQuery);
+                if (!laciSnapshot.empty) {
+                    laciAccountRef = laciSnapshot.docs[0].ref;
+                }
+
+                let paymentAccRef: DocumentReference | null = null;
+                if ((paymentMethod === 'Transfer' || paymentMethod === 'Split') && paymentTransferAccount) {
+                    paymentAccRef = doc(firestore, 'kasAccounts', paymentTransferAccount.id);
+                }
+
+                const docsToRead = [sourceAccountRef];
+                if (laciAccountRef) docsToRead.push(laciAccountRef);
+                if (paymentAccRef) docsToRead.push(paymentAccRef);
+                
+                const allDocs = await Promise.all(docsToRead.map(ref => transaction.get(ref)));
+                
+                const sourceAccountDoc = allDocs.find(d => d.ref.path === sourceAccountRef.path);
+                const laciAccountDoc = laciAccountRef ? allDocs.find(d => d.ref.path === laciAccountRef!.path) : undefined;
+                const paymentAccDoc = paymentAccRef ? allDocs.find(d => d.ref.path === paymentAccRef!.path) : undefined;
+
+
+                if (!sourceAccountDoc || !sourceAccountDoc.exists()) {
                     throw new Error("Akun sumber tidak ditemukan.");
                 }
-                const currentSourceBalance = sourceAccountDoc.data().balance;
+                 const currentSourceBalance = sourceAccountDoc.data().balance;
                 if (currentSourceBalance < totalDebitFromSource) {
                     throw new Error(`Saldo ${sourceAccount.label} tidak mencukupi.`);
                 }
-
-                // 2. Find and Read Laci account (if it exists)
-                const laciQuery = query(collection(firestore, 'kasAccounts'), where("label", "==", laciAccountName));
-                const laciSnapshot = await getDocs(laciQuery); // This query happens outside transaction reads, which is fine
-                let laciAccountRef: DocumentReference;
+                
                 let currentLaciBalance = 0;
-                let laciAccountId: string;
+                let finalLaciAccountRef: DocumentReference;
 
-                if (laciSnapshot.empty) {
-                    laciAccountRef = doc(collection(firestore, 'kasAccounts')); // Prepare ref for new account
-                    laciAccountId = laciAccountRef.id;
+                if (laciAccountDoc && laciAccountDoc.exists()) {
+                    currentLaciBalance = laciAccountDoc.data()?.balance || 0;
+                    finalLaciAccountRef = laciAccountDoc.ref;
                 } else {
-                    const laciDoc = laciSnapshot.docs[0];
-                    laciAccountRef = laciDoc.ref;
-                    laciAccountId = laciDoc.id;
-                    const laciAccountRealDoc = await transaction.get(laciAccountRef); // Read inside transaction
-                    currentLaciBalance = laciAccountRealDoc.data()?.balance || 0;
+                    finalLaciAccountRef = doc(collection(firestore, 'kasAccounts')); // Prepare ref for new account
                 }
+                const laciAccountId = finalLaciAccountRef.id;
 
-                // 3. Read payment destination account (for Transfer/Split)
-                let paymentAccRef: DocumentReference | null = null;
                 let currentPaymentAccBalance = 0;
-                if ((paymentMethod === 'Transfer' || paymentMethod === 'Split') && paymentTransferAccount) {
-                    paymentAccRef = doc(firestore, 'kasAccounts', paymentTransferAccount.id);
-                    const paymentAccDoc = await transaction.get(paymentAccRef);
-                    if (!paymentAccDoc.exists()) {
+                if ((paymentMethod === 'Transfer' || paymentMethod === 'Split')) {
+                    if(!paymentAccDoc || !paymentAccDoc.exists()) {
                         throw new Error("Akun penerima pembayaran transfer tidak ditemukan.");
                     }
                     currentPaymentAccBalance = paymentAccDoc.data().balance;
                 }
 
                 // --- PHASE 2: WRITES ---
-                
-                // 1. Handle Laci account creation if it didn't exist
-                if (laciSnapshot.empty) {
-                    transaction.set(laciAccountRef, { label: laciAccountName, type: 'Tunai', balance: 0, minimumBalance: 0, color: 'bg-green-500' });
+                if (!laciAccountDoc || !laciAccountDoc.exists()) {
+                    transaction.set(finalLaciAccountRef, { label: laciAccountName, type: 'Tunai', balance: 0, minimumBalance: 0, color: 'bg-green-500' });
                 }
 
                 // 2. Debit Source Account
@@ -129,23 +139,23 @@ export default function CustomerTransferReview({ formData, onConfirm, onBack }: 
                 // Create debit transactions for source account
                 const debitPrincipalRef = doc(collection(sourceAccountRef, 'transactions'));
                 transaction.set(debitPrincipalRef, {
-                    kasAccountId: sourceAccount.id, type: 'debit', name: `Trf an. ${formData.destinationAccountName}`, account: formData.destinationBank, date: now, amount: transferAmount, balanceBefore: currentSourceBalance, balanceAfter: currentSourceBalance - totalDebitFromSource, category: 'customer_transfer_debit', deviceName
+                    kasAccountId: sourceAccount.id, type: 'debit', name: `Trf an. ${formData.destinationAccountName}`, account: formData.destinationBank, date: nowISO, amount: transferAmount, balanceBefore: currentSourceBalance, balanceAfter: currentSourceBalance - totalDebitFromSource, category: 'customer_transfer_debit', deviceName
                 });
 
                 if (bankAdminFee && bankAdminFee > 0) {
                     const debitFeeRef = doc(collection(sourceAccountRef, 'transactions'));
                     transaction.set(debitFeeRef, {
-                        kasAccountId: sourceAccount.id, type: 'debit', name: `Biaya Admin Trf an. ${formData.destinationAccountName}`, account: 'Biaya Bank', date: now, amount: bankAdminFee, balanceBefore: currentSourceBalance - transferAmount, balanceAfter: currentSourceBalance - totalDebitFromSource, category: 'customer_transfer_fee', deviceName
+                        kasAccountId: sourceAccount.id, type: 'debit', name: `Biaya Admin Trf an. ${formData.destinationAccountName}`, account: 'Biaya Bank', date: nowISO, amount: bankAdminFee, balanceBefore: currentSourceBalance - transferAmount, balanceAfter: currentSourceBalance - totalDebitFromSource, category: 'customer_transfer_fee', deviceName
                     });
                 }
                 
                 // 3. Handle Customer Payment (Inflow)
                 switch (paymentMethod) {
                     case 'Tunai':
-                        transaction.update(laciAccountRef, { balance: currentLaciBalance + totalPaymentByCustomer });
-                        const creditTunaiRef = doc(collection(laciAccountRef, 'transactions'));
+                        transaction.update(finalLaciAccountRef, { balance: currentLaciBalance + totalPaymentByCustomer });
+                        const creditTunaiRef = doc(collection(finalLaciAccountRef, 'transactions'));
                         transaction.set(creditTunaiRef, {
-                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Trf an. ${formData.destinationAccountName}`, account: 'Pelanggan', date: now, amount: totalPaymentByCustomer, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName
+                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Trf an. ${formData.destinationAccountName}`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName
                         });
                         break;
                     case 'Transfer':
@@ -153,53 +163,53 @@ export default function CustomerTransferReview({ formData, onConfirm, onBack }: 
                         transaction.update(paymentAccRef, { balance: currentPaymentAccBalance + totalPaymentByCustomer });
                         const creditTransferRef = doc(collection(paymentAccRef, 'transactions'));
                         transaction.set(creditTransferRef, {
-                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Trf an. ${formData.destinationAccountName}`, account: 'Pelanggan', date: now, amount: totalPaymentByCustomer, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName
+                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Trf an. ${formData.destinationAccountName}`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName
                         });
                         break;
                     case 'Split':
                         if (!splitTunaiAmount || !paymentAccRef) throw new Error("Data pembayaran split tidak lengkap");
                         // Laci update
-                        transaction.update(laciAccountRef, { balance: currentLaciBalance + splitTunaiAmount });
-                        const creditSplitTunaiRef = doc(collection(laciAccountRef, 'transactions'));
+                        transaction.update(finalLaciAccountRef, { balance: currentLaciBalance + splitTunaiAmount });
+                        const creditSplitTunaiRef = doc(collection(finalLaciAccountRef, 'transactions'));
                         transaction.set(creditSplitTunaiRef, {
-                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Tunai Trf an. ${formData.destinationAccountName}`, account: 'Pelanggan', date: now, amount: splitTunaiAmount, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + splitTunaiAmount, category: 'customer_payment', deviceName
+                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Tunai Trf an. ${formData.destinationAccountName}`, account: 'Pelanggan', date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + splitTunaiAmount, category: 'customer_payment', deviceName
                         });
 
                         // Transfer account update
                         transaction.update(paymentAccRef, { balance: currentPaymentAccBalance + splitTransferAmount });
                         const creditSplitTransferRef = doc(collection(paymentAccRef, 'transactions'));
                         transaction.set(creditSplitTransferRef, {
-                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Trf an. ${formData.destinationAccountName}`, account: 'Pelanggan', date: now, amount: splitTransferAmount, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + splitTransferAmount, category: 'customer_payment', deviceName
+                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Trf an. ${formData.destinationAccountName}`, account: 'Pelanggan', date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + splitTransferAmount, category: 'customer_payment', deviceName
                         });
                         break;
                 }
+            });
 
-                // --- PHASE 3: AUDIT LOG (still in transaction) ---
-                const auditLogRef = doc(collection(firestore, 'customerTransfers'));
-                transaction.set(auditLogRef, {
-                    date: now,
-                    sourceKasAccountId: formData.sourceAccountId,
-                    destinationBankName: formData.destinationBank,
-                    destinationAccountName: formData.destinationAccountName,
-                    transferAmount: formData.transferAmount,
-                    bankAdminFee: formData.bankAdminFee || 0,
-                    serviceFee: formData.serviceFee,
-                    netProfit,
-                    paymentMethod: formData.paymentMethod,
-                    paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
-                    paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? formData.paymentToKasTransferAccountId : null,
-                    paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTransferAmount : 0),
-                    deviceName
-                });
+             // --- PHASE 3: AUDIT LOG (after transaction) ---
+            await addDoc(collection(firestore, 'customerTransfers'), {
+                date: now, // Use Date object here
+                sourceKasAccountId: formData.sourceAccountId,
+                destinationBankName: formData.destinationBank,
+                destinationAccountName: formData.destinationAccountName,
+                transferAmount: formData.transferAmount,
+                bankAdminFee: formData.bankAdminFee || 0,
+                serviceFee: formData.serviceFee,
+                netProfit,
+                paymentMethod: formData.paymentMethod,
+                paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
+                paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? formData.paymentToKasTransferAccountId : null,
+                paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTransferAmount : 0),
+                deviceName
             });
 
             toast({ title: "Sukses", description: "Transaksi berhasil disimpan." });
             onConfirm();
 
         } catch (error: any) {
+             // If the error is not already a FirestorePermissionError, we create one for consistency.
              if (!(error instanceof FirestorePermissionError)) {
                  const permissionError = new FirestorePermissionError({
-                    path: 'customerTransfers_transaction', 
+                    path: 'customerTransfers_transaction', // Generic path for transaction failure
                     operation: 'write',
                     requestResourceData: { 
                         error: error.message,
@@ -287,8 +297,5 @@ export default function CustomerTransferReview({ formData, onConfirm, onBack }: 
             </div>
         </div>
     );
-
-    
-
-
+}
     
