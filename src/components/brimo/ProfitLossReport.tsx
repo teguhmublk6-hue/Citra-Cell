@@ -70,20 +70,20 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                 const data = doc.data();
                 combinedReports.push({ 
                     id: doc.id, 
-                    ...data,
+                    ...(data as CustomerTransfer),
                     date: (data.date as Timestamp).toDate(),
                     transactionType: 'Transfer' 
-                } as any);
+                });
             });
 
             withdrawalsSnapshot.forEach((doc) => {
                 const data = doc.data();
                 combinedReports.push({ 
                     id: doc.id, 
-                    ...data,
+                    ...(data as CustomerWithdrawal),
                     date: (data.date as Timestamp).toDate(),
                     transactionType: 'Tarik Tunai' 
-                } as any);
+                });
             });
 
             combinedReports.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
