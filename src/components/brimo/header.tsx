@@ -56,7 +56,7 @@ export default function Header({ onSync, isSyncing, onReportClick }: HeaderProps
   };
 
   return (
-    <header className="bg-gradient-to-br from-primary to-orange-500 text-primary-foreground p-4 pt-8 h-40 rounded-b-3xl">
+    <header className="bg-gradient-to-br from-orange-500 to-primary text-primary-foreground p-4 pt-8 h-40 rounded-b-3xl">
       <div className="flex justify-between items-center">
         <div>
           <p className="text-sm opacity-90">Selamat datang,</p>
