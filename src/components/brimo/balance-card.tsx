@@ -116,9 +116,9 @@ export default function BalanceCard({ balanceType, onClick }: BalanceCardProps) 
 
   if (onClick) {
     return (
-      <button onClick={onClick} className="w-full text-left">
+      <div onClick={onClick} className="w-full text-left cursor-pointer" role="button" tabIndex={0}>
         {CardContent}
-      </button>
+      </div>
     )
   }
 
