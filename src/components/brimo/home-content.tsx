@@ -53,10 +53,9 @@ type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | '
 
 interface HomeContentProps {
   revalidateData: () => void;
-  isAccountsLoading: boolean;
 }
 
-export default function HomeContent({ revalidateData, isAccountsLoading }: HomeContentProps) {
+export default function HomeContent({ revalidateData }: HomeContentProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
   const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
@@ -104,7 +103,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     return collection(firestore, 'kasAccounts');
   }, [firestore]);
 
-  const { data: kasAccounts } = useCollection<KasAccountType>(kasAccountsCollection);
+  const { data: kasAccounts, isLoading: isAccountsLoading } = useCollection<KasAccountType>(kasAccountsCollection);
   
   useEffect(() => {
     if (!carouselApi) return;
@@ -373,5 +372,3 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
     </>
   );
 }
-
-    

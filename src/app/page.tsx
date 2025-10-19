@@ -18,8 +18,6 @@ export default function BrimoUI() {
 
   const kasAccountsCollection = useMemoFirebase(() => {
     if (!firestore) return null;
-    // We add revalidationKey to the dependency array to force re-memoization
-    // which in turn forces useCollection to re-fetch data.
     console.log(`Re-fetching kasAccounts with key: ${revalidationKey}`);
     return collection(firestore, 'kasAccounts');
   }, [firestore, revalidationKey]);
@@ -32,7 +30,6 @@ export default function BrimoUI() {
       <main className="pb-28">
         <HomeContent 
           revalidateData={revalidateData} 
-          isAccountsLoading={isAccountsLoading} 
         />
       </main>
     </div>
