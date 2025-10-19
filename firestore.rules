@@ -1,56 +1,35 @@
 /**
- * @file Overview
- * This ruleset allows for completely open read and write access to the `kasAccounts` collection and its `transactions` subcollection.
+ * @file Firestore Security Rules for BrimoUI Application
  *
- * Core Philosophy: Unrestricted read and write access to all data.
- *
- * Data Structure:
- * - /kasAccounts/{kasAccountId}: Public collection of cash account data.
- * - /kasAccounts/{kasAccountId}/transactions/{transactionId}: Public subcollection of transaction data for each cash account.
- *
- * Key Security Decisions:
- * - No authentication or authorization is required. All read and write operations are permitted for all users, including unauthenticated users.
+ * @core_philosophy This ruleset allows completely public read and write access to all data.
+ *   This is INSECURE and is only for initial prototyping.
+ *   This should be replaced with rules that enforce proper authorization (e.g., user-based access control).
+ * @data_structure Data is stored in two top-level collections: `/kasAccounts/{kasAccountId}` and `/kasAccounts/{kasAccountId}/transactions/{transactionId}`.
+ * @key_security_decisions All read and write operations are permitted for all users, including unauthenticated users.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
     /**
-     * @description Allows any user to read and write cash account data.
+     * @description Allows all users to read and write KasAccounts.
      * @path /kasAccounts/{kasAccountId}
-     * @allow (get, list) All users can read any cash account.
-     * @allow (create, update, delete) All users can create, update, or delete any cash account.
-     * @deny None. All requests are allowed.
-     * @principle Open access: All users can read and write.
+     * @allow (get, list, create, update, delete) - Any user can perform any operation.
+     * @deny (none) - No requests are denied.
+     * @principle Public read and write access (INSECURE).
      */
     match /kasAccounts/{kasAccountId} {
-      allow get, list: if true;
-      allow create, update, delete: if true;
+      allow read, write: if true;
     }
 
     /**
-     * @description Allows any user to read and write transaction data for any cash account.
+     * @description Allows all users to read and write transactions.
      * @path /kasAccounts/{kasAccountId}/transactions/{transactionId}
-     * @allow (get, list) All users can read any transaction for any cash account.
-     * @allow (create, update, delete) All users can create, update, or delete any transaction for any cash account.
-     * @deny None. All requests are allowed.
-     * @principle Open access: All users can read and write.
+     * @allow (get, list, create, update, delete) - Any user can perform any operation.
+     * @deny (none) - No requests are denied.
+     * @principle Public read and write access (INSECURE).
      */
     match /kasAccounts/{kasAccountId}/transactions/{transactionId} {
-      allow get, list: if true;
-      allow create, update, delete: if true;
-    }
-
-    /**
-     * @description  Due to missing schema for CustomerTransfers, this collection currently cannot be secured using the intended owner-only pattern.
-     * @path /customerTransfers
-     * @allow (get, list) All users can read.
-     * @deny (create, update, delete) All users are denied.
-     * @principle Incomplete Security: Due to a missing schema, the writes are denied.
-     */
-    match /customerTransfers {
-      allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow read, write: if true;
     }
   }
 }
