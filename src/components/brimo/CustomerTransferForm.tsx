@@ -220,7 +220,7 @@ export default function CustomerTransferForm({ onDone }: CustomerTransferFormPro
                 <FormField control={form.control} name="serviceFee" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Biaya Jasa (Laba)</FormLabel>
-                        <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} readOnly className="bg-muted/50" /></FormControl>
+                        <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}/>
