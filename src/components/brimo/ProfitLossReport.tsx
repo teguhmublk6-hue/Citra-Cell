@@ -15,6 +15,7 @@ import { format, startOfDay, endOfDay } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
 interface ProfitLossReportProps {
   onDone: () => void;
@@ -127,7 +128,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
             <Button variant="ghost" size="icon" onClick={onDone}>
                 <ArrowLeft />
             </Button>
-            <h1 className="text-lg font-semibold">Laporan Laba/Rugi</h1>
+            <h1 className="text-lg font-semibold">Laporan Laba/Rugi Harian</h1>
         </header>
 
         <div className="p-4 space-y-4">
@@ -169,87 +170,115 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
             </Popover>
         </div>
       
-        <div className="flex-1 overflow-auto">
-            {isLoading && (
-            <div className="px-4 space-y-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-            </div>
-            )}
-            {!isLoading && reports.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full py-20 text-center">
-                    <CalendarIcon size={48} strokeWidth={1} className="text-muted-foreground mb-4" />
-                    <p className="font-semibold">Belum Ada Laporan</p>
-                    <p className="text-sm text-muted-foreground">Tidak ada transaksi untuk rentang tanggal yang dipilih.</p>
+        <div className="flex-1 overflow-auto px-4 space-y-6">
+            <div>
+                <h2 className="text-lg font-semibold mb-2">A. BRILink</h2>
+                {isLoading && (
+                <div className="space-y-2">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
                 </div>
-            )}
-            {!isLoading && reports.length > 0 && (
+                )}
+                {!isLoading && reports.length === 0 && (
+                    <Card>
+                        <CardContent className="pt-6 text-center text-muted-foreground">
+                            Tidak ada transaksi BRILink untuk tanggal ini.
+                        </CardContent>
+                    </Card>
+                )}
+                {!isLoading && reports.length > 0 && (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-[40px]">No</TableHead>
+                                <TableHead>Layanan</TableHead>
+                                <TableHead>Akun Kas</TableHead>
+                                <TableHead>Bank/Tujuan</TableHead>
+                                <TableHead>Nama</TableHead>
+                                <TableHead className="text-right">Nominal</TableHead>
+                                <TableHead className="text-right">Admin Bank</TableHead>
+                                <TableHead className="text-right">Jasa</TableHead>
+                                <TableHead className="text-right">Laba/Rugi</TableHead>
+                                <TableHead>Oleh</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {reports.map((report, index) => (
+                                <TableRow key={report.id}>
+                                    <TableCell>{index + 1}</TableCell>
+                                    {report.transactionType === 'Transfer' ? (
+                                        <>
+                                            <TableCell>Transfer</TableCell>
+                                            <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                                            <TableCell>{report.destinationBankName}</TableCell>
+                                            <TableCell>{report.destinationAccountName}</TableCell>
+                                            <TableCell className="text-right">{formatToRupiah(report.transferAmount)}</TableCell>
+                                            <TableCell className="text-right">{formatToRupiah(report.bankAdminFee)}</TableCell>
+                                            <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
+                                            <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.netProfit)}</TableCell>
+                                            <TableCell>{report.deviceName}</TableCell>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <TableCell>Tarik Tunai</TableCell>
+                                            <TableCell>{getAccountLabel(report.destinationKasAccountId)}</TableCell>
+                                            <TableCell>{report.customerBankSource}</TableCell>
+                                            <TableCell>{report.customerName}</TableCell>
+                                            <TableCell className="text-right">{formatToRupiah(report.withdrawalAmount)}</TableCell>
+                                            <TableCell className="text-right">Rp 0</TableCell>
+                                            <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
+                                            <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
+                                            <TableCell>{report.deviceName}</TableCell>
+                                        </>
+                                    )}
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                        <TableFooter>
+                            <TableRow className="font-bold bg-muted/50">
+                                <TableCell colSpan={5}>Total</TableCell>
+                                <TableCell className="text-right">{formatToRupiah(totals.nominal)}</TableCell>
+                                <TableCell className="text-right">{formatToRupiah(totals.adminBank)}</TableCell>
+                                <TableCell className="text-right">{formatToRupiah(totals.jasa)}</TableCell>
+                                <TableCell className="text-right">{formatToRupiah(totals.labaRugi)}</TableCell>
+                                <TableCell></TableCell>
+                            </TableRow>
+                            <TableRow className="font-bold text-lg bg-muted">
+                                <TableCell colSpan={8}>Total Laba Bersih</TableCell>
+                                <TableCell colSpan={2} className="text-right text-green-600">{formatToRupiah(totals.labaRugi)}</TableCell>
+                            </TableRow>
+                        </TableFooter>
+                    </Table>
+                )}
+            </div>
+
+            <div>
+                <h2 className="text-lg font-semibold mb-2">B. PPOB</h2>
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[50px]">No</TableHead>
-                            <TableHead>Layanan</TableHead>
-                            <TableHead>Akun Kas</TableHead>
-                            <TableHead>Bank/Tujuan</TableHead>
-                            <TableHead>Nama</TableHead>
-                            <TableHead className="text-right">Nominal</TableHead>
-                            <TableHead className="text-right">Admin Bank</TableHead>
-                            <TableHead className="text-right">Jasa</TableHead>
+                            <TableHead className="w-[40px]">No.</TableHead>
+                            <TableHead>Nama Layanan</TableHead>
+                            <TableHead>Tujuan</TableHead>
+                            <TableHead>Deskripsi</TableHead>
+                            <TableHead className="text-right">Harga Modal</TableHead>
+                            <TableHead className="text-right">Harga Jual</TableHead>
                             <TableHead className="text-right">Laba/Rugi</TableHead>
-                            <TableHead>Oleh</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {reports.map((report, index) => (
-                            <TableRow key={report.id}>
-                                <TableCell>{index + 1}</TableCell>
-                                {report.transactionType === 'Transfer' ? (
-                                    <>
-                                        <TableCell>Transfer</TableCell>
-                                        <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
-                                        <TableCell>{report.destinationBankName}</TableCell>
-                                        <TableCell>{report.destinationAccountName}</TableCell>
-                                        <TableCell className="text-right">{formatToRupiah(report.transferAmount)}</TableCell>
-                                        <TableCell className="text-right">{formatToRupiah(report.bankAdminFee)}</TableCell>
-                                        <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
-                                        <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.netProfit)}</TableCell>
-                                        <TableCell>{report.deviceName}</TableCell>
-                                    </>
-                                ) : (
-                                    <>
-                                        <TableCell>Tarik Tunai</TableCell>
-                                        <TableCell>{getAccountLabel(report.destinationKasAccountId)}</TableCell>
-                                        <TableCell>{report.customerBankSource}</TableCell>
-                                        <TableCell>{report.customerName}</TableCell>
-                                        <TableCell className="text-right">{formatToRupiah(report.withdrawalAmount)}</TableCell>
-                                        <TableCell className="text-right">Rp 0</TableCell>
-                                        <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
-                                        <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
-                                        <TableCell>{report.deviceName}</TableCell>
-                                    </>
-                                )}
-                            </TableRow>
-                        ))}
+                        <TableRow>
+                            <TableCell colSpan={7} className="text-center text-muted-foreground pt-8">
+                                Belum ada transaksi PPOB untuk tanggal ini.
+                            </TableCell>
+                        </TableRow>
                     </TableBody>
-                    <TableFooter>
-                        <TableRow className="font-bold bg-muted/50">
-                            <TableCell colSpan={5}>Total</TableCell>
-                            <TableCell className="text-right">{formatToRupiah(totals.nominal)}</TableCell>
-                            <TableCell className="text-right">{formatToRupiah(totals.adminBank)}</TableCell>
-                            <TableCell className="text-right">{formatToRupiah(totals.jasa)}</TableCell>
-                            <TableCell className="text-right">{formatToRupiah(totals.labaRugi)}</TableCell>
-                            <TableCell></TableCell>
-                        </TableRow>
-                         <TableRow className="font-bold text-lg bg-muted">
-                            <TableCell colSpan={8}>Total Laba Bersih</TableCell>
-                            <TableCell colSpan={2} className="text-right text-green-600">{formatToRupiah(totals.labaRugi)}</TableCell>
-                        </TableRow>
-                    </TableFooter>
                 </Table>
-            )}
+            </div>
         </div>
     </div>
   );
 }
+
+    

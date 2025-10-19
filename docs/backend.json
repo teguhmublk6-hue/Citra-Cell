@@ -53,7 +53,7 @@
         },
         "kasAccountId": {
           "type": "string",
-          "description": "Reference to KasAccount. (Relationship: KasAccount 1:N Transaction)"
+          "description": "Reference to the KasAccount where this transaction is recorded."
         },
         "type": {
           "type": "string",
@@ -65,7 +65,7 @@
         },
         "account": {
           "type": "string",
-          "description": "The account associated with the transaction."
+          "description": "The counterparty account or description for the transaction."
         },
         "date": {
           "type": "string",
@@ -77,16 +77,28 @@
           "description": "The amount of the transaction."
         },
         "balanceBefore": {
-            "type": "number",
-            "description": "The balance of the kas account before the transaction."
+          "type": "number",
+          "description": "The balance of the kas account before the transaction."
         },
         "balanceAfter": {
-            "type": "number",
-            "description": "The balance of the kas account after the transaction."
+          "type": "number",
+          "description": "The balance of the kas account after the transaction."
+        },
+        "sourceKasAccountId": {
+          "type": "string",
+          "description": "For transfers, the ID of the source KasAccount."
+        },
+        "destinationKasAccountId": {
+          "type": "string",
+          "description": "For transfers, the ID of the destination KasAccount."
         },
         "deviceName": {
           "type": "string",
           "description": "The name of the device that created the transaction."
+        },
+        "category": {
+          "type": "string",
+          "description": "A category to group transactions, e.g., 'transfer', 'operational', 'capital', 'customer_transfer_debit', 'customer_payment'."
         }
       },
       "required": [
@@ -97,6 +109,170 @@
         "account",
         "date",
         "amount"
+      ]
+    },
+    "CustomerTransfer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CustomerTransfer",
+      "type": "object",
+      "description": "Represents a transfer service transaction for a customer.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the CustomerTransfer transaction."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp of the transaction."
+        },
+        "sourceKasAccountId": {
+          "type": "string",
+          "description": "The ID of the internal KasAccount used to send the money."
+        },
+        "destinationBankName": {
+          "type": "string",
+          "description": "The name of the customer's destination bank."
+        },
+        "destinationAccountName": {
+          "type": "string",
+          "description": "The name of the recipient account holder."
+        },
+        "transferAmount": {
+          "type": "number",
+          "description": "The principal amount transferred to the customer's destination."
+        },
+        "bankAdminFee": {
+          "type": "number",
+          "description": "The fee charged by the bank for the transfer."
+        },
+        "serviceFee": {
+          "type": "number",
+          "description": "The service fee charged to the customer (our profit)."
+        },
+        "netProfit": {
+          "type": "number",
+          "description": "The calculated net profit (serviceFee - bankAdminFee)."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": [
+            "Tunai",
+            "Transfer",
+            "Split"
+          ],
+          "description": "How the customer paid for the service."
+        },
+        "paymentToKasTunaiAmount": {
+          "type": "number",
+          "description": "Portion of the payment made in cash."
+        },
+        "paymentToKasTransferAccountId": {
+          "type": "string",
+          "description": "ID of the KasAccount that received the transfer portion of the payment."
+        },
+        "paymentToKasTransferAmount": {
+          "type": "number",
+          "description": "Portion of the payment made via transfer."
+        },
+        "deviceName": {
+          "type": "string",
+          "description": "The name of the device that processed the transaction."
+        }
+      },
+      "required": [
+        "date",
+        "sourceKasAccountId",
+        "destinationBankName",
+        "destinationAccountName",
+        "transferAmount",
+        "bankAdminFee",
+        "serviceFee",
+        "netProfit",
+        "paymentMethod",
+        "deviceName"
+      ]
+    },
+    "CustomerWithdrawal": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CustomerWithdrawal",
+      "type": "object",
+      "description": "Represents a cash withdrawal service transaction for a customer.",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "customerName": { "type": "string" },
+        "customerBankSource": { "type": "string" },
+        "withdrawalAmount": { "type": "number" },
+        "serviceFee": { "type": "number" },
+        "totalTransfer": { "type": "number" },
+        "destinationKasAccountId": { "type": "string" },
+        "sourceKasTunaiAccountId": { "type": "string" },
+        "deviceName": { "type": "string" }
+      },
+      "required": [
+        "date",
+        "customerName",
+        "customerBankSource",
+        "withdrawalAmount",
+        "serviceFee",
+        "totalTransfer",
+        "destinationKasAccountId",
+        "sourceKasTunaiAccountId",
+        "deviceName"
+      ]
+    },
+    "PPOBTransaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PPOBTransaction",
+      "type": "object",
+      "description": "Represents a PPOB (Payment Point Online Bank) transaction for auditing profit and loss.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "serviceName": {
+          "type": "string",
+          "description": "The name of the PPOB service (e.g., Token Listrik, Pulsa, BPJS)."
+        },
+        "destination": {
+          "type": "string",
+          "description": "The target of the transaction, e.g., phone number, customer ID, token number."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the transaction."
+        },
+        "costPrice": {
+          "type": "number",
+          "description": "The capital or modal price for the service."
+        },
+        "sellingPrice": {
+          "type": "number",
+          "description": "The final price paid by the customer."
+        },
+        "profit": {
+          "type": "number",
+          "description": "The calculated profit (sellingPrice - costPrice)."
+        },
+        "deviceName": {
+          "type": "string",
+          "description": "The name of the device that processed the transaction."
+        }
+      },
+      "required": [
+        "date",
+        "serviceName",
+        "destination",
+        "description",
+        "costPrice",
+        "sellingPrice",
+        "profit",
+        "deviceName"
       ]
     }
   },
@@ -112,6 +288,26 @@
         "$ref": "#/entities/Transaction"
       },
       "description": "Stores transaction history for each cash account in a global, public subcollection. All users can read and write transactions for any account."
+    },
+    "/customerTransfers/{customerTransferId}": {
+      "schema": {
+        "$ref": "#/entities/CustomerTransfer"
+      },
+      "description": "Stores a log of all customer transfer service transactions for auditing and business intelligence."
+    },
+    "/customerWithdrawals/{customerWithdrawalId}": {
+      "schema": {
+        "$ref": "#/entities/CustomerWithdrawal"
+      },
+      "description": "Stores a log of all customer cash withdrawal service transactions for auditing."
+    },
+    "/ppobTransactions/{ppobTransactionId}": {
+      "schema": {
+        "$ref": "#/entities/PPOBTransaction"
+      },
+      "description": "Stores a log of all PPOB service transactions for auditing profit and loss."
     }
   }
 }
+
+    
