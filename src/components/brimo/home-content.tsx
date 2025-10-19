@@ -6,10 +6,10 @@ import QuickServices from './quick-services';
 import BottomNav from './bottom-nav';
 import PlaceholderContent from './placeholder-content';
 import SettingsContent from './settings-content';
-import { FileText, Bell, Plus, ArrowRightLeft, TrendingUp, TrendingDown, RotateCw } from 'lucide-react';
+import { Bell, ArrowRightLeft, TrendingUp, TrendingDown, RotateCw } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, getDocs, orderBy } from 'firebase/firestore';
-import type { KasAccount as KasAccountType, Transaction } from '@/lib/data';
+import { collection } from 'firebase/firestore';
+import type { KasAccount as KasAccountType } from '@/lib/data';
 import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight } from 'lucide-react';
 import Header from './header';
 import BalanceCard from './balance-card';
@@ -19,8 +19,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import TransactionHistory from './TransactionHistory';
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/components/ui/carousel';
 import { cn } from '@/lib/utils';
@@ -31,6 +30,8 @@ import TransferBalanceForm from './TransferBalanceForm';
 import AddCapitalForm from './AddCapitalForm';
 import WithdrawBalanceForm from './WithdrawBalanceForm';
 import CustomerTransferForm from './CustomerTransferForm';
+import CustomerTransferReview from './CustomerTransferReview';
+import type { CustomerTransferFormValues } from '@/lib/types';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -43,7 +44,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'inbox' | 'settings';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -56,6 +57,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
   const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
   const [currentSlide, setCurrentSlide] = useState(0)
+  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | null>(null);
   
   const firestore = useFirestore();
 
@@ -70,9 +72,6 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
 
   const { data: kasAccounts } = useCollection<KasAccountType>(kasAccountsCollection);
   
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-
-
   useEffect(() => {
     if (!carouselApi) return;
 
@@ -92,13 +91,11 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
   }
 
   const handleMutationMenuClick = (sheet: ActiveSheet) => {
-    // Close the mutation menu sheet first
     const mutationMenuTrigger = document.getElementById('mutation-menu-trigger');
     if (mutationMenuTrigger) {
-      mutationMenuTrigger.click(); // This closes the sheet
+      mutationMenuTrigger.click(); 
     }
     
-    // Open the new sheet after a short delay to allow the first one to close
     setTimeout(() => {
       setActiveSheet(sheet);
     }, 150);
@@ -106,6 +103,17 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
   
   const handleQuickServiceClick = (service: 'customerTransfer') => {
     setActiveSheet(service);
+  }
+
+  const handleReview = (data: CustomerTransferFormValues) => {
+    setReviewData(data);
+    setActiveSheet('customerTransferReview');
+  }
+
+  const closeAllSheets = () => {
+    setActiveSheet(null);
+    setReviewData(null);
+    revalidateData();
   }
 
 
@@ -146,7 +154,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
             </div>
             </div>
             <div className="flex flex-col gap-4 px-4 pb-28">
-                <Sheet open={activeSheet !== null && activeSheet !== 'transfer' && activeSheet !== 'addCapital' && activeSheet !== 'withdraw' && activeSheet !== 'customerTransfer' } onOpenChange={(isOpen) => !isOpen && setActiveSheet(null)}>
+                <Sheet open={activeSheet === 'history'} onOpenChange={(isOpen) => !isOpen && setActiveSheet(null)}>
                   <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="item-1" className="border-none">
                       <div className="p-3 bg-card/80 backdrop-blur-md rounded-2xl shadow-lg border border-border/20 flex items-center justify-between gap-2 data-[state=open]:rounded-b-none">
@@ -192,7 +200,7 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                   </SheetContent>
                 </Sheet>
 
-                <Sheet open={activeSheet === 'transfer' || activeSheet === 'addCapital' || activeSheet === 'withdraw' || activeSheet === 'customerTransfer'} onOpenChange={(isOpen) => !isOpen && setActiveSheet(null)}>
+                <Sheet open={!!activeSheet && activeSheet !== 'history'} onOpenChange={(isOpen) => !isOpen && closeAllSheets()}>
                   <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
                       <SheetHeader>
                           <SheetTitle>
@@ -200,12 +208,14 @@ export default function HomeContent({ revalidateData, isAccountsLoading }: HomeC
                             {activeSheet === 'addCapital' && 'Tambah Modal'}
                             {activeSheet === 'withdraw' && 'Tarik Saldo'}
                             {activeSheet === 'customerTransfer' && 'Transfer Pelanggan'}
+                            {activeSheet === 'customerTransferReview' && 'Review Transaksi Transfer'}
                           </SheetTitle>
                       </SheetHeader>
-                      {activeSheet === 'transfer' && <TransferBalanceForm onDone={() => setActiveSheet(null)} />}
-                      {activeSheet === 'addCapital' && <AddCapitalForm onDone={() => setActiveSheet(null)} />}
-                      {activeSheet === 'withdraw' && <WithdrawBalanceForm onDone={() => setActiveSheet(null)} />}
-                      {activeSheet === 'customerTransfer' && <CustomerTransferForm onDone={() => setActiveSheet(null)} />}
+                      {activeSheet === 'transfer' && <TransferBalanceForm onDone={closeAllSheets} />}
+                      {activeSheet === 'addCapital' && <AddCapitalForm onDone={closeAllSheets} />}
+                      {activeSheet === 'withdraw' && <WithdrawBalanceForm onDone={closeAllSheets} />}
+                      {activeSheet === 'customerTransfer' && <CustomerTransferForm onReview={handleReview} onDone={closeAllSheets} />}
+                      {activeSheet === 'customerTransferReview' && reviewData && <CustomerTransferReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerTransfer')} />}
                   </SheetContent>
                 </Sheet>
 

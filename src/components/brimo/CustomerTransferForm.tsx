@@ -20,23 +20,65 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { CustomerTransferFormValues } from '@/lib/types';
+
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
 
-const formSchema = z.object({
+const baseSchema = z.object({
   sourceAccountId: z.string().min(1, 'Akun kas asal harus dipilih'),
   destinationBank: z.string().min(1, 'Bank tujuan harus dipilih'),
   destinationAccountName: z.string().min(1, 'Nama pemilik rekening harus diisi'),
   transferAmount: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Nominal harus angka" }).positive('Nominal transfer harus lebih dari 0')),
-  bankAdminFee: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Biaya harus angka" }).min(0, 'Biaya admin tidak boleh negatif').optional()),
+  bankAdminFee: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Biaya harus angka" }).min(0, 'Biaya admin tidak boleh negatif').optional().default(0)),
   serviceFee: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Biaya harus angka" }).min(0, 'Biaya jasa tidak boleh negatif')),
   paymentMethod: z.enum(['Tunai', 'Transfer', 'Split'], { required_error: 'Metode pembayaran harus dipilih' }),
   paymentToKasTransferAccountId: z.string().optional(),
   splitTunaiAmount: z.preprocess(numberPreprocessor, z.number().optional()),
 });
 
+// Create a refined schema that applies conditional validation
+const refinedSchema = baseSchema.superRefine((data, ctx) => {
+    // For 'Transfer' method, paymentToKasTransferAccountId is required
+    if (data.paymentMethod === 'Transfer' && !data.paymentToKasTransferAccountId) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Akun penerima bayaran harus dipilih.',
+            path: ['paymentToKasTransferAccountId'],
+        });
+    }
+
+    // For 'Split' method, both splitTunaiAmount and paymentToKasTransferAccountId are required
+    if (data.paymentMethod === 'Split') {
+        const totalPayment = data.transferAmount + data.serviceFee;
+        
+        if (!data.splitTunaiAmount || data.splitTunaiAmount <= 0) {
+             ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Jumlah tunai harus diisi dan lebih dari 0.',
+                path: ['splitTunaiAmount'],
+            });
+        } else if (data.splitTunaiAmount >= totalPayment) {
+             ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Jumlah tunai harus lebih kecil dari total bayar.',
+                path: ['splitTunaiAmount'],
+            });
+        }
+        
+        if (!data.paymentToKasTransferAccountId) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Akun penerima sisa bayaran harus dipilih.',
+                path: ['paymentToKasTransferAccountId'],
+            });
+        }
+    }
+});
+
 
 interface CustomerTransferFormProps {
+  onReview: (data: CustomerTransferFormValues) => void;
   onDone: () => void;
 }
 
@@ -64,9 +106,8 @@ const calculateServiceFee = (amount: number): number => {
 };
 
 
-export default function CustomerTransferForm({ onDone }: CustomerTransferFormProps) {
+export default function CustomerTransferForm({ onReview, onDone }: CustomerTransferFormProps) {
   const firestore = useFirestore();
-  const { toast } = useToast();
   const [bankPopoverOpen, setBankPopoverOpen] = useState(false);
 
   
@@ -76,8 +117,8 @@ export default function CustomerTransferForm({ onDone }: CustomerTransferFormPro
 
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<CustomerTransferFormValues>({
+    resolver: zodResolver(refinedSchema),
     defaultValues: {
         sourceAccountId: '',
         destinationBank: '',
@@ -101,11 +142,8 @@ export default function CustomerTransferForm({ onDone }: CustomerTransferFormPro
     }
   }, [transferAmount, form]);
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    // TODO: Implement review and save logic
-    console.log(values);
-    toast({ title: "Fitur Dalam Pengembangan", description: "Logika penyimpanan dan review belum diimplementasikan." });
-    onDone();
+  const onSubmit = (values: CustomerTransferFormValues) => {
+    onReview(values);
   };
   
   return (
@@ -306,7 +344,7 @@ export default function CustomerTransferForm({ onDone }: CustomerTransferFormPro
                                 <FormControl>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Pilih akun penerima" />
-                                </SelectTrigger>
+                                </Trigger>
                                 </FormControl>
                                 <SelectContent>
                                 {kasAccounts?.map(acc => (

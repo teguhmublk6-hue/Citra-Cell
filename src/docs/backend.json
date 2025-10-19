@@ -95,6 +95,10 @@
         "deviceName": {
           "type": "string",
           "description": "The name of the device that created the transaction."
+        },
+        "category": {
+          "type": "string",
+          "description": "A category to group transactions, e.g., 'transfer', 'operational', 'capital', 'customer_transfer_debit', 'customer_payment'."
         }
       },
       "required": [
@@ -152,7 +156,11 @@
         },
         "paymentMethod": {
           "type": "string",
-          "enum": ["Tunai", "Transfer", "Split"],
+          "enum": [
+            "Tunai",
+            "Transfer",
+            "Split"
+          ],
           "description": "How the customer paid for the service."
         },
         "paymentToKasTunaiAmount": {
@@ -173,7 +181,6 @@
         }
       },
       "required": [
-        "id",
         "date",
         "sourceKasAccountId",
         "destinationBankName",
@@ -201,7 +208,7 @@
       "description": "Stores transaction history for each cash account in a global, public subcollection. All users can read and write transactions for any account."
     },
     "/customerTransfers/{customerTransferId}": {
-       "schema": {
+      "schema": {
         "$ref": "#/entities/CustomerTransfer"
       },
       "description": "Stores a log of all customer transfer service transactions for auditing and business intelligence."
