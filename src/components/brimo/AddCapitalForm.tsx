@@ -75,6 +75,7 @@ export default function AddCapitalForm({ onDone }: AddCapitalFormProps) {
     
     try {
         const batch = writeBatch(firestore);
+        const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
 
         const destinationDocRef = doc(firestore, 'kasAccounts', destinationAccount.id);
         const destinationTransactionRef = doc(collection(destinationDocRef, 'transactions'));
@@ -91,7 +92,8 @@ export default function AddCapitalForm({ onDone }: AddCapitalFormProps) {
             amount: values.amount,
             balanceBefore: destinationAccount.balance,
             balanceAfter: destinationAccount.balance + values.amount,
-            category: 'capital'
+            category: 'capital',
+            deviceName: deviceName
         });
         
         await batch.commit();
@@ -179,5 +181,3 @@ export default function AddCapitalForm({ onDone }: AddCapitalFormProps) {
     </Form>
   );
 }
-
-    

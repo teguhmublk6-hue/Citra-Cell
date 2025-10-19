@@ -25,7 +25,7 @@ const formSchema = z.object({
     numberPreprocessor,
     z.number({ invalid_type_error: "Jumlah harus angka" }).positive('Jumlah harus lebih dari 0')
   ),
-  adminFee: z.string(), // This should just be a string to hold the radio value
+  adminFee: z.string(), // This is just a string to hold the radio value
   manualAdminFee: z.number({ invalid_type_error: "Nominal harus angka" }).min(0, "Biaya admin tidak boleh negatif").optional(),
   description: z.string().optional(),
 }).refine(data => data.sourceAccountId !== data.destinationAccountId, {
@@ -96,6 +96,7 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
     
     try {
         const batch = writeBatch(firestore);
+        const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
 
         // Source account refs
         const sourceDocRef = doc(firestore, 'kasAccounts', sourceAccount.id);
@@ -123,7 +124,8 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
             balanceAfter: sourceAccount.balance - totalDebit,
             sourceKasAccountId: sourceAccount.id,
             destinationKasAccountId: destinationAccount.id,
-            category: 'transfer'
+            category: 'transfer',
+            deviceName: deviceName,
         });
 
         // Create credit transaction for destination
@@ -138,7 +140,8 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
             balanceAfter: destinationAccount.balance + values.amount,
             sourceKasAccountId: sourceAccount.id,
             destinationKasAccountId: destinationAccount.id,
-            category: 'transfer'
+            category: 'transfer',
+            deviceName: deviceName,
         });
 
         // Create fee transaction if applicable
@@ -153,7 +156,8 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
                 amount: fee,
                 balanceBefore: sourceAccount.balance - values.amount, // Balance after transfer, before fee
                 balanceAfter: sourceAccount.balance - totalDebit, // Final balance
-                category: 'operational'
+                category: 'operational',
+                deviceName: deviceName,
             });
         }
         
@@ -327,5 +331,3 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
     </Form>
   );
 }
-
-    

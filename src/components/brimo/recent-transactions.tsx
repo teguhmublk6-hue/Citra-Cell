@@ -8,6 +8,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy } from 'firebase/firestore';
 import type { Transaction, KasAccount } from '@/lib/data';
 import { useEffect, useState }from 'react';
+import { cn } from '@/lib/utils';
 
 type TransactionWithId = Transaction & { id: string, accountLabel?: string };
 
@@ -93,15 +94,19 @@ export default function RecentTransactions() {
                       <ArrowUpRight size={18} strokeWidth={2} className="text-red-500" />
                     )}
                   </div>
-                  <div className="truncate">
+                  <div className="min-w-0">
                     <p className="font-medium text-sm truncate">{trx.name}</p>
                     <p className="text-xs text-muted-foreground truncate">
                         {trx.type === 'credit' ? `dari ${trx.account}` : `ke ${trx.account}`} • {new Date(trx.date).toLocaleDateString('id-ID', {day: 'numeric', month: 'short'})}
                     </p>
+                     {trx.deviceName && <p className="text-xs text-muted-foreground/80 truncate">oleh: {trx.deviceName}</p>}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 cursor-pointer">
-                  <p className={`font-semibold text-sm ${trx.type === 'credit' ? 'text-green-500' : ''}`}>
+                <div className="flex items-center gap-2 cursor-pointer flex-shrink-0">
+                  <p className={cn(
+                      "font-semibold text-sm",
+                      trx.type === 'credit' ? 'text-green-500' : ''
+                    )}>
                     {trx.type === 'credit' ? '+' : '-'} Rp {trx.amount.toLocaleString('id-ID')}
                   </p>
                   <ChevronRight size={16} className="text-muted-foreground" />

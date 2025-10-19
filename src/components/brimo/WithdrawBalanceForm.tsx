@@ -80,6 +80,7 @@ export default function WithdrawBalanceForm({ onDone }: WithdrawBalanceFormProps
 
     try {
         const batch = writeBatch(firestore);
+        const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
 
         const sourceDocRef = doc(firestore, 'kasAccounts', sourceAccount.id);
         const sourceTransactionRef = doc(collection(sourceDocRef, 'transactions'));
@@ -96,7 +97,8 @@ export default function WithdrawBalanceForm({ onDone }: WithdrawBalanceFormProps
             amount: values.amount,
             balanceBefore: sourceAccount.balance,
             balanceAfter: sourceAccount.balance - values.amount,
-            category: 'capital'
+            category: 'capital',
+            deviceName: deviceName
         });
         
         await batch.commit();
@@ -184,5 +186,3 @@ export default function WithdrawBalanceForm({ onDone }: WithdrawBalanceFormProps
     </Form>
   );
 }
-
-    

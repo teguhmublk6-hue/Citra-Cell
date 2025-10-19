@@ -58,6 +58,7 @@ export type Transaction = {
   balanceAfter?: number;
   sourceKasAccountId?: string;
   destinationKasAccountId?: string;
+  deviceName?: string;
 };
 
 
@@ -85,5 +86,3 @@ export const accountTypes = [
     { value: 'PPOB', label: 'PPOB', color: 'bg-yellow-500' },
     { value: 'Merchant', label: 'Merchant', color: 'bg-orange-500' },
 ];
-
-    
