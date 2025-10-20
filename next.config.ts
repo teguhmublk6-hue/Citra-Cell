@@ -94,6 +94,12 @@ const nextConfig: NextConfig = {
         hostname: 'play-lh.googleusercontent.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn6.aptoide.com',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
