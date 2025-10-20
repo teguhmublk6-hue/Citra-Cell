@@ -2,14 +2,17 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { ChevronRight, Bell, User, DollarSign, Settings, Pencil, Check, Smartphone as SmartphoneIcon } from 'lucide-react';
+import { ChevronRight, Bell, User, DollarSign, Settings, Pencil, Check, Smartphone as SmartphoneIcon, Sun, Moon, Laptop } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import KasManagement from './KasManagement';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
+import { useTheme } from '@/components/theme-provider';
+import { cn } from '@/lib/utils';
 
 export default function SettingsContent() {
+  const { theme, setTheme } = useTheme();
   const [deviceName, setDeviceName] = useState('');
   const [isEditingDeviceName, setIsEditingDeviceName] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -62,6 +65,26 @@ export default function SettingsContent() {
             <div className="relative flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            </div>
+          </div>
+
+          <div className="p-4 bg-card-foreground/5 rounded-xl w-full">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <Sun className="text-muted-foreground" />
+                    <span className="font-medium">Mode Tampilan</span>
+                </div>
+                <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+                    <Button variant={theme === 'light' ? 'default' : 'ghost'} size="sm" onClick={() => setTheme('light')} className={cn(theme === 'light' && 'bg-background text-foreground shadow-sm')}>
+                        <Sun size={16} />
+                    </Button>
+                    <Button variant={theme === 'dark' ? 'default' : 'ghost'} size="sm" onClick={() => setTheme('dark')} className={cn(theme === 'dark' && 'bg-background text-foreground shadow-sm')}>
+                        <Moon size={16} />
+                    </Button>
+                     <Button variant={theme === 'system' ? 'default' : 'ghost'} size="sm" onClick={() => setTheme('system')} className={cn(theme === 'system' && 'bg-background text-foreground shadow-sm')}>
+                        <Laptop size={16} />
+                    </Button>
+                </div>
             </div>
           </div>
           
