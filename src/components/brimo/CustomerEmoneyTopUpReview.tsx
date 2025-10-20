@@ -128,7 +128,7 @@ export default function CustomerEmoneyTopUpReview({ formData, onConfirm, onBack 
 
                 const debitTxRef = doc(collection(sourceAccountRef, 'transactions'));
                 transaction.set(debitTxRef, {
-                    kasAccountId: sourceAccount.id, type: 'debit', name: `Top Up ${formData.destinationEmoney} an. ${formData.customerName}`, account: formData.destinationEmoney, date: nowISO, amount: topUpAmount, balanceBefore: currentSourceBalance, balanceAfter: currentSourceBalance - topUpAmount, category: 'customer_emoney_topup_debit', deviceName
+                    kasAccountId: sourceAccount.id, type: 'debit', name: `Top Up ${formData.destinationEmoney}`, account: formData.destinationEmoney, date: nowISO, amount: topUpAmount, balanceBefore: currentSourceBalance, balanceAfter: currentSourceBalance - topUpAmount, category: 'customer_emoney_topup_debit', deviceName
                 });
                 
                 switch (paymentMethod) {
@@ -136,7 +136,7 @@ export default function CustomerEmoneyTopUpReview({ formData, onConfirm, onBack 
                         transaction.update(finalLaciAccountRef, { balance: currentLaciBalance + totalPaymentByCustomer });
                         const creditTunaiRef = doc(collection(finalLaciAccountRef, 'transactions'));
                         transaction.set(creditTunaiRef, {
-                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Top Up E-Money an. ${formData.customerName}`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName
+                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Top Up E-Money`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName
                         });
                         break;
                     case 'Transfer':
@@ -144,7 +144,7 @@ export default function CustomerEmoneyTopUpReview({ formData, onConfirm, onBack 
                         transaction.update(paymentAccRef, { balance: currentPaymentAccBalance + totalPaymentByCustomer });
                         const creditTransferRef = doc(collection(paymentAccRef, 'transactions'));
                         transaction.set(creditTransferRef, {
-                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Top Up E-Money an. ${formData.customerName}`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName
+                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Top Up E-Money`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName
                         });
                         break;
                     case 'Split':
@@ -152,13 +152,13 @@ export default function CustomerEmoneyTopUpReview({ formData, onConfirm, onBack 
                         transaction.update(finalLaciAccountRef, { balance: currentLaciBalance + splitTunaiAmount });
                         const creditSplitTunaiRef = doc(collection(finalLaciAccountRef, 'transactions'));
                         transaction.set(creditSplitTunaiRef, {
-                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Tunai E-Money an. ${formData.customerName}`, account: 'Pelanggan', date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + splitTunaiAmount, category: 'customer_payment', deviceName
+                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Tunai E-Money`, account: 'Pelanggan', date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + splitTunaiAmount, category: 'customer_payment', deviceName
                         });
 
                         transaction.update(paymentAccRef, { balance: currentPaymentAccBalance + splitTransferAmount });
                         const creditSplitTransferRef = doc(collection(paymentAccRef, 'transactions'));
                         transaction.set(creditSplitTransferRef, {
-                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer E-Money an. ${formData.customerName}`, account: 'Pelanggan', date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + splitTransferAmount, category: 'customer_payment', deviceName
+                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer E-Money`, account: 'Pelanggan', date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + splitTransferAmount, category: 'customer_payment', deviceName
                         });
                         break;
                 }
@@ -168,7 +168,6 @@ export default function CustomerEmoneyTopUpReview({ formData, onConfirm, onBack 
                 date: now,
                 sourceKasAccountId: formData.sourceAccountId,
                 destinationEmoney: formData.destinationEmoney,
-                customerName: formData.customerName,
                 topUpAmount: formData.topUpAmount,
                 serviceFee: formData.serviceFee,
                 paymentMethod: formData.paymentMethod,
@@ -210,7 +209,6 @@ export default function CustomerEmoneyTopUpReview({ formData, onConfirm, onBack 
                         <h4 className="font-semibold text-lg">Detail Top Up E-Money</h4>
                         <div className="text-sm space-y-1 text-muted-foreground">
                             <p>Tujuan: <strong>{formData.destinationEmoney}</strong></p>
-                            <p>Pelanggan: <strong>{formData.customerName}</strong></p>
                             <p>Sumber Dana: <strong>{sourceAccount?.label}</strong></p>
                         </div>
                     </div>

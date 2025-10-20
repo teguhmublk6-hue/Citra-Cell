@@ -83,7 +83,6 @@ export default function CustomerEmoneyTopUpForm({ onReview, onDone }: CustomerEm
     defaultValues: {
         sourceAccountId: '',
         destinationEmoney: '',
-        customerName: '',
         topUpAmount: undefined,
         serviceFee: undefined,
         paymentMethod: undefined,
@@ -189,16 +188,6 @@ export default function CustomerEmoneyTopUpForm({ onReview, onDone }: CustomerEm
                 </FormItem>
               )}
             />
-            
-            <FormField control={form.control} name="customerName" render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Nama Pelanggan</FormLabel>
-                    <FormControl>
-                        <Input placeholder="Masukkan nama" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-            )}/>
 
             <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="topUpAmount" render={({ field }) => (
