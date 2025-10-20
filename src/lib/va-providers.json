@@ -5,14 +5,22 @@
     { "name": "Shopee" },
     { "name": "ShopeePayLater" },
     { "name": "Shopee Pinjam" },
+    { "name": "Lazada" },
+    { "name": "Blibli" },
+    { "name": "Bukalapak" },
     { "name": "BAF (Bussan Auto Finance)" },
     { "name": "FIF Group" },
     { "name": "Astra Credit Companies (ACC)" },
     { "name": "Adira Finance" },
     { "name": "Mega Auto Finance" },
+    { "name": "WOM Finance" },
     { "name": "Home Credit" },
     { "name": "Kredivo" },
-    { "name": "Akulaku" }
+    { "name": "Akulaku" },
+    { "name": "Indodana" },
+    { "name": "BRI Ceria" },
+    { "name": "GoPayLater" },
+    { "name": "OVO PayLater" }
 ]
 
     

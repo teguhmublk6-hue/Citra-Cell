@@ -108,6 +108,7 @@ const calculateServiceFee = (amount: number): number => {
 export default function CustomerVAPaymentForm({ onReview, onDone }: CustomerVAPaymentFormProps) {
   const firestore = useFirestore();
   const [providerPopoverOpen, setProviderPopoverOpen] = useState(false);
+  const [searchKeyword, setSearchKeyword] = useState("");
 
   
   const kasAccountsCollection = useMemoFirebase(() => {
@@ -144,6 +145,10 @@ export default function CustomerVAPaymentForm({ onReview, onDone }: CustomerVAPa
   const onSubmit = (values: CustomerVAPaymentFormValues) => {
     onReview(values);
   };
+
+  const filteredProviders = vaProviderData.filter(provider =>
+    provider.name.toLowerCase().includes(searchKeyword.toLowerCase())
+  );
   
   return (
     <Form {...form}>
@@ -193,39 +198,52 @@ export default function CustomerVAPaymentForm({ onReview, onDone }: CustomerVAPa
                             !field.value && "text-muted-foreground"
                             )}
                         >
-                            {field.value
-                            ? vaProviderData.find((provider) => provider.name === field.value)?.name
-                            : "Pilih penyedia layanan"}
+                            {field.value || "Pilih penyedia layanan"}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                         </FormControl>
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
                         <Command>
-                        <CommandInput placeholder="Cari penyedia..." />
-                        <CommandEmpty>Penyedia tidak ditemukan.</CommandEmpty>
-                        <CommandGroup>
+                            <CommandInput 
+                                placeholder="Cari penyedia..." 
+                                value={searchKeyword} 
+                                onValueChange={setSearchKeyword}
+                            />
                             <ScrollArea className="h-72">
-                            {vaProviderData.map((provider) => (
-                                <CommandItem
-                                value={provider.name}
-                                key={provider.name}
-                                onSelect={() => {
-                                    form.setValue("serviceProvider", provider.name)
-                                    setProviderPopoverOpen(false)
-                                }}
-                                >
-                                <Check
-                                    className={cn(
-                                    "mr-2 h-4 w-4",
-                                    provider.name === field.value ? "opacity-100" : "opacity-0"
-                                    )}
-                                />
-                                {provider.name}
-                                </CommandItem>
-                            ))}
+                                <CommandEmpty>
+                                    <div 
+                                        className="p-2 text-sm cursor-pointer hover:bg-accent"
+                                        onClick={() => {
+                                            form.setValue("serviceProvider", searchKeyword, { shouldValidate: true });
+                                            setProviderPopoverOpen(false);
+                                        }}
+                                    >
+                                        Gunakan: "{searchKeyword}"
+                                    </div>
+                                </CommandEmpty>
+                                <CommandGroup>
+                                    {filteredProviders.map((provider) => (
+                                        <CommandItem
+                                        value={provider.name}
+                                        key={provider.name}
+                                        onSelect={() => {
+                                            form.setValue("serviceProvider", provider.name, { shouldValidate: true })
+                                            setProviderPopoverOpen(false)
+                                            setSearchKeyword("")
+                                        }}
+                                        >
+                                        <Check
+                                            className={cn(
+                                            "mr-2 h-4 w-4",
+                                            provider.name === field.value ? "opacity-100" : "opacity-0"
+                                            )}
+                                        />
+                                        {provider.name}
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
                             </ScrollArea>
-                        </CommandGroup>
                         </Command>
                     </PopoverContent>
                     </Popover>
