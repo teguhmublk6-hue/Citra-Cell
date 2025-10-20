@@ -21,6 +21,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import type { EDCServiceFormValues } from "@/lib/types";
 import { EDCServiceFormSchema } from "@/lib/types";
+import Image from "next/image";
 
 interface EDCServiceFormProps {
   onDone: () => void;
@@ -129,6 +130,15 @@ export default function EDCServiceForm({ onDone }: EDCServiceFormProps) {
         className="space-y-6 flex flex-col h-full"
       >
         <ScrollArea className="flex-1 -mx-6 px-6">
+          <div className="relative w-full h-32 rounded-lg overflow-hidden mb-4">
+              <Image 
+                src="https://img.idxchannel.com/media/700/images/idx/2025/01/03/ambil_Uang_di_Mesin_EDC_Ada_Biaya_Admin.jpg"
+                alt="EDC Service Banner"
+                fill
+                className="object-cover"
+                data-ai-hint="EDC machine"
+              />
+          </div>
           <div className="space-y-4 pt-4 pb-6">
             <FormField
               control={form.control}

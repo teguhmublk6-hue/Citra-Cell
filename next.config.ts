@@ -82,6 +82,12 @@ const nextConfig: NextConfig = {
         hostname: 'images.squarespace-cdn.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'img.idxchannel.com',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
