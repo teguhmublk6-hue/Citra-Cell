@@ -8,7 +8,7 @@ import AdminContent from './AdminContent';
 import SettingsContent from './settings-content';
 import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw, Banknote } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { collection, writeBatch, getDocs } from 'firebase/firestore';
 import type { KasAccount as KasAccountType } from '@/lib/data';
 import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight, CreditCard, IdCard, GraduationCap } from 'lucide-react';
 import Header from './header';
@@ -52,6 +52,8 @@ import CustomerKJPWithdrawalReview from './CustomerKJPWithdrawalReview';
 import MotivationCard from './MotivationCard';
 import SetMotivationForm from './SetMotivationForm';
 import KasManagement from './KasManagement';
+import DeleteAllReportsDialog from './DeleteAllReportsDialog';
+import { useToast } from '@/hooks/use-toast';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -81,7 +83,9 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
   const [isReportVisible, setIsReportVisible] = useState(false);
   const [isProfitLossReportVisible, setIsProfitLossReportVisible] = useState(false);
+  const [isDeleteReportsDialogOpen, setIsDeleteReportsDialogOpen] = useState(false);
   const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     const hasAccess = sessionStorage.getItem('brimoAdminAccess') === 'true';
@@ -212,6 +216,47 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const handleManageKasAccountsClick = () => {
     setActiveSheet('manageKasAccounts');
   }
+
+  const handleResetReportsClick = () => {
+    setIsDeleteReportsDialogOpen(true);
+  };
+
+  const confirmResetReports = async () => {
+    if (!firestore) {
+        toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
+        return;
+    }
+    toast({ title: "Memproses...", description: "Menghapus semua riwayat laporan." });
+
+    const reportCollections = [
+        "customerTransfers",
+        "customerWithdrawals",
+        "customerTopUps",
+        "customerEmoneyTopUps",
+        "customerVAPayments",
+        "edcServices",
+        "customerKJPWithdrawals",
+        "settlements",
+        "ppobTransactions"
+    ];
+
+    try {
+        const batch = writeBatch(firestore);
+        for (const collectionName of reportCollections) {
+            const querySnapshot = await getDocs(collection(firestore, collectionName));
+            querySnapshot.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+        }
+        await batch.commit();
+        toast({ title: "Sukses", description: "Semua riwayat laporan telah dihapus." });
+    } catch (error) {
+        console.error("Error resetting reports:", error);
+        toast({ variant: "destructive", title: "Gagal", description: "Terjadi kesalahan saat menghapus laporan." });
+    } finally {
+        setIsDeleteReportsDialogOpen(false);
+    }
+  };
 
   const handleTabChange = (tab: ActiveTab) => {
     if (tab === 'admin' && !isAdminAccessGranted) {
@@ -348,7 +393,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
       case 'mutasi':
         return <GlobalTransactionHistory />;
       case 'admin':
-        return isAdminAccessGranted ? <AdminContent onProfitLossReportClick={handleProfitLossReportClick} onSetMotivationClick={handleSetMotivationClick} onManageKasAccountsClick={handleManageKasAccountsClick} /> : null;
+        return isAdminAccessGranted ? <AdminContent onProfitLossReportClick={handleProfitLossReportClick} onSetMotivationClick={handleSetMotivationClick} onManageKasAccountsClick={handleManageKasAccountsClick} onResetReportsClick={handleResetReportsClick}/> : null;
       default:
         return <div className="px-4"><QuickServices onServiceClick={handleQuickServiceClick}/></div>;
     }
@@ -364,6 +409,12 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         onSuccess={handlePasscodeSuccess}
       />
       
+      <DeleteAllReportsDialog 
+        isOpen={isDeleteReportsDialogOpen}
+        onClose={() => setIsDeleteReportsDialogOpen(false)}
+        onConfirm={confirmResetReports}
+      />
+
       <Sheet open={!!activeSheet} onOpenChange={(isOpen) => !isOpen && closeAllSheets()}>
         <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
             <SheetHeader>

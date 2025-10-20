@@ -3,15 +3,16 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, FileText, MessageSquareQuote, DollarSign } from 'lucide-react';
+import { ChevronRight, FileText, MessageSquareQuote, DollarSign, Trash2 } from 'lucide-react';
 
 interface AdminContentProps {
   onProfitLossReportClick: () => void;
   onSetMotivationClick: () => void;
   onManageKasAccountsClick: () => void;
+  onResetReportsClick: () => void;
 }
 
-export default function AdminContent({ onProfitLossReportClick, onSetMotivationClick, onManageKasAccountsClick }: AdminContentProps) {
+export default function AdminContent({ onProfitLossReportClick, onSetMotivationClick, onManageKasAccountsClick, onResetReportsClick }: AdminContentProps) {
   return (
     <div className="px-4 py-4">
       <Card>
@@ -48,6 +49,16 @@ export default function AdminContent({ onProfitLossReportClick, onSetMotivationC
                   <span className="font-medium">Manajemen Akun Kas</span>
                 </div>
                 <ChevronRight size={20} className="text-muted-foreground" />
+            </button>
+            <button 
+                onClick={onResetReportsClick}
+                className="flex items-center justify-between p-4 bg-destructive/10 text-destructive rounded-xl w-full hover:bg-destructive/20 transition-colors"
+            >
+                <div className="flex items-center gap-4">
+                  <Trash2 size={20} />
+                  <span className="font-medium">Reset Riwayat Laporan</span>
+                </div>
+                <ChevronRight size={20} />
             </button>
         </CardContent>
       </Card>
