@@ -116,15 +116,11 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
                             onClick={() => { form.setValue('sourcePPOBAccountId', acc.id); setCurrentStep(2); }} 
                             className="cursor-pointer hover:ring-2 hover:ring-primary transition relative overflow-hidden group"
                         >
-                             <CardContent className="p-0 flex flex-col items-center justify-center aspect-video text-center">
+                            <CardContent className="p-0 flex flex-col items-center justify-center aspect-video text-center">
                                 {acc.iconUrl ? (
                                     <>
                                         <Image src={acc.iconUrl} alt={acc.label} fill className="object-cover" />
                                         <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors" />
-                                        <div className="relative p-2 text-white text-center flex flex-col justify-end h-full w-full">
-                                            <p className="font-semibold text-lg drop-shadow-md">{acc.label}</p>
-                                            <p className="text-xs drop-shadow-sm">{formatToRupiah(acc.balance)}</p>
-                                        </div>
                                     </>
                                 ) : (
                                     <div className="p-2">
