@@ -109,7 +109,7 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
             {currentStep === 1 && (
                 <div className="space-y-4">
                     <FormLabel>Pilih Sumber Deposit PPOB</FormLabel>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                     {ppobAccounts?.map((acc) => (
                         <Card 
                             key={acc.id} 
@@ -118,10 +118,7 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
                         >
                             <CardContent className="p-0 flex flex-col items-center justify-center aspect-video text-center">
                                 {acc.iconUrl ? (
-                                    <>
-                                        <Image src={acc.iconUrl} alt={acc.label} fill className="object-cover" />
-                                        <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors" />
-                                    </>
+                                    <Image src={acc.iconUrl} alt={acc.label} fill className="object-cover" />
                                 ) : (
                                     <div className="p-2">
                                         <p className="font-semibold text-lg">{acc.label}</p>
@@ -251,5 +248,3 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
     </Form>
   );
 }
-
-    
