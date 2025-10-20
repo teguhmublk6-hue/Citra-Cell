@@ -88,6 +88,12 @@ const nextConfig: NextConfig = {
         hostname: 'img.idxchannel.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'play-lh.googleusercontent.com',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
