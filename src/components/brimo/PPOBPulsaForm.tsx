@@ -109,21 +109,26 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
             {currentStep === 1 && (
                 <div className="space-y-4">
                     <FormLabel>Pilih Sumber Deposit PPOB</FormLabel>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                     {ppobAccounts?.map((acc) => (
                         <Card 
                             key={acc.id} 
                             onClick={() => { form.setValue('sourcePPOBAccountId', acc.id); setCurrentStep(2); }} 
                             className="cursor-pointer hover:ring-2 hover:ring-primary transition relative overflow-hidden group"
                         >
-                             <CardContent className="p-0 flex flex-col items-center justify-center aspect-[2.5/1] text-center">
+                             <CardContent className="p-0 flex flex-col items-center justify-center aspect-video text-center">
                                 {acc.iconUrl ? (
-                                    <div className="relative w-full h-full">
-                                        <Image src={acc.iconUrl} alt={acc.label} fill className="object-contain p-2" />
-                                    </div>
+                                    <>
+                                        <Image src={acc.iconUrl} alt={acc.label} fill className="object-cover" />
+                                        <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors" />
+                                        <div className="relative p-2 text-white text-center flex flex-col justify-end h-full w-full">
+                                            <p className="font-semibold text-lg drop-shadow-md">{acc.label}</p>
+                                            <p className="text-xs drop-shadow-sm">{formatToRupiah(acc.balance)}</p>
+                                        </div>
+                                    </>
                                 ) : (
                                     <div className="p-2">
-                                        <p className="font-semibold text-base">{acc.label}</p>
+                                        <p className="font-semibold text-lg">{acc.label}</p>
                                         <p className="text-xs text-muted-foreground">{formatToRupiah(acc.balance)}</p>
                                     </div>
                                 )}
