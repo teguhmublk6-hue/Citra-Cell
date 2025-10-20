@@ -31,7 +31,7 @@ import AddCapitalForm from './AddCapitalForm';
 import WithdrawBalanceForm from './WithdrawBalanceForm';
 import CustomerTransferForm from './CustomerTransferForm';
 import CustomerTransferReview from './CustomerTransferReview';
-import type { CustomerTopUpFormValues, CustomerTransferFormValues, CustomerVAPaymentFormValues, CustomerWithdrawalFormValues } from '@/lib/types';
+import type { CustomerTopUpFormValues, CustomerTransferFormValues, CustomerVAPaymentFormValues, CustomerWithdrawalFormValues, EDCServiceFormValues } from '@/lib/types';
 import BookkeepingReport from './BookkeepingReport';
 import AdminPasscodeDialog from './AdminPasscodeDialog';
 import CustomerWithdrawalForm from './CustomerWithdrawalForm';
@@ -41,6 +41,7 @@ import CustomerTopUpForm from './CustomerTopUpForm';
 import CustomerTopUpReview from './CustomerTopUpReview';
 import CustomerVAPaymentForm from './CustomerVAPaymentForm';
 import CustomerVAPaymentReview from './CustomerVAPaymentReview';
+import EDCServiceForm from './EDCServiceForm';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -65,7 +66,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
   const [currentSlide, setCurrentSlide] = useState(0)
-  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | null>(null);
+  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | null>(null);
   const [isAdminAccessGranted, setIsAdminAccessGranted] = useState(false);
   const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
   const [isReportVisible, setIsReportVisible] = useState(false);
@@ -148,12 +149,11 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     } else if (service === 'customerVAPayment') {
       setActiveSheet('customerVAPayment');
     } else if (service === 'EDCService') {
-        // Placeholder for now
-        alert('Layanan EDC akan segera hadir!');
+      setActiveSheet('EDCService');
     }
   }
 
-  const handleReview = (data: CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues) => {
+  const handleReview = (data: CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues) => {
     setReviewData(data);
     if ('destinationBank' in data) {
       setActiveSheet('customerTransferReview');
@@ -319,6 +319,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                             {activeSheet === 'customerTopUpReview' && 'Review Top Up E-Wallet'}
                             {activeSheet === 'customerVAPayment' && 'Pembayaran VA Pelanggan'}
                             {activeSheet === 'customerVAPaymentReview' && 'Review Pembayaran VA'}
+                            {activeSheet === 'EDCService' && 'Layanan EDC'}
                           </SheetTitle>
                       </SheetHeader>
                       {activeSheet === 'transfer' && <TransferBalanceForm onDone={closeAllSheets} />}
@@ -332,6 +333,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                       {activeSheet === 'customerTopUpReview' && reviewData && 'destinationEwallet' in reviewData && <CustomerTopUpReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerTopUp')} />}
                       {activeSheet === 'customerVAPayment' && <CustomerVAPaymentForm onReview={handleReview} onDone={closeAllSheets} />}
                       {activeSheet === 'customerVAPaymentReview' && reviewData && 'serviceProvider' in reviewData && <CustomerVAPaymentReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerVAPayment')} />}
+                      {activeSheet === 'EDCService' && <EDCServiceForm onDone={closeAllSheets} />}
                   </SheetContent>
                 </Sheet>
 
@@ -395,5 +397,3 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     </>
   );
 }
-
-    

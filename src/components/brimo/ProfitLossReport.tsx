@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
-import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerVAPayment } from '@/lib/types';
+import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerVAPayment, EDCService } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,8 @@ type ReportItem =
     | (CustomerTransfer & { id: string; transactionType: 'Transfer' }) 
     | (CustomerWithdrawal & { id: string; transactionType: 'Tarik Tunai' }) 
     | (CustomerTopUp & { id: string; transactionType: 'Top Up' })
-    | (CustomerVAPayment & { id: string; transactionType: 'VA Payment' });
+    | (CustomerVAPayment & { id: string; transactionType: 'VA Payment' })
+    | (EDCService & { id: string; transactionType: 'Layanan EDC' });
 
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
@@ -60,10 +61,11 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                 getDocs(query(collection(firestore, 'customerTransfers'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
                 getDocs(query(collection(firestore, 'customerWithdrawals'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
                 getDocs(query(collection(firestore, 'customerTopUps'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
-                getDocs(query(collection(firestore, 'customerVAPayments'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : [])))
+                getDocs(query(collection(firestore, 'customerVAPayments'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+                getDocs(query(collection(firestore, 'edcServices'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : [])))
             ];
             
-            const [transfersSnapshot, withdrawalsSnapshot, topUpsSnapshot, vaPaymentsSnapshot] = await Promise.all(queries);
+            const [transfersSnapshot, withdrawalsSnapshot, topUpsSnapshot, vaPaymentsSnapshot, edcServicesSnapshot] = await Promise.all(queries);
 
             const combinedReports: ReportItem[] = [];
 
@@ -107,6 +109,16 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                 });
             });
 
+            edcServicesSnapshot.forEach((doc) => {
+                const data = doc.data();
+                combinedReports.push({
+                    id: doc.id,
+                    ...(data as EDCService),
+                    date: (data.date as Timestamp).toDate(),
+                    transactionType: 'Layanan EDC'
+                });
+            });
+
 
             combinedReports.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             
@@ -147,6 +159,10 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
         acc.adminBank += report.adminFee;
         acc.jasa += report.serviceFee;
         acc.labaRugi += report.netProfit;
+    } else if (report.transactionType === 'Layanan EDC') {
+        acc.nominal += 0; // No principal amount
+        acc.jasa += report.serviceFee;
+        acc.labaRugi += report.serviceFee;
     }
     return acc;
   }, { nominal: 0, adminBank: 0, jasa: 0, labaRugi: 0 });
@@ -282,6 +298,18 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                             <TableCell className="text-right">{formatToRupiah(report.adminFee)}</TableCell>
                                             <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
                                             <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.netProfit)}</TableCell>
+                                            <TableCell>{report.deviceName}</TableCell>
+                                        </>
+                                    ) : report.transactionType === 'Layanan EDC' ? (
+                                        <>
+                                            <TableCell>Layanan EDC</TableCell>
+                                            <TableCell>{getAccountLabel(report.paymentToKasTunaiAccountId)}</TableCell>
+                                            <TableCell>{report.machineUsed}</TableCell>
+                                            <TableCell>{report.customerName}</TableCell>
+                                            <TableCell className="text-right">Rp 0</TableCell>
+                                            <TableCell className="text-right">Rp 0</TableCell>
+                                            <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
+                                            <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
                                             <TableCell>{report.deviceName}</TableCell>
                                         </>
                                     ) : null}

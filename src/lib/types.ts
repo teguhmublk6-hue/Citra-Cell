@@ -116,4 +116,23 @@ export type CustomerVAPayment = {
     deviceName: string;
 }
 
-    
+export const EDCServiceFormSchema = z.object({
+  customerName: z.string().min(1, "Nama peminjam harus diisi"),
+  machineUsed: z.string().min(1, "Mesin yang digunakan harus diisi"),
+  serviceFee: z.preprocess(
+    numberPreprocessor,
+    z.number({ invalid_type_error: "Biaya jasa harus angka" }).positive("Biaya jasa harus lebih dari 0")
+  ),
+});
+
+export type EDCServiceFormValues = z.infer<typeof EDCServiceFormSchema>;
+
+export type EDCService = {
+  id: string;
+  date: string;
+  customerName: string;
+  machineUsed: string;
+  serviceFee: number;
+  paymentToKasTunaiAccountId: string;
+  deviceName: string;
+};
