@@ -35,9 +35,9 @@ export default function MotivationCard() {
             </p>
         )}
       </div>
-       <p className="text-xs text-right text-muted-foreground/50 mt-4">
+       <div className="text-xs text-right text-muted-foreground/50 mt-4">
           - {isLoading ? <Skeleton className="h-3 w-24 inline-block" /> : (motivationData?.motivationAuthor || 'BRILink Manager')}
-      </p>
+      </div>
     </div>
   );
 }
