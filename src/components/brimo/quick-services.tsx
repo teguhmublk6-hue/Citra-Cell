@@ -98,7 +98,11 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
                           className="flex flex-col items-center gap-2 group"
                           aria-label={service.label}
                         >
-                          <div className={`${service.color} w-14 h-14 rounded-2xl flex items-center justify-center text-white group-hover:scale-105 transition-transform shadow-lg`}>
+                          <div className={cn(
+                            "w-14 h-14 rounded-2xl flex items-center justify-center text-white group-hover:scale-105 transition-transform shadow-lg",
+                            "dark:"+service.color,
+                            "light:bg-orange-800"
+                            )}>
                             <service.icon size={28} strokeWidth={1.5} />
                           </div>
                           <span className="text-xs text-muted-foreground font-medium text-center leading-tight mt-1">{service.label}</span>
