@@ -53,6 +53,7 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
   const firestore = useFirestore();
   const [currentStep, setCurrentStep] = useState(1);
   const [detectedProvider, setDetectedProvider] = useState<string | null>(null);
+  const [isManualDenom, setIsManualDenom] = useState(false);
   
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -87,6 +88,7 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
 
   const paymentMethod = form.watch('paymentMethod');
   const phoneNumber = form.watch('phoneNumber');
+  const denomination = form.watch('denomination');
 
   useEffect(() => {
     const prefix = phoneNumber.substring(0, 4);
@@ -99,6 +101,16 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
   const onSubmit = (values: PPOBPulsaFormValues) => { onReview(values); };
   
   const selectedPPOBAccount = ppobAccounts?.find(acc => acc.id === form.watch('sourcePPOBAccountId'));
+
+  const handleDenomClick = (denom: string) => {
+    form.setValue('denomination', denom);
+    setIsManualDenom(false);
+  }
+
+  const handleManualClick = () => {
+    setIsManualDenom(true);
+    form.setValue('denomination', ''); // Clear denomination when switching to manual
+  }
 
   return (
     <Form {...form}>
@@ -161,11 +173,24 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
                         <FormLabel>Pilih Denominasi Pulsa</FormLabel>
                         <div className="grid grid-cols-3 gap-2">
                             {denominations.map(denom => (
-                                <Button key={denom} type="button" variant={field.value === denom ? 'default' : 'outline'} onClick={() => field.onChange(denom)}>
+                                <Button key={denom} type="button" variant={!isManualDenom && field.value === denom ? 'default' : 'outline'} onClick={() => handleDenomClick(denom)}>
                                     {denom}
                                 </Button>
                             ))}
+                             <Button type="button" variant={isManualDenom ? 'default' : 'outline'} onClick={handleManualClick}>
+                                Manual
+                            </Button>
                         </div>
+                        {isManualDenom && (
+                             <FormControl className="mt-2">
+                                <Input 
+                                    placeholder="Masukkan nominal, cth: 12.000" 
+                                    onChange={field.onChange}
+                                    type="text"
+                                    autoFocus
+                                />
+                             </FormControl>
+                        )}
                         <FormMessage />
                     </FormItem>
                 )}/>
@@ -248,3 +273,5 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
     </Form>
   );
 }
+
+    
