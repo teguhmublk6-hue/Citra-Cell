@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
-import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService } from '@/lib/types';
+import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,8 @@ type ReportItem =
     | (CustomerTopUp & { id: string; transactionType: 'Top Up' })
     | (CustomerEmoneyTopUp & { id: string; transactionType: 'Top Up E-Money' })
     | (CustomerVAPayment & { id: string; transactionType: 'VA Payment' })
-    | (EDCService & { id: string; transactionType: 'Layanan EDC' });
+    | (EDCService & { id: string; transactionType: 'Layanan EDC' })
+    | (CustomerKJPWithdrawal & { id: string; transactionType: 'Tarik Tunai KJP' });
 
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
@@ -65,10 +66,11 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                 getDocs(query(collection(firestore, 'customerTopUps'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
                 getDocs(query(collection(firestore, 'customerEmoneyTopUps'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
                 getDocs(query(collection(firestore, 'customerVAPayments'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
-                getDocs(query(collection(firestore, 'edcServices'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : [])))
+                getDocs(query(collection(firestore, 'edcServices'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+                getDocs(query(collection(firestore, 'customerKJPWithdrawals'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : [])))
             ];
 
-            const [transfersSnapshot, withdrawalsSnapshot, topUpsSnapshot, emoneyTopUpsSnapshot, vaPaymentsSnapshot, edcServicesSnapshot] = await Promise.all(queries);
+            const [transfersSnapshot, withdrawalsSnapshot, topUpsSnapshot, emoneyTopUpsSnapshot, vaPaymentsSnapshot, edcServicesSnapshot, kjpWithdrawalsSnapshot] = await Promise.all(queries);
 
             const combinedReports: ReportItem[] = [];
 
@@ -129,6 +131,16 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                     ...data,
                     date: (data.date as Timestamp).toDate(),
                     transactionType: 'Layanan EDC'
+                } as any);
+            });
+
+            kjpWithdrawalsSnapshot.forEach((doc) => {
+                const data = doc.data();
+                combinedReports.push({
+                    id: doc.id,
+                    ...data,
+                    date: (data.date as Timestamp).toDate(),
+                    transactionType: 'Tarik Tunai KJP'
                 } as any);
             });
 
@@ -306,7 +318,16 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                                         <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
                                         <TableCell>{report.deviceName}</TableCell>
                                     </>
-                                ) : null}
+                                ) : report.transactionType === 'Tarik Tunai KJP' ? (
+                                    <>
+                                       <TableCell>Tarik KJP</TableCell>
+                                       <TableCell>{getAccountLabel(report.destinationMerchantAccountId)}</TableCell>
+                                       <TableCell>Bank DKI</TableCell>
+                                       <TableCell>{report.customerName}</TableCell>
+                                       <TableCell className="text-right">{formatToRupiah(report.withdrawalAmount)}</TableCell>
+                                       <TableCell>{report.deviceName}</TableCell>
+                                   </>
+                               ) : null}
                             </TableRow>
                         ))}
                     </TableBody>

@@ -42,7 +42,7 @@ export const CustomerWithdrawalFormSchema = z.object({
   destinationAccountId: z.string().min(1, 'Akun kas tujuan harus dipilih'),
 });
 
-export type CustomerWithdrawalFormValues = z_infer<typeof CustomerWithdrawalFormSchema>;
+export type CustomerWithdrawalFormValues = z.infer<typeof CustomerWithdrawalFormSchema>;
 
 export type CustomerWithdrawal = {
     id: string;
@@ -207,5 +207,5 @@ export type ReportItem =
     | (CustomerTopUp & { id: string; transactionType: 'Top Up' })
     | (CustomerEmoneyTopUp & { id: string; transactionType: 'Top Up E-Money' })
     | (CustomerVAPayment & { id: string; transactionType: 'VA Payment' })
-    | (EDCService & { id: string; transactionType: 'Layanan EDC' });
-
+    | (EDCService & { id: string; transactionType: 'Layanan EDC' })
+    | (CustomerKJPWithdrawal & { id: string; transactionType: 'Tarik Tunai KJP' });
