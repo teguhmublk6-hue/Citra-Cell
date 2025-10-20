@@ -61,7 +61,7 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
             return;
         }
 
-        if (laciAccount.balance < netCashOutFromLaci) {
+        if (laciAccount.balance < withdrawalAmount) {
             toast({ variant: "destructive", title: "Saldo Laci Tidak Cukup", description: `Saldo ${laciAccount.label} tidak mencukupi untuk penarikan ini.` });
             return;
         }
@@ -90,11 +90,11 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
                 const currentLaciBalance = laciAccountDoc.data().balance;
                 const currentAgenDKIBalance = agenDKIAccountDoc.data().balance;
 
-                if (currentLaciBalance < netCashOutFromLaci) {
+                if (currentLaciBalance < withdrawalAmount) {
                     throw new Error(`Saldo ${laciAccount.label} tidak mencukupi.`);
                 }
 
-                // 1. Update Laci (Tunai) Account
+                // 1. Update Laci (Tunai) Account with the net change
                 const newLaciBalance = currentLaciBalance - netCashOutFromLaci;
                 transaction.update(laciAccountRef, { balance: newLaciBalance });
 
@@ -108,7 +108,7 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
                     date: nowISO,
                     amount: withdrawalAmount,
                     balanceBefore: currentLaciBalance,
-                    balanceAfter: currentLaciBalance - withdrawalAmount,
+                    balanceAfter: currentLaciBalance - withdrawalAmount, // Intermediate balance
                     category: 'customer_kjp_withdrawal_debit',
                     deviceName
                 });
@@ -122,8 +122,8 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
                     account: 'Pendapatan Jasa',
                     date: nowISO,
                     amount: serviceFee,
-                    balanceBefore: currentLaciBalance - withdrawalAmount,
-                    balanceAfter: newLaciBalance,
+                    balanceBefore: currentLaciBalance - withdrawalAmount, // Balance after debit
+                    balanceAfter: newLaciBalance, // Final balance
                     category: 'service_fee_income',
                     deviceName
                 });
@@ -152,7 +152,7 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
                 customerName: formData.customerName,
                 withdrawalAmount: formData.withdrawalAmount,
                 serviceFee: formData.serviceFee,
-                totalReceived: totalReceivedByMerchant, // This remains the amount received by the merchant
+                totalReceived: totalReceivedByMerchant,
                 destinationMerchantAccountId: agenDKIAccount.id,
                 sourceKasTunaiAccountId: laciAccount.id,
                 deviceName: deviceName
@@ -192,8 +192,11 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
                      <div className="space-y-2">
                         <h4 className="font-semibold text-lg">Siklus Akun Kas</h4>
                         <div className="text-sm text-muted-foreground">
-                            <p>Uang tunai (setelah dikurangi laba) diambil dari akun <strong>{laciAccount?.label || 'Laci'}</strong>.</p>
-                            <p>Dana diterima (floating) di akun <strong>{agenDKIAccount?.label || 'Agen DKI'}</strong>.</p>
+                             <ul className="list-disc pl-5 space-y-1 mt-2">
+                                <li>Uang tunai (sebesar nominal penarikan) diambil dari <strong>{laciAccount?.label || 'Laci'}</strong>.</li>
+                                <li>Biaya jasa diterima tunai dan masuk ke <strong>{laciAccount?.label || 'Laci'}</strong>.</li>
+                                <li>Dana dari KJP (sebesar nominal penarikan) diterima dan mengendap di akun <strong>{agenDKIAccount?.label || 'Agen DKI'}</strong>.</li>
+                            </ul>
                         </div>
                     </div>
 
@@ -202,7 +205,8 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
                         <AlertTitle>Perubahan Saldo</AlertTitle>
                         <AlertDescription>
                             <ul className="list-disc pl-5 space-y-1 mt-2">
-                               <li>Saldo <strong>{laciAccount?.label || 'Laci'}</strong> akan berkurang <span className="font-semibold text-red-500">{formatToRupiah(netCashOutFromLaci)}</span>.</li>
+                               <li>Saldo <strong>{laciAccount?.label || 'Laci'}</strong> berkurang <span className="font-semibold text-red-500">{formatToRupiah(withdrawalAmount)}</span> (diberikan ke pelanggan).</li>
+                               <li>Saldo <strong>{laciAccount?.label || 'Laci'}</strong> bertambah <span className="font-semibold text-green-500">{formatToRupiah(serviceFee)}</span> (biaya jasa).</li>
                                <li>Saldo <strong>{agenDKIAccount?.label || 'Agen DKI'}</strong> akan bertambah <span className="font-semibold text-green-500">{formatToRupiah(totalReceivedByMerchant)}</span>.</li>
                             </ul>
                         </AlertDescription>
@@ -221,5 +225,3 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
         </div>
     );
 }
-
-    
