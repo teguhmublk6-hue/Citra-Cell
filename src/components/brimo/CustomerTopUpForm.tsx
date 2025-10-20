@@ -31,7 +31,7 @@ const ewallets = [
     { name: 'DANA', icon: 'https://cdn.antaranews.com/cache/1200x800/2022/04/17/DANA-Logo.jpg', hint: 'dana logo' },
     { name: 'OVO', icon: 'https://upload.wikimedia.org/wikipedia/commons/e/eb/Logo_ovo_purple.svg', hint: 'ovo logo' },
     { name: 'GoPay', icon: 'https://upload.wikimedia.org/wikipedia/commons/8/86/Gopay_logo.svg', hint: 'gopay logo' },
-    { name: 'ShopeePay', icon: 'https://upload.wikimedia.org/wikipedia/commons/f/fe/ShopeePay_logo.svg', hint: 'shopeepay logo' },
+    { name: 'ShopeePay', icon: 'https://tokpee.co/blog/wp-content/uploads/2025/03/Begini-Cara-Membagikan-Kode-QR-ShopeePay-Biar-Uang-Langsung-Masuk.webp', hint: 'shopeepay logo' },
     { name: 'LinkAja', icon: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/LinkAja.svg/2560px-LinkAja.svg.png', hint: 'linkaja logo' },
 ]
 
