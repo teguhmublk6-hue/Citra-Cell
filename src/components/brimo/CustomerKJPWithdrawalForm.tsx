@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useEffect } from 'react';
 import type { CustomerKJPWithdrawalFormValues } from '@/lib/types';
 import { CustomerKJPWithdrawalFormSchema } from '@/lib/types';
+import Image from 'next/image';
 
 interface CustomerKJPWithdrawalFormProps {
   onReview: (data: CustomerKJPWithdrawalFormValues) => void;
@@ -67,6 +68,15 @@ export default function CustomerKJPWithdrawalForm({ onReview, onDone }: Customer
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 flex flex-col h-full">
         <ScrollArea className="flex-1 -mx-6 px-6">
+          <div className="relative w-full h-32 rounded-lg overflow-hidden mb-4">
+              <Image 
+                src="https://images.squarespace-cdn.com/content/v1/59a14544d55b41551e0b745a/1538536308008-NT718XNQ1KS2GTZPRAMA/informasi_tentang_kelebihan_penggunaan_KJP_Plus_HEADER.png?format=1500w"
+                alt="KJP Banner"
+                fill
+                className="object-cover"
+                data-ai-hint="kjp banner"
+              />
+          </div>
           <div className="space-y-4 pt-4 pb-6">
             
             <FormField control={form.control} name="customerName" render={({ field }) => (
