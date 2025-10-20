@@ -111,18 +111,26 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
                     <FormLabel>Pilih Sumber Deposit PPOB</FormLabel>
                     <div className="grid grid-cols-2 gap-2">
                     {ppobAccounts?.map((acc) => (
-                        <Card key={acc.id} onClick={() => { form.setValue('sourcePPOBAccountId', acc.id); setCurrentStep(2); }} className="cursor-pointer hover:ring-2 hover:ring-primary transition bg-white dark:bg-card">
-                            <CardContent className="p-4 flex flex-col items-center justify-center aspect-square text-center gap-2">
-                                {acc.iconUrl ? (
-                                    <div className="relative w-20 h-10">
-                                        <Image src={acc.iconUrl} alt={acc.label} fill style={{objectFit: 'contain'}} />
-                                    </div>
-                                ) : (
+                        <Card 
+                            key={acc.id} 
+                            onClick={() => { form.setValue('sourcePPOBAccountId', acc.id); setCurrentStep(2); }} 
+                            className="cursor-pointer hover:ring-2 hover:ring-primary transition relative overflow-hidden group"
+                        >
+                            {acc.iconUrl ? (
+                                <>
+                                    <Image src={acc.iconUrl} alt={acc.label} fill className="object-cover group-hover:scale-105 transition-transform" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                                    <CardContent className="p-4 flex flex-col items-start justify-end aspect-video text-white relative z-10">
+                                        <p className="font-semibold text-lg leading-tight">{acc.label}</p>
+                                        <p className="text-xs">{formatToRupiah(acc.balance)}</p>
+                                    </CardContent>
+                                </>
+                            ) : (
+                                <CardContent className="p-4 flex flex-col items-center justify-center aspect-video text-center gap-2">
                                     <p className="font-semibold text-lg">{acc.label}</p>
-                                )}
-                                <p className="text-sm font-semibold">{acc.iconUrl ? acc.label : ''}</p>
-                                <p className="text-xs text-muted-foreground">{formatToRupiah(acc.balance)}</p>
-                            </CardContent>
+                                    <p className="text-xs text-muted-foreground">{formatToRupiah(acc.balance)}</p>
+                                </CardContent>
+                            )}
                         </Card>
                     ))}
                     </div>
