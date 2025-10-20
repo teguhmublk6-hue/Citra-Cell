@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { Wallet, Building2, Zap, Smartphone, ShoppingBag, Send, CreditCard, Gift, FileText, QrCode, UserCog, Settings, Home, MoreHorizontal, Phone, Wifi, Lightbulb, Droplets, HeartPulse, Plus } from 'lucide-react';
+import { Wallet, Building2, Zap, Smartphone, ShoppingBag, Send, CreditCard, Gift, FileText, QrCode, UserCog, Settings, Home, MoreHorizontal, Phone, Wifi, Lightbulb, Droplets, HeartPulse, Plus, Calculator } from 'lucide-react';
 
 export type KasAccount = {
   id: string;
@@ -32,7 +32,7 @@ export const quickServices: QuickService[] = [
   { icon: Wallet, label: 'Tarik Tunai', color: 'bg-gray-400' },
   { icon: Smartphone, label: 'Top Up', color: 'bg-purple-500' },
   { icon: CreditCard, label: 'VA Payment', color: 'bg-orange-500' },
-  { icon: CreditCard, label: 'Layanan EDC', color: 'bg-teal-500' },
+  { icon: Calculator, label: 'Layanan EDC', color: 'bg-teal-500' },
   // { icon: Gift, label: 'KJP', color: 'bg-pink-500' },
   // { icon: MoreHorizontal, label: 'Lainnya', color: 'bg-gray-400' },
 ];
