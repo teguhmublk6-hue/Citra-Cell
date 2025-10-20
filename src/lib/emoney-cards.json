@@ -1,0 +1,7 @@
+
+[
+    { "name": "Mandiri e-Money", "icon": "https://upload.wikimedia.org/wikipedia/commons/4/41/E-money_logo.svg", "hint": "emoney logo" },
+    { "name": "BCA Flazz", "icon": "https://upload.wikimedia.org/wikipedia/commons/3/3e/Flazz_logo.svg", "hint": "flazz logo" },
+    { "name": "BNI TapCash", "icon": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d9/TapCash_logo.svg/1200px-TapCash_logo.svg.png", "hint": "tapcash logo" },
+    { "name": "BRIZZI", "icon": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/BRIZZI_logo.svg/1200px-BRIZZI_logo.svg.png", "hint": "brizzi logo" }
+]
