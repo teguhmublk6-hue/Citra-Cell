@@ -31,7 +31,7 @@ import AddCapitalForm from './AddCapitalForm';
 import WithdrawBalanceForm from './WithdrawBalanceForm';
 import CustomerTransferForm from './CustomerTransferForm';
 import CustomerTransferReview from './CustomerTransferReview';
-import type { CustomerEmoneyTopUpFormValues, CustomerTopUpFormValues, CustomerTransferFormValues, CustomerVAPaymentFormValues, CustomerWithdrawalFormValues, EDCServiceFormValues, SettlementFormValues } from '@/lib/types';
+import type { CustomerEmoneyTopUpFormValues, CustomerKJPWithdrawalFormValues, CustomerTopUpFormValues, CustomerTransferFormValues, CustomerVAPaymentFormValues, CustomerWithdrawalFormValues, EDCServiceFormValues, SettlementFormValues } from '@/lib/types';
 import BookkeepingReport from './BookkeepingReport';
 import AdminPasscodeDialog from './AdminPasscodeDialog';
 import CustomerWithdrawalForm from './CustomerWithdrawalForm';
@@ -47,6 +47,8 @@ import CustomerEmoneyTopUpReview from './CustomerEmoneyTopUpReview';
 import SettlementForm from './SettlementForm';
 import SettlementReview from './SettlementReview';
 import { Button } from '../ui/button';
+import CustomerKJPWithdrawalForm from './CustomerKJPWithdrawalForm';
+import CustomerKJPWithdrawalReview from './CustomerKJPWithdrawalReview';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -59,7 +61,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'admin' | 'settings';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'KJP' | 'settlement' | 'settlementReview';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -71,7 +73,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
   const [currentSlide, setCurrentSlide] = useState(0)
-  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | null>(null);
+  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | CustomerKJPWithdrawalFormValues | null>(null);
   const [isAdminAccessGranted, setIsAdminAccessGranted] = useState(false);
   const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
   const [isReportVisible, setIsReportVisible] = useState(false);
@@ -158,16 +160,16 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     } else if (service === 'Emoney') {
       setActiveSheet('customerEmoneyTopUp');
     } else if (service === 'KJP') {
-      // setActiveSheet('KJP'); // Will be implemented later
+      setActiveSheet('customerKJP');
     }
   }
 
-  const handleReview = (data: CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues) => {
+  const handleReview = (data: CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | CustomerKJPWithdrawalFormValues) => {
     setReviewData(data);
     if ('destinationBank' in data) {
       setActiveSheet('customerTransferReview');
     } else if ('customerBankSource' in data) {
-      setActiveSheet('customerWithdrawalReview');
+        setActiveSheet('customerWithdrawalReview');
     } else if ('destinationEwallet' in data) {
         setActiveSheet('customerTopUpReview');
     } else if ('serviceProvider' in data) {
@@ -176,6 +178,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         setActiveSheet('customerEmoneyTopUpReview');
     } else if ('sourceMerchantAccountId' in data) {
         setActiveSheet('settlementReview');
+    } else if ('withdrawalAmount' in data && !('customerBankSource' in data)) {
+        setActiveSheet('customerKJPReview');
     }
   }
   
@@ -350,6 +354,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                             {activeSheet === 'customerVAPayment' && 'Pembayaran VA Pelanggan'}
                             {activeSheet === 'customerVAPaymentReview' && 'Review Pembayaran VA'}
                             {activeSheet === 'EDCService' && 'Layanan EDC'}
+                            {activeSheet === 'customerKJP' && 'Tarik Tunai KJP'}
+                            {activeSheet === 'customerKJPReview' && 'Review Tarik Tunai KJP'}
                             {activeSheet === 'settlement' && `Settlement: ${selectedAccount?.label}`}
                             {activeSheet === 'settlementReview' && 'Review Settlement'}
                           </SheetTitle>
@@ -370,6 +376,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                       {activeSheet === 'EDCService' && <EDCServiceForm onDone={closeAllSheets} />}
                       {activeSheet === 'settlement' && selectedAccount && <SettlementForm account={selectedAccount} onReview={handleReview} onDone={closeAllSheets} />}
                       {activeSheet === 'settlementReview' && reviewData && 'sourceMerchantAccountId' in reviewData && <SettlementReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('settlement')} />}
+                      {activeSheet === 'customerKJP' && <CustomerKJPWithdrawalForm onReview={handleReview} onDone={closeAllSheets} />}
+                      {activeSheet === 'customerKJPReview' && reviewData && !('sourceMerchantAccountId' in reviewData) && !('serviceProvider' in reviewData) && !('destinationEmoney' in reviewData) && !('destinationEwallet' in reviewData) && !('customerBankSource' in reviewData) && !('destinationBank' in reviewData) && ('withdrawalAmount' in reviewData) && <CustomerKJPWithdrawalReview formData={reviewData as CustomerKJPWithdrawalFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerKJP')} />}
                   </SheetContent>
                 </Sheet>
 
@@ -433,5 +441,3 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     </>
   );
 }
-
-
