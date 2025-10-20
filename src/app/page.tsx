@@ -26,7 +26,7 @@ export default function BrimoUI() {
 
   return (
     <div className="bg-background min-h-screen max-w-md mx-auto font-body text-foreground relative">
-      <LoadingOverlay isLoading={isAccountsLoading} />
+      <LoadingOverlay isLoading={isAccountsLoading && revalidationKey === 0} />
       <main className="pb-28">
         <HomeContent 
           revalidateData={revalidateData} 
