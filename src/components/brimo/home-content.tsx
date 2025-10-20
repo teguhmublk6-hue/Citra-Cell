@@ -31,7 +31,7 @@ import AddCapitalForm from './AddCapitalForm';
 import WithdrawBalanceForm from './WithdrawBalanceForm';
 import CustomerTransferForm from './CustomerTransferForm';
 import CustomerTransferReview from './CustomerTransferReview';
-import type { CustomerEmoneyTopUpFormValues, CustomerKJPWithdrawalFormValues, CustomerTopUpFormValues, CustomerTransferFormValues, CustomerVAPaymentFormValues, CustomerWithdrawalFormValues, EDCServiceFormValues, SettlementFormValues } from '@/lib/types';
+import type { CustomerEmoneyTopUpFormValues, CustomerKJPWithdrawalFormValues, CustomerTopUpFormValues, CustomerTransferFormValues, CustomerVAPaymentFormValues, CustomerWithdrawalFormValues, EDCServiceFormValues, SettlementFormValues, MotivationFormValues } from '@/lib/types';
 import BookkeepingReport from './BookkeepingReport';
 import AdminPasscodeDialog from './AdminPasscodeDialog';
 import CustomerWithdrawalForm from './CustomerWithdrawalForm';
@@ -49,6 +49,8 @@ import SettlementReview from './SettlementReview';
 import { Button } from '../ui/button';
 import CustomerKJPWithdrawalForm from './CustomerKJPWithdrawalForm';
 import CustomerKJPWithdrawalReview from './CustomerKJPWithdrawalReview';
+import MotivationCard from './MotivationCard';
+import SetMotivationForm from './SetMotivationForm';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -61,7 +63,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'admin' | 'settings';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -73,7 +75,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
   const [currentSlide, setCurrentSlide] = useState(0)
-  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | CustomerKJPWithdrawalFormValues | null>(null);
+  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | CustomerKJPWithdrawalFormValues | MotivationFormValues | null>(null);
   const [isAdminAccessGranted, setIsAdminAccessGranted] = useState(false);
   const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
   const [isReportVisible, setIsReportVisible] = useState(false);
@@ -107,7 +109,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const firestore = useFirestore();
 
   const plugin = useRef(
-    Autoplay({ delay: 2000, stopOnInteraction: true })
+    Autoplay({ delay: 5000, stopOnInteraction: true })
   );
 
   const kasAccountsCollection = useMemoFirebase(() => {
@@ -202,6 +204,10 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     setIsProfitLossReportVisible(true);
   }
 
+  const handleSetMotivationClick = () => {
+    setActiveSheet('setMotivation');
+  }
+
   const handleTabChange = (tab: ActiveTab) => {
     if (tab === 'admin' && !isAdminAccessGranted) {
       setIsPasscodeDialogOpen(true);
@@ -263,10 +269,13 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                       />
                     </div>
                   </CarouselItem>
+                   <CarouselItem>
+                    <MotivationCard />
+                  </CarouselItem>
                 </CarouselContent>
               </Carousel>
               <div className="flex items-center justify-center space-x-2 py-2">
-                {[0, 1].map((index) => (
+                {[0, 1, 2].map((index) => (
                   <button
                     key={index}
                     onClick={() => carouselApi?.scrollTo(index)}
@@ -358,6 +367,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                             {activeSheet === 'customerKJPReview' && 'Review Tarik Tunai KJP'}
                             {activeSheet === 'settlement' && `Settlement: ${selectedAccount?.label}`}
                             {activeSheet === 'settlementReview' && 'Review Settlement'}
+                            {activeSheet === 'setMotivation' && 'Atur Motivasi Harian'}
                           </SheetTitle>
                       </SheetHeader>
                       {activeSheet === 'transfer' && <TransferBalanceForm onDone={closeAllSheets} />}
@@ -378,6 +388,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                       {activeSheet === 'settlementReview' && reviewData && 'sourceMerchantAccountId' in reviewData && <SettlementReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('settlement')} />}
                       {activeSheet === 'customerKJP' && <CustomerKJPWithdrawalForm onReview={handleReview} onDone={closeAllSheets} />}
                       {activeSheet === 'customerKJPReview' && reviewData && !('sourceMerchantAccountId' in reviewData) && !('serviceProvider' in reviewData) && !('destinationEmoney' in reviewData) && !('destinationEwallet' in reviewData) && !('customerBankSource' in reviewData) && !('destinationBank' in reviewData) && ('withdrawalAmount' in reviewData) && <CustomerKJPWithdrawalReview formData={reviewData as CustomerKJPWithdrawalFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerKJP')} />}
+                      {activeSheet === 'setMotivation' && <SetMotivationForm onDone={closeAllSheets} />}
                   </SheetContent>
                 </Sheet>
 
@@ -390,7 +401,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
       case 'mutasi':
         return <GlobalTransactionHistory />;
       case 'admin':
-        return isAdminAccessGranted ? <AdminContent onProfitLossReportClick={handleProfitLossReportClick} /> : null;
+        return isAdminAccessGranted ? <AdminContent onProfitLossReportClick={handleProfitLossReportClick} onSetMotivationClick={handleSetMotivationClick} /> : null;
       default:
         return <div className="px-4"><QuickServices onServiceClick={handleQuickServiceClick}/></div>;
     }

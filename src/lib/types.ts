@@ -3,6 +3,11 @@ import * as z from 'zod';
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
 
+export type AppConfig = {
+    id: string;
+    motivationQuote: string;
+}
+
 export const CustomerTransferFormSchema = z.object({
   sourceAccountId: z.string().min(1, 'Akun kas asal harus dipilih'),
   destinationBank: z.string().min(1, 'Bank tujuan harus dipilih'),
@@ -209,3 +214,9 @@ export type ReportItem =
     | (CustomerVAPayment & { id: string; transactionType: 'VA Payment' })
     | (EDCService & { id: string; transactionType: 'Layanan EDC' })
     | (CustomerKJPWithdrawal & { id: string; transactionType: 'Tarik Tunai KJP' });
+
+export const MotivationFormSchema = z.object({
+    motivationQuote: z.string().min(1, 'Kutipan tidak boleh kosong.'),
+});
+
+export type MotivationFormValues = z.infer<typeof MotivationFormSchema>;

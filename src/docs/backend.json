@@ -1,6 +1,22 @@
 
 {
   "entities": {
+    "AppConfig": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AppConfig",
+      "type": "object",
+      "description": "Stores global application configuration settings.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "motivationQuote": {
+          "type": "string",
+          "description": "The daily motivational quote displayed on the home screen."
+        }
+      },
+      "required": ["motivationQuote"]
+    },
     "KasAccount": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "KasAccount",
@@ -478,6 +494,12 @@
     }
   },
   "firestore": {
+    "/appConfig/motivation": {
+      "schema": {
+        "$ref": "#/entities/AppConfig"
+      },
+      "description": "Stores global app settings like the daily motivation quote."
+    },
     "/kasAccounts/{kasAccountId}": {
       "schema": {
         "$ref": "#/entities/KasAccount"
