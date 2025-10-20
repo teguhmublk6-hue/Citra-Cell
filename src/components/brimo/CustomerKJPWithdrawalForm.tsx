@@ -29,13 +29,12 @@ const parseRupiah = (value: string | undefined | null): number => {
 }
 
 const calculateServiceFee = (amount: number): number => {
-    if (amount >= 1000 && amount <= 49000) return 3000;
-    if (amount >= 50000 && amount <= 999000) return 5000;
-    if (amount >= 1000000 && amount <= 1999000) return 7000;
-    if (amount >= 2000000 && amount <= 3499000) return 10000;
-    if (amount >= 3500000 && amount <= 5999000) return 15000;
-    if (amount >= 6000000 && amount <= 7999000) return 20000;
-    if (amount >= 8000000 && amount <= 10000000) return 25000;
+    if (amount >= 10000 && amount <= 49900) return 3000;
+    if (amount >= 50000 && amount <= 105000) return 5000;
+    if (amount >= 106000 && amount <= 207000) return 7000;
+    if (amount >= 208000 && amount <= 308000) return 8000;
+    if (amount >= 309000 && amount <= 410000) return 10000;
+    if (amount >= 411000 && amount <= 512000) return 12000;
     return 0;
 };
 
