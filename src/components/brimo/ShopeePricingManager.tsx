@@ -94,7 +94,7 @@ export default function ShopeePricingManager({ onDone }: { onDone: () => void })
             <p className="text-sm text-muted-foreground">
                 Atur harga modal dan harga jual untuk setiap denominasi pulsa yang dijual melalui Mitra Shopee. Perubahan di sini akan memengaruhi pengisian otomatis pada form transaksi pulsa.
             </p>
-            <Accordion type="multiple" collapsible className="w-full">
+            <Accordion type="multiple" className="w-full">
             {Object.entries(pricing).map(([provider, denominations]) => (
                 <AccordionItem value={provider} key={provider}>
                     <AccordionTrigger>{provider}</AccordionTrigger>
