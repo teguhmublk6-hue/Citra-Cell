@@ -131,21 +131,46 @@ export default function CustomerTopUpForm({ onReview, onDone }: CustomerTopUpFor
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Pilih E-Wallet Tujuan</FormLabel>
-                   <div className="grid grid-cols-3 gap-2">
-                        {ewallets.map(wallet => (
-                            <Card 
-                                key={wallet.name}
-                                onClick={() => field.onChange(wallet.name)}
-                                className={cn("cursor-pointer", field.value === wallet.name && "ring-2 ring-primary")}
-                            >
-                                <CardContent className="p-2 flex items-center justify-center aspect-[2/1]">
-                                    <div className="relative w-full h-full">
-                                        <Image src={wallet.icon} alt={wallet.name} fill style={{ objectFit: 'contain' }} data-ai-hint={wallet.hint} />
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+                  {!field.value ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {ewallets.map((wallet) => (
+                        <Card
+                          key={wallet.name}
+                          onClick={() => field.onChange(wallet.name)}
+                          className={cn("cursor-pointer")}
+                        >
+                          <CardContent className="p-2 flex items-center justify-center aspect-[2/1]">
+                            <div className="relative w-full h-full">
+                              <Image
+                                src={wallet.icon}
+                                alt={wallet.name}
+                                fill
+                                style={{ objectFit: 'contain' }}
+                                data-ai-hint={wallet.hint}
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Card className="ring-2 ring-primary">
+                        <CardContent className="p-2 flex items-center justify-center aspect-[2/1]">
+                           <div className="relative w-full h-full">
+                            <Image
+                                src={ewallets.find(w => w.name === field.value)?.icon || ''}
+                                alt={field.value}
+                                fill
+                                style={{ objectFit: 'contain' }}
+                                data-ai-hint={ewallets.find(w => w.name === field.value)?.hint}
+                            />
+                           </div>
+                        </CardContent>
+                      </Card>
+                      <Button variant="link" onClick={() => field.onChange('')} className="p-0 h-auto">Ganti Pilihan</Button>
+                    </div>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -306,5 +331,3 @@ export default function CustomerTopUpForm({ onReview, onDone }: CustomerTopUpFor
     </Form>
   );
 }
-
-    
