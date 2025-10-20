@@ -6,6 +6,7 @@ const numberPreprocessor = (val: unknown) => (val === "" || val === undefined ||
 export type AppConfig = {
     id: string;
     motivationQuote: string;
+    motivationAuthor?: string;
 }
 
 export const CustomerTransferFormSchema = z.object({
@@ -217,6 +218,7 @@ export type ReportItem =
 
 export const MotivationFormSchema = z.object({
     motivationQuote: z.string().min(1, 'Kutipan tidak boleh kosong.'),
+    motivationAuthor: z.string().optional(),
 });
 
 export type MotivationFormValues = z.infer<typeof MotivationFormSchema>;

@@ -13,6 +13,10 @@
         "motivationQuote": {
           "type": "string",
           "description": "The daily motivational quote displayed on the home screen."
+        },
+        "motivationAuthor": {
+          "type": "string",
+          "description": "The author of the daily motivational quote."
         }
       },
       "required": ["motivationQuote"]

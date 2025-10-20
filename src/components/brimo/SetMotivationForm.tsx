@@ -13,6 +13,7 @@ import type { AppConfig, MotivationFormValues } from '@/lib/types';
 import { MotivationFormSchema } from '@/lib/types';
 import { Textarea } from '../ui/textarea';
 import { useEffect } from 'react';
+import { Input } from '../ui/input';
 
 interface SetMotivationFormProps {
   onDone: () => void;
@@ -33,12 +34,14 @@ export default function SetMotivationForm({ onDone }: SetMotivationFormProps) {
     resolver: zodResolver(MotivationFormSchema),
     defaultValues: {
       motivationQuote: '',
+      motivationAuthor: '',
     },
   });
 
   useEffect(() => {
     if (motivationData) {
       form.setValue('motivationQuote', motivationData.motivationQuote);
+      form.setValue('motivationAuthor', motivationData.motivationAuthor || '');
     }
   }, [motivationData, form]);
 
@@ -71,6 +74,19 @@ export default function SetMotivationForm({ onDone }: SetMotivationFormProps) {
                     className="resize-none h-32"
                     {...field}
                   />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+           <FormField
+            control={form.control}
+            name="motivationAuthor"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Penulis Kutipan (Opsional)</FormLabel>
+                <FormControl>
+                  <Input placeholder="cth: BRILink Manager" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
