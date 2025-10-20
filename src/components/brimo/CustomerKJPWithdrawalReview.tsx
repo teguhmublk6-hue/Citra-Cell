@@ -42,7 +42,8 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
         serviceFee,
     } = formData;
 
-    const totalReceivedByMerchant = withdrawalAmount + serviceFee;
+    const totalReceivedByMerchant = withdrawalAmount;
+    const netCashOutFromLaci = withdrawalAmount - serviceFee;
 
     const handleSaveTransaction = async () => {
         if (!firestore || !kasAccounts) {
@@ -60,7 +61,7 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
             return;
         }
 
-        if (laciAccount.balance < withdrawalAmount) {
+        if (laciAccount.balance < netCashOutFromLaci) {
             toast({ variant: "destructive", title: "Saldo Laci Tidak Cukup", description: `Saldo ${laciAccount.label} tidak mencukupi untuk penarikan ini.` });
             return;
         }
@@ -89,13 +90,15 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
                 const currentLaciBalance = laciAccountDoc.data().balance;
                 const currentAgenDKIBalance = agenDKIAccountDoc.data().balance;
 
-                if (currentLaciBalance < withdrawalAmount) {
+                if (currentLaciBalance < netCashOutFromLaci) {
                     throw new Error(`Saldo ${laciAccount.label} tidak mencukupi.`);
                 }
 
-                // 1. Debit Laci (Tunai) Account
-                const newLaciBalance = currentLaciBalance - withdrawalAmount;
+                // 1. Update Laci (Tunai) Account
+                const newLaciBalance = currentLaciBalance - netCashOutFromLaci;
                 transaction.update(laciAccountRef, { balance: newLaciBalance });
+
+                // Create debit transaction for cash given to customer
                 const debitTrxRef = doc(collection(laciAccountRef, 'transactions'));
                 transaction.set(debitTrxRef, {
                     kasAccountId: laciAccount.id,
@@ -105,8 +108,23 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
                     date: nowISO,
                     amount: withdrawalAmount,
                     balanceBefore: currentLaciBalance,
-                    balanceAfter: newLaciBalance,
+                    balanceAfter: currentLaciBalance - withdrawalAmount,
                     category: 'customer_kjp_withdrawal_debit',
+                    deviceName
+                });
+
+                 // Create credit transaction for service fee received
+                const feeTrxRef = doc(collection(laciAccountRef, 'transactions'));
+                transaction.set(feeTrxRef, {
+                    kasAccountId: laciAccount.id,
+                    type: 'credit',
+                    name: `Biaya Jasa KJP a/n ${formData.customerName}`,
+                    account: 'Pendapatan Jasa',
+                    date: nowISO,
+                    amount: serviceFee,
+                    balanceBefore: currentLaciBalance - withdrawalAmount,
+                    balanceAfter: newLaciBalance,
+                    category: 'service_fee_income',
                     deviceName
                 });
                 
@@ -134,7 +152,7 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
                 customerName: formData.customerName,
                 withdrawalAmount: formData.withdrawalAmount,
                 serviceFee: formData.serviceFee,
-                totalReceived: totalReceivedByMerchant,
+                totalReceived: totalReceivedByMerchant, // This remains the amount received by the merchant
                 destinationMerchantAccountId: agenDKIAccount.id,
                 sourceKasTunaiAccountId: laciAccount.id,
                 deviceName: deviceName
@@ -156,7 +174,7 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
             <ScrollArea className="flex-1 -mx-6 px-6">
                 <div className="space-y-6 pt-4 pb-6">
                     <div className="space-y-2">
-                        <h4 className="font-semibold text-lg">Detail Penarikan KJP</h4>
+                        <h4 className="font-semibold text-lg">Review Tarik Tunai KJP</h4>
                         <div className="text-sm space-y-1 text-muted-foreground">
                             <p>Pelanggan: <strong>{formData.customerName}</strong></p>
                             <p>Uang Tunai Diberikan: <strong className="text-lg">{formatToRupiah(withdrawalAmount)}</strong></p>
@@ -174,7 +192,7 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
                      <div className="space-y-2">
                         <h4 className="font-semibold text-lg">Siklus Akun Kas</h4>
                         <div className="text-sm text-muted-foreground">
-                            <p>Uang tunai diambil dari akun <strong>{laciAccount?.label || 'Laci'}</strong>.</p>
+                            <p>Uang tunai (setelah dikurangi laba) diambil dari akun <strong>{laciAccount?.label || 'Laci'}</strong>.</p>
                             <p>Dana diterima (floating) di akun <strong>{agenDKIAccount?.label || 'Agen DKI'}</strong>.</p>
                         </div>
                     </div>
@@ -184,7 +202,7 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
                         <AlertTitle>Perubahan Saldo</AlertTitle>
                         <AlertDescription>
                             <ul className="list-disc pl-5 space-y-1 mt-2">
-                               <li>Saldo <strong>{laciAccount?.label || 'Laci'}</strong> akan berkurang <span className="font-semibold text-red-500">{formatToRupiah(withdrawalAmount)}</span>.</li>
+                               <li>Saldo <strong>{laciAccount?.label || 'Laci'}</strong> akan berkurang <span className="font-semibold text-red-500">{formatToRupiah(netCashOutFromLaci)}</span>.</li>
                                <li>Saldo <strong>{agenDKIAccount?.label || 'Agen DKI'}</strong> akan bertambah <span className="font-semibold text-green-500">{formatToRupiah(totalReceivedByMerchant)}</span>.</li>
                             </ul>
                         </AlertDescription>
@@ -203,3 +221,5 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
         </div>
     );
 }
+
+    
