@@ -109,12 +109,19 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
             {currentStep === 1 && (
                 <div className="space-y-4">
                     <FormLabel>Pilih Sumber Deposit PPOB</FormLabel>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-2">
                     {ppobAccounts?.map((acc) => (
-                        <Card key={acc.id} onClick={() => { form.setValue('sourcePPOBAccountId', acc.id); setCurrentStep(2); }} className="cursor-pointer hover:ring-2 hover:ring-primary transition">
-                            <CardContent className="p-4 text-center">
-                                <p className="font-semibold">{acc.label}</p>
-                                <p className="text-sm text-muted-foreground">{formatToRupiah(acc.balance)}</p>
+                        <Card key={acc.id} onClick={() => { form.setValue('sourcePPOBAccountId', acc.id); setCurrentStep(2); }} className="cursor-pointer hover:ring-2 hover:ring-primary transition bg-white dark:bg-card">
+                            <CardContent className="p-4 flex flex-col items-center justify-center aspect-square text-center gap-2">
+                                {acc.iconUrl ? (
+                                    <div className="relative w-20 h-10">
+                                        <Image src={acc.iconUrl} alt={acc.label} fill style={{objectFit: 'contain'}} />
+                                    </div>
+                                ) : (
+                                    <p className="font-semibold text-lg">{acc.label}</p>
+                                )}
+                                <p className="text-sm font-semibold">{acc.iconUrl ? acc.label : ''}</p>
+                                <p className="text-xs text-muted-foreground">{formatToRupiah(acc.balance)}</p>
                             </CardContent>
                         </Card>
                     ))}

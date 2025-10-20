@@ -12,6 +12,7 @@ export type KasAccount = {
   minimumBalance: number;
   color: string;
   settlementDestinationAccountId?: string;
+  iconUrl?: string;
 };
 
 export const kasAccounts: KasAccount[] = [

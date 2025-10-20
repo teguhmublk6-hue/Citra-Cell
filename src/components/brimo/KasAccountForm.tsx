@@ -30,6 +30,7 @@ const formSchema = z.object({
     z.number({ invalid_type_error: "Saldo minimal harus angka" }).min(0, 'Saldo minimal tidak boleh negatif').optional()
   ),
   settlementDestinationAccountId: z.string().optional(),
+  iconUrl: z.string().url('URL ikon tidak valid').optional().or(z.literal('')),
 });
 
 interface KasAccountFormProps {
@@ -65,6 +66,7 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
       balance: account?.balance || undefined,
       minimumBalance: account?.minimumBalance || undefined,
       settlementDestinationAccountId: account?.settlementDestinationAccountId || '',
+      iconUrl: account?.iconUrl || '',
     },
   });
 
@@ -78,6 +80,7 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
             balance: account.balance,
             minimumBalance: account.minimumBalance,
             settlementDestinationAccountId: account.settlementDestinationAccountId || '',
+            iconUrl: account.iconUrl || '',
         });
     }
   }, [account, form]);
@@ -91,6 +94,7 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
       minimumBalance: values.minimumBalance || 0,
       color: selectedType?.color || 'bg-gray-500',
       settlementDestinationAccountId: values.type === 'Merchant' ? values.settlementDestinationAccountId : null,
+      iconUrl: values.iconUrl || null,
     };
 
     if (account) {
@@ -145,6 +149,21 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
                     </FormItem>
                 )}
                 />
+                 {accountType === 'PPOB' && (
+                  <FormField
+                    control={form.control}
+                    name="iconUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>URL Ikon (Opsional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://example.com/logo.png" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                 {accountType === 'Merchant' && (
                   <FormField
                     control={form.control}

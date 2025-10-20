@@ -54,6 +54,11 @@
         "settlementDestinationAccountId": {
           "type": "string",
           "description": "For merchant accounts, the ID of the KasAccount where settled funds are transferred."
+        },
+        "iconUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for the icon of the account, especially for PPOB providers."
         }
       },
       "required": [
