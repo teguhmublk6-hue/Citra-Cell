@@ -222,3 +222,33 @@ export const MotivationFormSchema = z.object({
 });
 
 export type MotivationFormValues = z.infer<typeof MotivationFormSchema>;
+
+export const PPOBPulsaFormSchema = z.object({
+  sourcePPOBAccountId: z.string().min(1, 'Akun PPOB sumber harus dipilih'),
+  phoneNumber: z.string().min(10, 'Nomor HP minimal 10 digit').max(15, 'Nomor HP maksimal 15 digit'),
+  denomination: z.string().min(1, 'Denominasi harus dipilih'),
+  costPrice: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Harga modal harus angka" }).min(0, 'Harga modal tidak boleh negatif')),
+  sellingPrice: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Harga jual harus angka" }).min(0, 'Harga jual tidak boleh negatif')),
+  paymentMethod: z.enum(['Tunai', 'Transfer', 'Split'], { required_error: 'Metode pembayaran harus dipilih' }),
+  paymentToKasTransferAccountId: z.string().optional(),
+  splitTunaiAmount: z.preprocess(numberPreprocessor, z.number().optional()),
+});
+
+export type PPOBPulsaFormValues = z.infer<typeof PPOBPulsaFormSchema>;
+
+export type PPOBTransaction = {
+    id: string;
+    date: string;
+    serviceName: string; // e.g., "Pulsa"
+    destination: string; // e.g., Phone number
+    description: string; // e.g., "Telkomsel 20000"
+    costPrice: number;
+    sellingPrice: number;
+    profit: number;
+    sourcePPOBAccountId: string;
+    paymentMethod: "Tunai" | "Transfer" | "Split";
+    paymentToKasTunaiAmount?: number;
+    paymentToKasTransferAccountId?: string | null;
+    paymentToKasTransferAmount?: number;
+    deviceName: string;
+}
