@@ -10,7 +10,7 @@ import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw } from 'lucide-react
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { KasAccount as KasAccountType } from '@/lib/data';
-import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight } from 'lucide-react';
+import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight, CreditCard } from 'lucide-react';
 import Header from './header';
 import BalanceCard from './balance-card';
 import {
@@ -53,7 +53,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'admin' | 'settings';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -138,7 +138,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     }, 150);
   }
   
-  const handleQuickServiceClick = (service: 'customerTransfer' | 'withdraw' | 'topUp' | 'customerVAPayment') => {
+  const handleQuickServiceClick = (service: 'customerTransfer' | 'withdraw' | 'topUp' | 'customerVAPayment' | 'EDCService') => {
     if (service === 'customerTransfer') {
       setActiveSheet('customerTransfer');
     } else if (service === 'withdraw') {
@@ -147,6 +147,9 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
       setActiveSheet('customerTopUp');
     } else if (service === 'customerVAPayment') {
       setActiveSheet('customerVAPayment');
+    } else if (service === 'EDCService') {
+        // Placeholder for now
+        alert('Layanan EDC akan segera hadir!');
     }
   }
 

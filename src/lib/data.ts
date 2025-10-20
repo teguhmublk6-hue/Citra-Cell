@@ -32,6 +32,7 @@ export const quickServices: QuickService[] = [
   { icon: Wallet, label: 'Tarik Tunai', color: 'bg-gray-400' },
   { icon: Smartphone, label: 'Top Up', color: 'bg-purple-500' },
   { icon: CreditCard, label: 'VA Payment', color: 'bg-orange-500' },
+  { icon: CreditCard, label: 'Layanan EDC', color: 'bg-teal-500' },
   // { icon: Gift, label: 'KJP', color: 'bg-pink-500' },
   // { icon: MoreHorizontal, label: 'Lainnya', color: 'bg-gray-400' },
 ];
