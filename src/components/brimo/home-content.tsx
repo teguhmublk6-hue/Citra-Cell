@@ -51,6 +51,7 @@ import CustomerKJPWithdrawalForm from './CustomerKJPWithdrawalForm';
 import CustomerKJPWithdrawalReview from './CustomerKJPWithdrawalReview';
 import MotivationCard from './MotivationCard';
 import SetMotivationForm from './SetMotivationForm';
+import KasManagement from './KasManagement';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -63,7 +64,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'admin' | 'settings';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -207,6 +208,10 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const handleSetMotivationClick = () => {
     setActiveSheet('setMotivation');
   }
+  
+  const handleManageKasAccountsClick = () => {
+    setActiveSheet('manageKasAccounts');
+  }
 
   const handleTabChange = (tab: ActiveTab) => {
     if (tab === 'admin' && !isAdminAccessGranted) {
@@ -343,7 +348,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
       case 'mutasi':
         return <GlobalTransactionHistory />;
       case 'admin':
-        return isAdminAccessGranted ? <AdminContent onProfitLossReportClick={handleProfitLossReportClick} onSetMotivationClick={handleSetMotivationClick} /> : null;
+        return isAdminAccessGranted ? <AdminContent onProfitLossReportClick={handleProfitLossReportClick} onSetMotivationClick={handleSetMotivationClick} onManageKasAccountsClick={handleManageKasAccountsClick} /> : null;
       default:
         return <div className="px-4"><QuickServices onServiceClick={handleQuickServiceClick}/></div>;
     }
@@ -359,21 +364,11 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         onSuccess={handlePasscodeSuccess}
       />
       
-      <Sheet open={activeSheet === 'history'} onOpenChange={(isOpen) => !isOpen && setActiveSheet(null)}>
+      <Sheet open={!!activeSheet} onOpenChange={(isOpen) => !isOpen && closeAllSheets()}>
         <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
             <SheetHeader>
                 <SheetTitle>
                   {activeSheet === 'history' && `Riwayat Mutasi: ${selectedAccount?.label}`}
-                </SheetTitle>
-            </SheetHeader>
-            {activeSheet === 'history' && selectedAccount && <TransactionHistory account={selectedAccount} onDone={() => setActiveSheet(null)} />}
-        </SheetContent>
-      </Sheet>
-
-      <Sheet open={!!activeSheet && activeSheet !== 'history'} onOpenChange={(isOpen) => !isOpen && closeAllSheets()}>
-        <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
-            <SheetHeader>
-                <SheetTitle>
                   {activeSheet === 'transfer' && 'Pindah Saldo'}
                   {activeSheet === 'addCapital' && 'Tambah Modal'}
                   {activeSheet === 'withdraw' && 'Tarik Saldo Pribadi'}
@@ -393,8 +388,10 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                   {activeSheet === 'settlement' && `Settlement: ${selectedAccount?.label}`}
                   {activeSheet === 'settlementReview' && 'Review Settlement'}
                   {activeSheet === 'setMotivation' && 'Atur Motivasi Harian'}
+                  {activeSheet === 'manageKasAccounts' && 'Manajemen Akun Kas'}
                 </SheetTitle>
             </SheetHeader>
+            {activeSheet === 'history' && selectedAccount && <TransactionHistory account={selectedAccount} onDone={() => setActiveSheet(null)} />}
             {activeSheet === 'transfer' && <TransferBalanceForm onDone={closeAllSheets} />}
             {activeSheet === 'addCapital' && <AddCapitalForm onDone={closeAllSheets} />}
             {activeSheet === 'withdraw' && <WithdrawBalanceForm onDone={closeAllSheets} />}
@@ -414,6 +411,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             {activeSheet === 'customerKJP' && <CustomerKJPWithdrawalForm onReview={handleReview} onDone={closeAllSheets} />}
             {activeSheet === 'customerKJPReview' && reviewData && !('sourceMerchantAccountId' in reviewData) && !('serviceProvider' in reviewData) && !('destinationEmoney' in reviewData) && !('destinationEwallet' in reviewData) && !('customerBankSource' in reviewData) && !('destinationBank' in reviewData) && ('withdrawalAmount' in reviewData) && <CustomerKJPWithdrawalReview formData={reviewData as CustomerKJPWithdrawalFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerKJP')} />}
             {activeSheet === 'setMotivation' && <SetMotivationForm onDone={closeAllSheets} />}
+            {activeSheet === 'manageKasAccounts' && <KasManagement />}
         </SheetContent>
       </Sheet>
 

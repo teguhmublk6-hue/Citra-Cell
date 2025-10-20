@@ -88,24 +88,6 @@ export default function SettingsContent() {
             </div>
           </div>
           
-          <Sheet>
-            <SheetTrigger asChild>
-              <button className="flex items-center justify-between p-4 bg-card-foreground/5 rounded-xl w-full hover:bg-card-foreground/10 transition-colors">
-                <div className="flex items-center gap-4">
-                  <DollarSign size={20} className="text-muted-foreground" />
-                  <span className="font-medium">Manajemen Akun Kas</span>
-                </div>
-                <ChevronRight size={20} className="text-muted-foreground" />
-              </button>
-            </SheetTrigger>
-            <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
-                <SheetHeader>
-                    <SheetTitle>Manajemen Akun Kas</SheetTitle>
-                </SheetHeader>
-                <KasManagement />
-            </SheetContent>
-          </Sheet>
-
           <div className="p-4 bg-card-foreground/5 rounded-xl w-full">
             {isEditingDeviceName ? (
               <div className="flex items-center gap-2">
