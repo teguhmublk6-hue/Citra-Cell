@@ -222,6 +222,100 @@
         "deviceName"
       ]
     },
+    "CustomerTopUp": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CustomerTopUp",
+      "type": "object",
+      "description": "Represents an E-Wallet top-up service transaction for a customer.",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "sourceKasAccountId": { "type": "string" },
+        "destinationEwallet": { "type": "string" },
+        "customerName": { "type": "string" },
+        "topUpAmount": { "type": "number" },
+        "serviceFee": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["Tunai", "Transfer", "Split"] },
+        "paymentToKasTunaiAmount": { "type": "number" },
+        "paymentToKasTransferAccountId": { "type": "string" },
+        "paymentToKasTransferAmount": { "type": "number" },
+        "deviceName": { "type": "string" }
+      },
+      "required": [
+        "date",
+        "sourceKasAccountId",
+        "destinationEwallet",
+        "customerName",
+        "topUpAmount",
+        "serviceFee",
+        "paymentMethod",
+        "deviceName"
+      ]
+    },
+    "CustomerVAPayment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CustomerVAPayment",
+      "type": "object",
+      "description": "Represents a Virtual Account (VA) payment service transaction for a customer.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "sourceKasAccountId": {
+          "type": "string"
+        },
+        "serviceProvider": {
+          "type": "string"
+        },
+        "recipientName": {
+          "type": "string"
+        },
+        "paymentAmount": {
+          "type": "number"
+        },
+        "adminFee": {
+          "type": "number"
+        },
+        "serviceFee": {
+          "type": "number"
+        },
+        "netProfit": {
+          "type": "number"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": [ "Tunai", "Transfer", "Split" ]
+        },
+        "paymentToKasTunaiAmount": {
+          "type": "number"
+        },
+        "paymentToKasTransferAccountId": {
+          "type": "string"
+        },
+        "paymentToKasTransferAmount": {
+          "type": "number"
+        },
+        "deviceName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "date",
+        "sourceKasAccountId",
+        "serviceProvider",
+        "recipientName",
+        "paymentAmount",
+        "adminFee",
+        "serviceFee",
+        "netProfit",
+        "paymentMethod",
+        "deviceName"
+      ]
+    },
     "PPOBTransaction": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PPOBTransaction",
@@ -300,6 +394,18 @@
         "$ref": "#/entities/CustomerWithdrawal"
       },
       "description": "Stores a log of all customer cash withdrawal service transactions for auditing."
+    },
+    "/customerTopUps/{customerTopUpId}": {
+      "schema": {
+        "$ref": "#/entities/CustomerTopUp"
+      },
+      "description": "Stores a log of all customer e-wallet top-up transactions for auditing."
+    },
+    "/customerVAPayments/{vaPaymentId}": {
+      "schema": {
+        "$ref": "#/entities/CustomerVAPayment"
+      },
+      "description": "Stores a log of all customer Virtual Account payment transactions for auditing and business intelligence."
     },
     "/ppobTransactions/{ppobTransactionId}": {
       "schema": {

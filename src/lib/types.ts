@@ -85,4 +85,35 @@ export type CustomerTopUp = {
     deviceName: string;
 }
 
+export const CustomerVAPaymentFormSchema = z.object({
+  sourceAccountId: z.string().min(1, 'Akun kas asal harus dipilih'),
+  serviceProvider: z.string().min(1, 'Penyedia layanan harus dipilih'),
+  recipientName: z.string().min(1, 'Nama penerima harus diisi'),
+  paymentAmount: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Nominal harus angka" }).positive('Nominal pembayaran harus lebih dari 0')),
+  adminFee: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Biaya harus angka" }).min(0, 'Biaya admin tidak boleh negatif').optional().default(0)),
+  serviceFee: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Biaya harus angka" }).min(0, 'Biaya jasa tidak boleh negatif')),
+  paymentMethod: z.enum(['Tunai', 'Transfer', 'Split'], { required_error: 'Metode pembayaran harus dipilih' }),
+  paymentToKasTransferAccountId: z.string().optional(),
+  splitTunaiAmount: z.preprocess(numberPreprocessor, z.number().optional()),
+});
+
+export type CustomerVAPaymentFormValues = z.infer<typeof CustomerVAPaymentFormSchema>;
+
+export type CustomerVAPayment = {
+    id: string;
+    date: string;
+    sourceKasAccountId: string;
+    serviceProvider: string;
+    recipientName: string;
+    paymentAmount: number;
+    adminFee: number;
+    serviceFee: number;
+    netProfit: number;
+    paymentMethod: "Tunai" | "Transfer" | "Split";
+    paymentToKasTunaiAmount?: number;
+    paymentToKasTransferAccountId?: string | null;
+    paymentToKasTransferAmount?: number;
+    deviceName: string;
+}
+
     

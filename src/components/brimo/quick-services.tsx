@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import type { CarouselApi } from "@/components/ui/carousel"
 import React from 'react';
 
-type ServiceType = 'customerTransfer' | 'withdraw' | 'topUp';
+type ServiceType = 'customerTransfer' | 'withdraw' | 'topUp' | 'customerVAPayment';
 interface QuickServicesProps {
     onServiceClick: (service: ServiceType) => void;
 }
@@ -51,6 +51,9 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
     if (label === 'Top Up') {
         onServiceClick('topUp');
     }
+    if (label === 'VA Payment') {
+        onServiceClick('customerVAPayment');
+    }
   }
 
   return (
@@ -78,7 +81,7 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
             <CarouselContent>
               {serviceGroups.map((group, groupIndex) => (
                 <CarouselItem key={groupIndex}>
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 text-center px-4">
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-4 text-center px-4">
                       {group.services.map((service, idx) => (
                         <button
                           key={idx}
