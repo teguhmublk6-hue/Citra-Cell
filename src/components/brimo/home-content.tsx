@@ -289,7 +289,6 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             </div>
             </div>
             <div className="flex flex-col gap-4 px-4 pb-28">
-                <Sheet open={activeSheet === 'history'} onOpenChange={(isOpen) => !isOpen && setActiveSheet(null)}>
                   <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="item-1" className="border-none">
                       <div className="p-3 bg-card/80 backdrop-blur-md rounded-2xl shadow-lg border border-border/20 flex items-center justify-between gap-2 data-[state=open]:rounded-b-none">
@@ -335,63 +334,6 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
-                  <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
-                      <SheetHeader>
-                          <SheetTitle>
-                            {activeSheet === 'history' && `Riwayat Mutasi: ${selectedAccount?.label}`}
-                          </SheetTitle>
-                      </SheetHeader>
-                      {activeSheet === 'history' && selectedAccount && <TransactionHistory account={selectedAccount} onDone={() => setActiveSheet(null)} />}
-                  </SheetContent>
-                </Sheet>
-
-                <Sheet open={!!activeSheet && activeSheet !== 'history'} onOpenChange={(isOpen) => !isOpen && closeAllSheets()}>
-                  <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
-                      <SheetHeader>
-                          <SheetTitle>
-                            {activeSheet === 'transfer' && 'Pindah Saldo'}
-                            {activeSheet === 'addCapital' && 'Tambah Modal'}
-                            {activeSheet === 'withdraw' && 'Tarik Saldo Pribadi'}
-                            {activeSheet === 'customerTransfer' && 'Transfer Pelanggan'}
-                            {activeSheet === 'customerTransferReview' && 'Review Transaksi Transfer'}
-                            {activeSheet === 'customerWithdrawal' && 'Tarik Tunai Pelanggan'}
-                            {activeSheet === 'customerWithdrawalReview' && 'Review Tarik Tunai'}
-                            {activeSheet === 'customerTopUp' && 'Top Up E-Wallet'}
-                            {activeSheet === 'customerTopUpReview' && 'Review Top Up E-Wallet'}
-                            {activeSheet === 'customerEmoneyTopUp' && 'Top Up E-Money'}
-                            {activeSheet === 'customerEmoneyTopUpReview' && 'Review Top Up E-Money'}
-                            {activeSheet === 'customerVAPayment' && 'Pembayaran VA Pelanggan'}
-                            {activeSheet === 'customerVAPaymentReview' && 'Review Pembayaran VA'}
-                            {activeSheet === 'EDCService' && 'Layanan EDC'}
-                            {activeSheet === 'customerKJP' && 'Tarik Tunai KJP'}
-                            {activeSheet === 'customerKJPReview' && 'Review Tarik Tunai KJP'}
-                            {activeSheet === 'settlement' && `Settlement: ${selectedAccount?.label}`}
-                            {activeSheet === 'settlementReview' && 'Review Settlement'}
-                            {activeSheet === 'setMotivation' && 'Atur Motivasi Harian'}
-                          </SheetTitle>
-                      </SheetHeader>
-                      {activeSheet === 'transfer' && <TransferBalanceForm onDone={closeAllSheets} />}
-                      {activeSheet === 'addCapital' && <AddCapitalForm onDone={closeAllSheets} />}
-                      {activeSheet === 'withdraw' && <WithdrawBalanceForm onDone={closeAllSheets} />}
-                      {activeSheet === 'customerTransfer' && <CustomerTransferForm onReview={handleReview} onDone={closeAllSheets} />}
-                      {activeSheet === 'customerTransferReview' && reviewData && 'destinationBank' in reviewData && <CustomerTransferReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerTransfer')} />}
-                      {activeSheet === 'customerWithdrawal' && <CustomerWithdrawalForm onReview={handleReview} onDone={closeAllSheets} />}
-                      {activeSheet === 'customerWithdrawalReview' && reviewData && 'customerBankSource' in reviewData && <CustomerWithdrawalReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerWithdrawal')} />}
-                      {activeSheet === 'customerTopUp' && <CustomerTopUpForm onReview={handleReview} onDone={closeAllSheets} />}
-                      {activeSheet === 'customerTopUpReview' && reviewData && 'destinationEwallet' in reviewData && <CustomerTopUpReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerTopUp')} />}
-                      {activeSheet === 'customerEmoneyTopUp' && <CustomerEmoneyTopUpForm onReview={handleReview} onDone={closeAllSheets} />}
-                      {activeSheet === 'customerEmoneyTopUpReview' && reviewData && 'destinationEmoney' in reviewData && <CustomerEmoneyTopUpReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerEmoneyTopUp')} />}
-                      {activeSheet === 'customerVAPayment' && <CustomerVAPaymentForm onReview={handleReview} onDone={closeAllSheets} />}
-                      {activeSheet === 'customerVAPaymentReview' && reviewData && 'serviceProvider' in reviewData && <CustomerVAPaymentReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerVAPayment')} />}
-                      {activeSheet === 'EDCService' && <EDCServiceForm onDone={closeAllSheets} />}
-                      {activeSheet === 'settlement' && selectedAccount && <SettlementForm account={selectedAccount} onReview={handleReview} onDone={closeAllSheets} />}
-                      {activeSheet === 'settlementReview' && reviewData && 'sourceMerchantAccountId' in reviewData && <SettlementReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('settlement')} />}
-                      {activeSheet === 'customerKJP' && <CustomerKJPWithdrawalForm onReview={handleReview} onDone={closeAllSheets} />}
-                      {activeSheet === 'customerKJPReview' && reviewData && !('sourceMerchantAccountId' in reviewData) && !('serviceProvider' in reviewData) && !('destinationEmoney' in reviewData) && !('destinationEwallet' in reviewData) && !('customerBankSource' in reviewData) && !('destinationBank' in reviewData) && ('withdrawalAmount' in reviewData) && <CustomerKJPWithdrawalReview formData={reviewData as CustomerKJPWithdrawalFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerKJP')} />}
-                      {activeSheet === 'setMotivation' && <SetMotivationForm onDone={closeAllSheets} />}
-                  </SheetContent>
-                </Sheet>
-
                 <QuickServices onServiceClick={handleQuickServiceClick} />
             </div>
           </>
@@ -410,11 +352,71 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   return (
     <>
       {renderContent()}
+
       <AdminPasscodeDialog
         isOpen={isPasscodeDialogOpen}
         onClose={() => setIsPasscodeDialogOpen(false)}
         onSuccess={handlePasscodeSuccess}
       />
+      
+      <Sheet open={activeSheet === 'history'} onOpenChange={(isOpen) => !isOpen && setActiveSheet(null)}>
+        <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
+            <SheetHeader>
+                <SheetTitle>
+                  {activeSheet === 'history' && `Riwayat Mutasi: ${selectedAccount?.label}`}
+                </SheetTitle>
+            </SheetHeader>
+            {activeSheet === 'history' && selectedAccount && <TransactionHistory account={selectedAccount} onDone={() => setActiveSheet(null)} />}
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={!!activeSheet && activeSheet !== 'history'} onOpenChange={(isOpen) => !isOpen && closeAllSheets()}>
+        <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
+            <SheetHeader>
+                <SheetTitle>
+                  {activeSheet === 'transfer' && 'Pindah Saldo'}
+                  {activeSheet === 'addCapital' && 'Tambah Modal'}
+                  {activeSheet === 'withdraw' && 'Tarik Saldo Pribadi'}
+                  {activeSheet === 'customerTransfer' && 'Transfer Pelanggan'}
+                  {activeSheet === 'customerTransferReview' && 'Review Transaksi Transfer'}
+                  {activeSheet === 'customerWithdrawal' && 'Tarik Tunai Pelanggan'}
+                  {activeSheet === 'customerWithdrawalReview' && 'Review Tarik Tunai'}
+                  {activeSheet === 'customerTopUp' && 'Top Up E-Wallet'}
+                  {activeSheet === 'customerTopUpReview' && 'Review Top Up E-Wallet'}
+                  {activeSheet === 'customerEmoneyTopUp' && 'Top Up E-Money'}
+                  {activeSheet === 'customerEmoneyTopUpReview' && 'Review Top Up E-Money'}
+                  {activeSheet === 'customerVAPayment' && 'Pembayaran VA Pelanggan'}
+                  {activeSheet === 'customerVAPaymentReview' && 'Review Pembayaran VA'}
+                  {activeSheet === 'EDCService' && 'Layanan EDC'}
+                  {activeSheet === 'customerKJP' && 'Tarik Tunai KJP'}
+                  {activeSheet === 'customerKJPReview' && 'Review Tarik Tunai KJP'}
+                  {activeSheet === 'settlement' && `Settlement: ${selectedAccount?.label}`}
+                  {activeSheet === 'settlementReview' && 'Review Settlement'}
+                  {activeSheet === 'setMotivation' && 'Atur Motivasi Harian'}
+                </SheetTitle>
+            </SheetHeader>
+            {activeSheet === 'transfer' && <TransferBalanceForm onDone={closeAllSheets} />}
+            {activeSheet === 'addCapital' && <AddCapitalForm onDone={closeAllSheets} />}
+            {activeSheet === 'withdraw' && <WithdrawBalanceForm onDone={closeAllSheets} />}
+            {activeSheet === 'customerTransfer' && <CustomerTransferForm onReview={handleReview} onDone={closeAllSheets} />}
+            {activeSheet === 'customerTransferReview' && reviewData && 'destinationBank' in reviewData && <CustomerTransferReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerTransfer')} />}
+            {activeSheet === 'customerWithdrawal' && <CustomerWithdrawalForm onReview={handleReview} onDone={closeAllSheets} />}
+            {activeSheet === 'customerWithdrawalReview' && reviewData && 'customerBankSource' in reviewData && <CustomerWithdrawalReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerWithdrawal')} />}
+            {activeSheet === 'customerTopUp' && <CustomerTopUpForm onReview={handleReview} onDone={closeAllSheets} />}
+            {activeSheet === 'customerTopUpReview' && reviewData && 'destinationEwallet' in reviewData && <CustomerTopUpReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerTopUp')} />}
+            {activeSheet === 'customerEmoneyTopUp' && <CustomerEmoneyTopUpForm onReview={handleReview} onDone={closeAllSheets} />}
+            {activeSheet === 'customerEmoneyTopUpReview' && reviewData && 'destinationEmoney' in reviewData && <CustomerEmoneyTopUpReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerEmoneyTopUp')} />}
+            {activeSheet === 'customerVAPayment' && <CustomerVAPaymentForm onReview={handleReview} onDone={closeAllSheets} />}
+            {activeSheet === 'customerVAPaymentReview' && reviewData && 'serviceProvider' in reviewData && <CustomerVAPaymentReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerVAPayment')} />}
+            {activeSheet === 'EDCService' && <EDCServiceForm onDone={closeAllSheets} />}
+            {activeSheet === 'settlement' && selectedAccount && <SettlementForm account={selectedAccount} onReview={handleReview} onDone={closeAllSheets} />}
+            {activeSheet === 'settlementReview' && reviewData && 'sourceMerchantAccountId' in reviewData && <SettlementReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('settlement')} />}
+            {activeSheet === 'customerKJP' && <CustomerKJPWithdrawalForm onReview={handleReview} onDone={closeAllSheets} />}
+            {activeSheet === 'customerKJPReview' && reviewData && !('sourceMerchantAccountId' in reviewData) && !('serviceProvider' in reviewData) && !('destinationEmoney' in reviewData) && !('destinationEwallet' in reviewData) && !('customerBankSource' in reviewData) && !('destinationBank' in reviewData) && ('withdrawalAmount' in reviewData) && <CustomerKJPWithdrawalReview formData={reviewData as CustomerKJPWithdrawalFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerKJP')} />}
+            {activeSheet === 'setMotivation' && <SetMotivationForm onDone={closeAllSheets} />}
+        </SheetContent>
+      </Sheet>
+
       <BottomNav activeTab={activeTab} setActiveTab={handleTabChange}>
          <Sheet>
             <SheetTrigger asChild>
