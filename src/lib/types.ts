@@ -162,3 +162,29 @@ export type EDCService = {
   paymentToKasTunaiAccountId: string;
   deviceName: string;
 };
+
+export const SettlementFormSchema = z.object({
+    sourceMerchantAccountId: z.string().min(1, 'Akun merchant sumber harus valid'),
+});
+
+export type SettlementFormValues = z.infer<typeof SettlementFormSchema>;
+
+export type Settlement = {
+    id: string;
+    date: string;
+    sourceMerchantAccountId: string;
+    destinationAccountId: string;
+    grossAmount: number;
+    mdrFee: number;
+    netAmount: number;
+    deviceName: string;
+}
+
+export type ReportItem = 
+    | (CustomerTransfer & { id: string; transactionType: 'Transfer' }) 
+    | (CustomerWithdrawal & { id: string; transactionType: 'Tarik Tunai' }) 
+    | (CustomerTopUp & { id: string; transactionType: 'Top Up' })
+    | (CustomerEmoneyTopUp & { id: string; transactionType: 'Top Up E-Money' })
+    | (CustomerVAPayment & { id: string; transactionType: 'VA Payment' })
+    | (EDCService & { id: string; transactionType: 'Layanan EDC' });
+

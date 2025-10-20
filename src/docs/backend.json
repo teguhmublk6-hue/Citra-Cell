@@ -30,6 +30,10 @@
         "color": {
           "type": "string",
           "description": "The background color associated with the account for UI rendering."
+        },
+        "settlementDestinationAccountId": {
+          "type": "string",
+          "description": "For merchant accounts, the ID of the KasAccount where settled funds are transferred."
         }
       },
       "required": [
@@ -252,6 +256,98 @@
         "deviceName"
       ]
     },
+    "CustomerEmoneyTopUp": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CustomerEmoneyTopUp",
+      "type": "object",
+      "description": "Represents an E-Money top-up service transaction for a customer.",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "sourceKasAccountId": { "type": "string" },
+        "destinationEmoney": { "type": "string" },
+        "topUpAmount": { "type": "number" },
+        "serviceFee": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["Tunai", "Transfer", "Split"] },
+        "paymentToKasTunaiAmount": { "type": "number" },
+        "paymentToKasTransferAccountId": { "type": "string" },
+        "paymentToKasTransferAmount": { "type": "number" },
+        "deviceName": { "type": "string" }
+      },
+      "required": [
+        "date",
+        "sourceKasAccountId",
+        "destinationEmoney",
+        "topUpAmount",
+        "serviceFee",
+        "paymentMethod",
+        "deviceName"
+      ]
+    },
+    "CustomerVAPayment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CustomerVAPayment",
+      "type": "object",
+      "description": "Represents a Virtual Account (VA) payment service transaction for a customer.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "sourceKasAccountId": {
+          "type": "string"
+        },
+        "serviceProvider": {
+          "type": "string"
+        },
+        "recipientName": {
+          "type": "string"
+        },
+        "paymentAmount": {
+          "type": "number"
+        },
+        "adminFee": {
+          "type": "number"
+        },
+        "serviceFee": {
+          "type": "number"
+        },
+        "netProfit": {
+          "type": "number"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": [ "Tunai", "Transfer", "Split" ]
+        },
+        "paymentToKasTunaiAmount": {
+          "type": "number"
+        },
+        "paymentToKasTransferAccountId": {
+          "type": "string"
+        },
+        "paymentToKasTransferAmount": {
+          "type": "number"
+        },
+        "deviceName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "date",
+        "sourceKasAccountId",
+        "serviceProvider",
+        "recipientName",
+        "paymentAmount",
+        "adminFee",
+        "serviceFee",
+        "netProfit",
+        "paymentMethod",
+        "deviceName"
+      ]
+    },
     "PPOBTransaction": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PPOBTransaction",
@@ -304,6 +400,54 @@
         "profit",
         "deviceName"
       ]
+    },
+    "EDCService": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "EDCService",
+      "type": "object",
+      "description": "Represents a transaction for lending an EDC machine service.",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "customerName": { "type": "string" },
+        "machineUsed": { "type": "string" },
+        "serviceFee": { "type": "number" },
+        "paymentToKasTunaiAccountId": { "type": "string" },
+        "deviceName": { "type": "string" }
+      },
+      "required": [
+        "date",
+        "customerName",
+        "machineUsed",
+        "serviceFee",
+        "paymentToKasTunaiAccountId",
+        "deviceName"
+      ]
+    },
+    "Settlement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Settlement",
+      "type": "object",
+      "description": "Represents a settlement transaction from a merchant account.",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "sourceMerchantAccountId": { "type": "string" },
+        "destinationAccountId": { "type": "string" },
+        "grossAmount": { "type": "number" },
+        "mdrFee": { "type": "number" },
+        "netAmount": { "type": "number" },
+        "deviceName": { "type": "string" }
+      },
+      "required": [
+        "date",
+        "sourceMerchantAccountId",
+        "destinationAccountId",
+        "grossAmount",
+        "mdrFee",
+        "netAmount",
+        "deviceName"
+      ]
     }
   },
   "firestore": {
@@ -337,13 +481,35 @@
       },
       "description": "Stores a log of all customer e-wallet top-up transactions for auditing."
     },
+    "/customerEmoneyTopUps/{emoneyTopUpId}": {
+      "schema": {
+        "$ref": "#/entities/CustomerEmoneyTopUp"
+      },
+      "description": "Stores a log of all customer e-money top-up transactions for auditing."
+    },
+    "/customerVAPayments/{vaPaymentId}": {
+      "schema": {
+        "$ref": "#/entities/CustomerVAPayment"
+      },
+      "description": "Stores a log of all customer Virtual Account payment transactions for auditing and business intelligence."
+    },
     "/ppobTransactions/{ppobTransactionId}": {
       "schema": {
         "$ref": "#/entities/PPOBTransaction"
       },
       "description": "Stores a log of all PPOB service transactions for auditing profit and loss."
+    },
+    "/edcServices/{edcServiceId}": {
+      "schema": {
+        "$ref": "#/entities/EDCService"
+      },
+      "description": "Stores a log of all EDC rental service transactions for auditing profit and loss."
+    },
+    "/settlements/{settlementId}": {
+      "schema": {
+        "$ref": "#/entities/Settlement"
+      },
+      "description": "Stores a log of all merchant settlement transactions for auditing."
     }
   }
 }
-
-    

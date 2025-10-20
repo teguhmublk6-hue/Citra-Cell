@@ -6,11 +6,11 @@ import QuickServices from './quick-services';
 import BottomNav from './bottom-nav';
 import AdminContent from './AdminContent';
 import SettingsContent from './settings-content';
-import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw } from 'lucide-react';
+import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw, Banknote } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { KasAccount as KasAccountType } from '@/lib/data';
-import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight, CreditCard, IdCard } from 'lucide-react';
+import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight, CreditCard, IdCard, GraduationCap } from 'lucide-react';
 import Header from './header';
 import BalanceCard from './balance-card';
 import {
@@ -31,7 +31,7 @@ import AddCapitalForm from './AddCapitalForm';
 import WithdrawBalanceForm from './WithdrawBalanceForm';
 import CustomerTransferForm from './CustomerTransferForm';
 import CustomerTransferReview from './CustomerTransferReview';
-import type { CustomerEmoneyTopUpFormValues, CustomerTopUpFormValues, CustomerTransferFormValues, CustomerVAPaymentFormValues, CustomerWithdrawalFormValues, EDCServiceFormValues } from '@/lib/types';
+import type { CustomerEmoneyTopUpFormValues, CustomerTopUpFormValues, CustomerTransferFormValues, CustomerVAPaymentFormValues, CustomerWithdrawalFormValues, EDCServiceFormValues, SettlementFormValues } from '@/lib/types';
 import BookkeepingReport from './BookkeepingReport';
 import AdminPasscodeDialog from './AdminPasscodeDialog';
 import CustomerWithdrawalForm from './CustomerWithdrawalForm';
@@ -44,6 +44,9 @@ import CustomerVAPaymentReview from './CustomerVAPaymentReview';
 import EDCServiceForm from './EDCServiceForm';
 import CustomerEmoneyTopUpForm from './CustomerEmoneyTopUpForm';
 import CustomerEmoneyTopUpReview from './CustomerEmoneyTopUpReview';
+import SettlementForm from './SettlementForm';
+import SettlementReview from './SettlementReview';
+import { Button } from '../ui/button';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -56,7 +59,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'admin' | 'settings';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'KJP';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'KJP' | 'settlement' | 'settlementReview';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -68,7 +71,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
   const [currentSlide, setCurrentSlide] = useState(0)
-  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | null>(null);
+  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | null>(null);
   const [isAdminAccessGranted, setIsAdminAccessGranted] = useState(false);
   const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
   const [isReportVisible, setIsReportVisible] = useState(false);
@@ -159,7 +162,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     }
   }
 
-  const handleReview = (data: CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues) => {
+  const handleReview = (data: CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues) => {
     setReviewData(data);
     if ('destinationBank' in data) {
       setActiveSheet('customerTransferReview');
@@ -171,7 +174,14 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         setActiveSheet('customerVAPaymentReview');
     } else if ('destinationEmoney' in data) {
         setActiveSheet('customerEmoneyTopUpReview');
+    } else if ('sourceMerchantAccountId' in data) {
+        setActiveSheet('settlementReview');
     }
+  }
+  
+  const handleSettlementClick = (account: KasAccountType) => {
+    setSelectedAccount(account);
+    setActiveSheet('settlement');
   }
 
   const closeAllSheets = () => {
@@ -283,18 +293,28 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                             {kasAccounts?.filter(account => account.type !== 'Tunai').map((account) => {
                                 const Icon = iconMap[account.type] || iconMap['default'];
                                 return (
-                                <button key={account.id} onClick={() => handleAccountClick(account)} className="w-full text-left p-3 bg-card/80 backdrop-blur-md flex items-center justify-between gap-4 border-t border-border/10 hover:bg-muted/50 transition-colors">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${account.color}`}>
-                                            <Icon size={20} className="text-white" />
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-sm">{account.label}</p>
-                                            <p className="text-muted-foreground text-xs">Rp{account.balance.toLocaleString('id-ID')}</p>
-                                        </div>
+                                <div key={account.id} className="w-full text-left p-3 bg-card/80 backdrop-blur-md flex items-center justify-between gap-4 border-t border-border/10">
+                                    <button onClick={() => handleAccountClick(account)} className="flex-1 flex items-center gap-3">
+                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${account.color}`}>
+                                          <Icon size={20} className="text-white" />
+                                      </div>
+                                      <div>
+                                          <p className="font-semibold text-sm">{account.label}</p>
+                                          <p className="text-muted-foreground text-xs">Rp{account.balance.toLocaleString('id-ID')}</p>
+                                      </div>
+                                    </button>
+                                    <div className="flex items-center">
+                                      {account.type === 'Merchant' && (
+                                        <Button size="sm" variant="outline" onClick={() => handleSettlementClick(account)} className="flex items-center gap-2">
+                                          <Banknote size={14} />
+                                          <span>Settlement</span>
+                                        </Button>
+                                      )}
+                                      <button onClick={() => handleAccountClick(account)} className="p-2">
+                                        <ChevronRight size={18} className="text-muted-foreground" />
+                                      </button>
                                     </div>
-                                    <ChevronRight size={18} className="text-muted-foreground" />
-                                </button>
+                                </div>
                                 );
                             })}
                             </div>
@@ -330,6 +350,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                             {activeSheet === 'customerVAPayment' && 'Pembayaran VA Pelanggan'}
                             {activeSheet === 'customerVAPaymentReview' && 'Review Pembayaran VA'}
                             {activeSheet === 'EDCService' && 'Layanan EDC'}
+                            {activeSheet === 'settlement' && `Settlement: ${selectedAccount?.label}`}
+                            {activeSheet === 'settlementReview' && 'Review Settlement'}
                           </SheetTitle>
                       </SheetHeader>
                       {activeSheet === 'transfer' && <TransferBalanceForm onDone={closeAllSheets} />}
@@ -346,6 +368,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                       {activeSheet === 'customerVAPayment' && <CustomerVAPaymentForm onReview={handleReview} onDone={closeAllSheets} />}
                       {activeSheet === 'customerVAPaymentReview' && reviewData && 'serviceProvider' in reviewData && <CustomerVAPaymentReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerVAPayment')} />}
                       {activeSheet === 'EDCService' && <EDCServiceForm onDone={closeAllSheets} />}
+                      {activeSheet === 'settlement' && selectedAccount && <SettlementForm account={selectedAccount} onReview={handleReview} onDone={closeAllSheets} />}
+                      {activeSheet === 'settlementReview' && reviewData && 'sourceMerchantAccountId' in reviewData && <SettlementReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('settlement')} />}
                   </SheetContent>
                 </Sheet>
 
@@ -409,4 +433,5 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     </>
   );
 }
+
 

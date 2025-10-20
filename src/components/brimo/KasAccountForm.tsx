@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { accountTypes } from '@/lib/data';
@@ -29,6 +29,7 @@ const formSchema = z.object({
     numberPreprocessor,
     z.number({ invalid_type_error: "Saldo minimal harus angka" }).min(0, 'Saldo minimal tidak boleh negatif').optional()
   ),
+  settlementDestinationAccountId: z.string().optional(),
 });
 
 interface KasAccountFormProps {
@@ -51,6 +52,10 @@ const parseRupiah = (value: string | undefined | null): number => {
 
 export default function KasAccountForm({ account, onDone }: KasAccountFormProps) {
   const firestore = useFirestore();
+  const kasAccountsCollection = useMemoFirebase(() => {
+    return collection(firestore, 'kasAccounts');
+  }, [firestore]);
+  const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -59,8 +64,11 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
       type: account?.type || '',
       balance: account?.balance || undefined,
       minimumBalance: account?.minimumBalance || undefined,
+      settlementDestinationAccountId: account?.settlementDestinationAccountId || '',
     },
   });
+
+  const accountType = form.watch('type');
 
   useEffect(() => {
     if (account) {
@@ -69,9 +77,10 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
             type: account.type,
             balance: account.balance,
             minimumBalance: account.minimumBalance,
+            settlementDestinationAccountId: account.settlementDestinationAccountId || '',
         });
     }
-  }, [account, form])
+  }, [account, form]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const selectedType = accountTypes.find(t => t.value === values.type);
@@ -81,6 +90,7 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
       balance: values.balance,
       minimumBalance: values.minimumBalance || 0,
       color: selectedType?.color || 'bg-gray-500',
+      settlementDestinationAccountId: values.type === 'Merchant' ? values.settlementDestinationAccountId : null,
     };
 
     if (account) {
@@ -135,6 +145,30 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
                     </FormItem>
                 )}
                 />
+                {accountType === 'Merchant' && (
+                  <FormField
+                    control={form.control}
+                    name="settlementDestinationAccountId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Akun Tujuan Settlement</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Pilih akun tujuan" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {kasAccounts?.filter(acc => acc.id !== account?.id).map(acc => (
+                              <SelectItem key={acc.id} value={acc.id}>{acc.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                 <FormField
                 control={form.control}
                 name="balance"
