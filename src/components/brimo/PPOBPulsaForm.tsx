@@ -20,6 +20,7 @@ import { PPOBPulsaFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import shopeePricing from '@/lib/shopee-pricing.json';
 
 interface PPOBPulsaFormProps {
   onReview: (data: PPOBPulsaFormValues) => void;
@@ -89,6 +90,7 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
   const paymentMethod = form.watch('paymentMethod');
   const phoneNumber = form.watch('phoneNumber');
   const denomination = form.watch('denomination');
+  const sourcePPOBAccountId = form.watch('sourcePPOBAccountId');
 
   useEffect(() => {
     const prefix = phoneNumber.substring(0, 4);
@@ -96,12 +98,29 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
     setDetectedProvider(foundProvider ? foundProvider.name : null);
   }, [phoneNumber]);
 
+  const selectedPPOBAccount = useMemo(() => kasAccounts?.find(acc => acc.id === sourcePPOBAccountId), [kasAccounts, sourcePPOBAccountId]);
+
+  useEffect(() => {
+    if (selectedPPOBAccount?.label === 'Mitra Shopee' && detectedProvider && denomination) {
+      const pricing = (shopeePricing as any)[detectedProvider];
+      const denomPrice = pricing ? pricing[denomination.replace(/\./g, '')] : null;
+
+      if (denomPrice) {
+        form.setValue('costPrice', denomPrice.costPrice);
+        form.setValue('sellingPrice', denomPrice.sellingPrice);
+      } else {
+        // Reset if no price found for that combination
+        form.setValue('costPrice', undefined);
+        form.setValue('sellingPrice', undefined);
+      }
+    }
+  }, [selectedPPOBAccount, detectedProvider, denomination, form]);
+
+
   const ppobAccounts = useMemo(() => kasAccounts?.filter(acc => acc.type === 'PPOB'), [kasAccounts]);
 
   const onSubmit = (values: PPOBPulsaFormValues) => { onReview(values); };
   
-  const selectedPPOBAccount = ppobAccounts?.find(acc => acc.id === form.watch('sourcePPOBAccountId'));
-
   const handleDenomClick = (denom: string) => {
     form.setValue('denomination', denom);
     setIsManualDenom(false);
@@ -126,11 +145,13 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
                         <Card 
                             key={acc.id} 
                             onClick={() => { form.setValue('sourcePPOBAccountId', acc.id); setCurrentStep(2); }} 
-                            className="cursor-pointer hover:ring-2 hover:ring-primary transition relative overflow-hidden group"
+                            className="cursor-pointer hover:ring-2 hover:ring-primary transition relative overflow-hidden group aspect-[1.5/1]"
                         >
-                            <CardContent className="p-0 flex flex-col items-center justify-center aspect-[1.5/1] text-center">
+                            <CardContent className="p-0 flex flex-col items-center justify-center h-full text-center">
                                 {acc.iconUrl ? (
-                                    <Image src={acc.iconUrl} alt={acc.label} fill className="object-cover" />
+                                    <>
+                                        <Image src={acc.iconUrl} alt={acc.label} fill className="object-cover" />
+                                    </>
                                 ) : (
                                     <div className="p-2">
                                         <p className="font-semibold text-lg">{acc.label}</p>
@@ -273,5 +294,3 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
     </Form>
   );
 }
-
-    
