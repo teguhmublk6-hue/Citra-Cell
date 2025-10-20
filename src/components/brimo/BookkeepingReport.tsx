@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
-import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp } from '@/lib/types';
+import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerVAPayment } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,12 @@ interface BookkeepingReportProps {
   onDone: () => void;
 }
 
-type ReportItem = (CustomerTransfer & { id: string; transactionType: 'Transfer' }) | (CustomerWithdrawal & { id: string; transactionType: 'Tarik Tunai' }) | (CustomerTopUp & { id: string; transactionType: 'Top Up' });
+type ReportItem = 
+    | (CustomerTransfer & { id: string; transactionType: 'Transfer' }) 
+    | (CustomerWithdrawal & { id: string; transactionType: 'Tarik Tunai' }) 
+    | (CustomerTopUp & { id: string; transactionType: 'Top Up' })
+    | (CustomerVAPayment & { id: string; transactionType: 'VA Payment' });
+
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
     if (value === null || value === undefined || value === '') return 'Rp 0';
@@ -55,10 +60,11 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
             const queries = [
                 getDocs(query(collection(firestore, 'customerTransfers'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
                 getDocs(query(collection(firestore, 'customerWithdrawals'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
-                getDocs(query(collection(firestore, 'customerTopUps'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : [])))
+                getDocs(query(collection(firestore, 'customerTopUps'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+                getDocs(query(collection(firestore, 'customerVAPayments'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : [])))
             ];
 
-            const [transfersSnapshot, withdrawalsSnapshot, topUpsSnapshot] = await Promise.all(queries);
+            const [transfersSnapshot, withdrawalsSnapshot, topUpsSnapshot, vaPaymentsSnapshot] = await Promise.all(queries);
 
             const combinedReports: ReportItem[] = [];
 
@@ -89,6 +95,16 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                     ...data,
                     date: (data.date as Timestamp).toDate(),
                     transactionType: 'Top Up'
+                } as any);
+            });
+            
+            vaPaymentsSnapshot.forEach((doc) => {
+                const data = doc.data();
+                combinedReports.push({
+                    id: doc.id,
+                    ...data,
+                    date: (data.date as Timestamp).toDate(),
+                    transactionType: 'VA Payment'
                 } as any);
             });
 
@@ -224,7 +240,7 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                                         <TableCell className="text-right">{formatToRupiah(report.withdrawalAmount)}</TableCell>
                                         <TableCell>{report.deviceName}</TableCell>
                                     </>
-                                ) : ( // Top Up
+                                ) : report.transactionType === 'Top Up' ? (
                                     <>
                                         <TableCell>Top Up</TableCell>
                                         <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
@@ -233,7 +249,16 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                                         <TableCell className="text-right">{formatToRupiah(report.topUpAmount)}</TableCell>
                                         <TableCell>{report.deviceName}</TableCell>
                                     </>
-                                )}
+                                ) : report.transactionType === 'VA Payment' ? (
+                                    <>
+                                        <TableCell>VA Payment</TableCell>
+                                        <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                                        <TableCell>{report.serviceProvider}</TableCell>
+                                        <TableCell>{report.recipientName}</TableCell>
+                                        <TableCell className="text-right">{formatToRupiah(report.paymentAmount)}</TableCell>
+                                        <TableCell>{report.deviceName}</TableCell>
+                                    </>
+                                ) : null}
                             </TableRow>
                         ))}
                     </TableBody>
