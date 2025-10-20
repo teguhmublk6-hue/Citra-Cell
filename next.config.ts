@@ -106,6 +106,12 @@ const nextConfig: NextConfig = {
         hostname: 's0.bukalapak.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'static.promediateknologi.id',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
