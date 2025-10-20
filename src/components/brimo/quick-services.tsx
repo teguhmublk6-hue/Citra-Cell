@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import type { CarouselApi } from "@/components/ui/carousel"
 import React from 'react';
 
-type ServiceType = 'customerTransfer' | 'withdraw' | 'topUp' | 'customerVAPayment' | 'EDCService';
+type ServiceType = 'customerTransfer' | 'withdraw' | 'topUp' | 'customerVAPayment' | 'EDCService' | 'Emoney';
 interface QuickServicesProps {
     onServiceClick: (service: ServiceType) => void;
 }
@@ -56,6 +56,9 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
     }
     if (label === 'Layanan EDC') {
         onServiceClick('EDCService');
+    }
+    if (label === 'Emoney') {
+        onServiceClick('Emoney');
     }
   }
 
