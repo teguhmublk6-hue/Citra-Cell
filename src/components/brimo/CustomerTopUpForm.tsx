@@ -137,7 +137,7 @@ export default function CustomerTopUpForm({ onReview, onDone }: CustomerTopUpFor
                         <Card
                           key={wallet.name}
                           onClick={() => field.onChange(wallet.name)}
-                          className={cn("cursor-pointer")}
+                          className={cn("cursor-pointer bg-white")}
                         >
                           <CardContent className="p-2 flex items-center justify-center aspect-[2/1]">
                             <div className="relative w-full h-full">
@@ -155,7 +155,7 @@ export default function CustomerTopUpForm({ onReview, onDone }: CustomerTopUpFor
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <Card className="ring-2 ring-primary">
+                      <Card className="ring-2 ring-primary bg-white">
                         <CardContent className="p-2 flex items-center justify-center aspect-[2/1]">
                            <div className="relative w-full h-full">
                             <Image
