@@ -100,6 +100,12 @@ const nextConfig: NextConfig = {
         hostname: 'cdn6.aptoide.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 's0.bukalapak.com',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
