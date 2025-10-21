@@ -45,6 +45,7 @@ export const CustomerWithdrawalFormSchema = z.object({
   customerName: z.string().min(1, 'Nama penarik harus diisi'),
   withdrawalAmount: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Nominal harus angka" }).positive('Nominal penarikan harus lebih dari 0')),
   serviceFee: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Biaya harus angka" }).min(0, 'Biaya jasa tidak boleh negatif')),
+  feePaymentMethod: z.enum(['Dipotong', 'Tunai'], { required_error: 'Metode pembayaran biaya jasa harus dipilih' }),
   destinationAccountId: z.string().min(1, 'Akun kas tujuan harus dipilih'),
 });
 
@@ -57,6 +58,7 @@ export type CustomerWithdrawal = {
     customerBankSource: string;
     withdrawalAmount: number;
     serviceFee: number;
+    feePaymentMethod: 'Dipotong' | 'Tunai';
     destinationKasAccountId: string;
     sourceKasTunaiAccountId: string;
     deviceName: string;
@@ -265,9 +267,3 @@ export type PPOBTransaction = {
     paymentToKasTransferAmount?: number;
     deviceName: string;
 }
-
-    
-
-    
-
-    

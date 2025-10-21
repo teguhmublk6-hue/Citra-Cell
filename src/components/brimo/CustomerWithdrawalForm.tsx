@@ -20,6 +20,7 @@ import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CustomerWithdrawalFormValues } from '@/lib/types';
 import { CustomerWithdrawalFormSchema } from '@/lib/types';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 
 
 interface CustomerWithdrawalFormProps {
@@ -70,6 +71,7 @@ export default function CustomerWithdrawalForm({ onReview, onDone }: CustomerWit
         withdrawalAmount: undefined,
         serviceFee: undefined,
         destinationAccountId: '',
+        feePaymentMethod: undefined,
     },
   });
 
@@ -184,13 +186,37 @@ export default function CustomerWithdrawalForm({ onReview, onDone }: CustomerWit
                 )}/>
             </div>
 
+             {/* Metode Pembayaran Biaya Jasa */}
+            <FormField
+              control={form.control}
+              name="feePaymentMethod"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Pembayaran Biaya Jasa</FormLabel>
+                  <FormControl>
+                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl><RadioGroupItem value="Dipotong" /></FormControl>
+                        <FormLabel className="font-normal">Potong dari Uang Tunai</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl><RadioGroupItem value="Tunai" /></FormControl>
+                        <FormLabel className="font-normal">Bayar Tunai Terpisah</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             {/* Akun Kas Tujuan */}
             <FormField
               control={form.control}
               name="destinationAccountId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Saldo Masuk Ke Akun</FormLabel>
+                  <FormLabel>Dana Masuk Ke Akun</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -222,5 +248,3 @@ export default function CustomerWithdrawalForm({ onReview, onDone }: CustomerWit
     </Form>
   );
 }
-
-    

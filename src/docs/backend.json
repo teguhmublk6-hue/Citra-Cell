@@ -234,6 +234,7 @@
         "customerBankSource": { "type": "string" },
         "withdrawalAmount": { "type": "number" },
         "serviceFee": { "type": "number" },
+        "feePaymentMethod": { "type": "string", "enum": ["Dipotong", "Tunai"] },
         "destinationKasAccountId": { "type": "string" },
         "sourceKasTunaiAccountId": { "type": "string" },
         "deviceName": { "type": "string" }
@@ -244,6 +245,7 @@
         "customerBankSource",
         "withdrawalAmount",
         "serviceFee",
+        "feePaymentMethod",
         "destinationKasAccountId",
         "sourceKasTunaiAccountId",
         "deviceName"
@@ -575,5 +577,3 @@
     }
   }
 }
-
-    

@@ -35,15 +35,16 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
     const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
 
     const destinationAccount = kasAccounts?.find(acc => acc.id === formData.destinationAccountId);
-    const tunaiAccount = kasAccounts?.find(acc => acc.label === 'Laci');
+    const laciAccount = kasAccounts?.find(acc => acc.label === 'Laci');
 
     const {
         withdrawalAmount,
         serviceFee,
+        feePaymentMethod,
     } = formData;
 
+    const cashGivenToCustomer = feePaymentMethod === 'Dipotong' ? withdrawalAmount - serviceFee : withdrawalAmount;
     const totalTransferFromCustomer = withdrawalAmount;
-    const netCashGivenToCustomer = withdrawalAmount - serviceFee;
 
     const handleSaveTransaction = async () => {
         if (!firestore || !destinationAccount || !kasAccounts) {
@@ -51,15 +52,12 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
             return;
         }
 
-        const laciAccountName = 'Laci';
-        const laciAccount = kasAccounts.find(acc => acc.label === laciAccountName);
-
         if (!laciAccount) {
-            toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: `Silakan buat akun kas dengan nama "${laciAccountName}" dan jenis "Tunai".` });
+            toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: `Silakan buat akun kas dengan nama "Laci" dan jenis "Tunai".` });
             return;
         }
 
-        if (laciAccount.balance < netCashGivenToCustomer) {
+        if (laciAccount.balance < cashGivenToCustomer) {
             toast({ variant: "destructive", title: "Saldo Laci Tidak Cukup", description: `Saldo ${laciAccount.label} tidak mencukupi untuk memberikan uang tunai.` });
             return;
         }
@@ -88,11 +86,11 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
                 const currentDestBalance = destAccountDoc.data().balance;
                 const currentLaciBalance = laciAccountDoc.data().balance;
 
-                if (currentLaciBalance < netCashGivenToCustomer) {
+                if (currentLaciBalance < cashGivenToCustomer) {
                     throw new Error(`Saldo ${laciAccount.label} tidak mencukupi.`);
                 }
-
-                // 1. Credit Destination Account with the withdrawal amount
+                
+                // 1. Credit Destination Account with the customer's transfer
                 const newDestBalance = currentDestBalance + totalTransferFromCustomer;
                 transaction.update(destAccountRef, { balance: newDestBalance });
                 const creditTrxRef = doc(collection(destAccountRef, 'transactions'));
@@ -109,24 +107,62 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
                     deviceName
                 });
 
-                // 2. Debit Laci for the cash given to customer
-                const newLaciBalance = currentLaciBalance - netCashGivenToCustomer;
-                transaction.update(laciAccountRef, { balance: newLaciBalance });
 
-                // Debit transaction for the net cash given out
-                const debitTrxRef = doc(collection(laciAccountRef, 'transactions'));
-                transaction.set(debitTrxRef, {
-                    kasAccountId: laciAccount.id,
-                    type: 'debit',
-                    name: `Tarik Tunai a/n ${formData.customerName}`,
-                    account: 'Pelanggan',
-                    date: nowISO,
-                    amount: netCashGivenToCustomer,
-                    balanceBefore: currentLaciBalance,
-                    balanceAfter: newLaciBalance,
-                    category: 'customer_withdrawal_debit',
-                    deviceName
-                });
+                // 2. Handle Laci (Cash) Account based on fee payment method
+                if (feePaymentMethod === 'Tunai') {
+                    // Two separate transactions for clarity
+                    const balanceAfterDebit = currentLaciBalance - withdrawalAmount;
+                    const finalLaciBalance = balanceAfterDebit + serviceFee;
+
+                    // Debit for cash given to customer
+                    transaction.update(laciAccountRef, { balance: finalLaciBalance });
+                    const debitTrxRef = doc(collection(laciAccountRef, 'transactions'));
+                    transaction.set(debitTrxRef, {
+                        kasAccountId: laciAccount.id,
+                        type: 'debit',
+                        name: `Tarik Tunai a/n ${formData.customerName}`,
+                        account: 'Pelanggan',
+                        date: nowISO,
+                        amount: withdrawalAmount,
+                        balanceBefore: currentLaciBalance,
+                        balanceAfter: balanceAfterDebit,
+                        category: 'customer_withdrawal_debit',
+                        deviceName
+                    });
+
+                    // Credit for cash fee received
+                    const feeTrxRef = doc(collection(laciAccountRef, 'transactions'));
+                     transaction.set(feeTrxRef, {
+                        kasAccountId: laciAccount.id,
+                        type: 'credit',
+                        name: `Biaya Jasa Tarik Tunai`,
+                        account: 'Pendapatan Jasa',
+                        date: nowISO,
+                        amount: serviceFee,
+                        balanceBefore: balanceAfterDebit,
+                        balanceAfter: finalLaciBalance,
+                        category: 'service_fee_income',
+                        deviceName
+                    });
+
+                } else { // 'Dipotong'
+                    const newLaciBalance = currentLaciBalance - cashGivenToCustomer;
+                    transaction.update(laciAccountRef, { balance: newLaciBalance });
+
+                    const debitTrxRef = doc(collection(laciAccountRef, 'transactions'));
+                    transaction.set(debitTrxRef, {
+                        kasAccountId: laciAccount.id,
+                        type: 'debit',
+                        name: `Tarik Tunai a/n ${formData.customerName} (Fee Dipotong)`,
+                        account: 'Pelanggan',
+                        date: nowISO,
+                        amount: cashGivenToCustomer,
+                        balanceBefore: currentLaciBalance,
+                        balanceAfter: newLaciBalance,
+                        category: 'customer_withdrawal_debit',
+                        deviceName
+                    });
+                }
             });
 
             // --- AUDIT LOG (after transaction) ---
@@ -136,6 +172,7 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
                 customerBankSource: formData.customerBankSource,
                 withdrawalAmount: formData.withdrawalAmount,
                 serviceFee: formData.serviceFee,
+                feePaymentMethod: formData.feePaymentMethod,
                 destinationKasAccountId: formData.destinationAccountId,
                 sourceKasTunaiAccountId: laciAccount!.id,
                 deviceName: deviceName
@@ -151,6 +188,24 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
             setIsSaving(false);
         }
     };
+    
+    const renderFeePaymentDetails = () => {
+        if (feePaymentMethod === 'Dipotong') {
+            return "Biaya jasa dipotong dari uang tunai yang diberikan ke pelanggan.";
+        }
+        return "Pelanggan membayar biaya jasa secara tunai terpisah.";
+    }
+
+    const renderLaciBalanceChange = () => {
+        if (feePaymentMethod === 'Tunai') {
+            return <>
+                <li>Saldo <strong>{laciAccount?.label || 'Laci'}</strong> berkurang <span className="font-semibold text-red-500">{formatToRupiah(withdrawalAmount)}</span> (diberikan ke pelanggan).</li>
+                <li>Saldo <strong>{laciAccount?.label || 'Laci'}</strong> bertambah <span className="font-semibold text-green-500">{formatToRupiah(serviceFee)}</span> (dari biaya jasa tunai).</li>
+            </>
+        }
+        return <li>Saldo <strong>{laciAccount?.label || 'Laci'}</strong> akan berkurang <span className="font-semibold text-red-500">{formatToRupiah(cashGivenToCustomer)}</span>.</li>
+    }
+
 
     return (
         <div className="flex flex-col h-full">
@@ -162,7 +217,7 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
                         <div className="text-sm space-y-1 text-muted-foreground">
                             <p>Pelanggan: <strong>{formData.customerName}</strong></p>
                             <p>Sumber Dana: <strong>{formData.customerBankSource}</strong></p>
-                            <p>Uang Tunai Diberikan: <strong className="text-lg">{formatToRupiah(netCashGivenToCustomer)}</strong></p>
+                            <p>Uang Tunai Diberikan: <strong className="text-lg">{formatToRupiah(cashGivenToCustomer)}</strong></p>
                         </div>
                     </div>
                     <Separator />
@@ -172,15 +227,16 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
                         <div className="flex justify-between items-center"><p>Nominal Penarikan</p><p>{formatToRupiah(withdrawalAmount)}</p></div>
                         <div className="flex justify-between items-center"><p>Biaya Jasa (Laba)</p><p>{formatToRupiah(serviceFee)}</p></div>
                         <Separator />
-                        <div className="flex justify-between items-center font-bold text-base"><p>Total Transfer dari Pelanggan</p><p>{formatToRupiah(totalTransferFromCustomer)}</p></div>
+                        <div className="flex justify-between items-center font-bold text-base"><p>Total Transfer ke Rekening BRILink</p><p>{formatToRupiah(totalTransferFromCustomer)}</p></div>
                     </div>
                      <Separator />
                      {/* Account Cycle Details */}
                     <div className="space-y-2">
                         <h4 className="font-semibold text-lg">Siklus Akun Kas</h4>
                         <div className="text-sm text-muted-foreground">
-                            <p>Saldo akan masuk ke akun <strong>{destinationAccount?.label}</strong>.</p>
-                            <p>Uang tunai diambil dari akun <strong>{tunaiAccount?.label || 'Laci'}</strong>.</p>
+                            <p>Dana akan masuk ke akun <strong>{destinationAccount?.label}</strong>.</p>
+                            <p>Uang tunai diambil dari akun <strong>{laciAccount?.label || 'Laci'}</strong>.</p>
+                            <p>{renderFeePaymentDetails()}</p>
                         </div>
                     </div>
 
@@ -190,7 +246,7 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
                         <AlertDescription>
                             <ul className="list-disc pl-5 space-y-1 mt-2">
                                <li>Saldo <strong>{destinationAccount?.label}</strong> akan bertambah <span className="font-semibold text-green-500">{formatToRupiah(totalTransferFromCustomer)}</span>.</li>
-                               <li>Saldo <strong>{tunaiAccount?.label || 'Laci'}</strong> akan berkurang <span className="font-semibold text-red-500">{formatToRupiah(netCashGivenToCustomer)}</span>.</li>
+                               {renderLaciBalanceChange()}
                             </ul>
                         </AlertDescription>
                     </Alert>
@@ -208,5 +264,3 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
         </div>
     );
 }
-
-    
