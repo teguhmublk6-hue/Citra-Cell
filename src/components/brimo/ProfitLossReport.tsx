@@ -143,6 +143,28 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
   }, { costPrice: 0, sellingPrice: 0, profit: 0 });
 
   const totalNetProfit = brilinkTotals.labaRugi + ppobTotals.profit;
+  
+  const getBrilinkBankInfo = (report: BrilinkReportItem) => {
+    switch (report.transactionType) {
+        case 'Transfer':
+            return report.destinationBankName;
+        case 'Tarik Tunai':
+            return report.customerBankSource;
+        case 'Top Up':
+            return report.destinationEwallet;
+        case 'Top Up E-Money':
+            return report.destinationEmoney;
+        case 'VA Payment':
+            return report.serviceProvider;
+        case 'Layanan EDC':
+            return report.machineUsed;
+        case 'Tarik Tunai KJP':
+            return 'Bank DKI';
+        default:
+            return '-';
+    }
+  }
+
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -206,6 +228,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                 <TableHead className="w-[40px] sticky left-0 bg-background z-20 py-2">No</TableHead>
                                 <TableHead className="sticky left-[40px] bg-background z-20 py-2">Layanan</TableHead>
                                 <TableHead className="sticky left-[120px] bg-background z-20 py-2">Nama</TableHead>
+                                <TableHead className="sticky left-[220px] bg-background z-20 py-2">Bank/Tujuan</TableHead>
                                 <TableHead className="text-right py-2">Nominal</TableHead>
                                 <TableHead className="text-right py-2">Admin Bank</TableHead>
                                 <TableHead className="text-right py-2">Jasa</TableHead>
@@ -218,6 +241,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                     <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
                                     <TableCell className="sticky left-[40px] bg-background z-10 py-2">{report.transactionType}</TableCell>
                                     <TableCell className="sticky left-[120px] bg-background z-10 py-2">{'destinationAccountName' in report ? report.destinationAccountName : report.customerName}</TableCell>
+                                    <TableCell className="sticky left-[220px] bg-background z-10 py-2">{getBrilinkBankInfo(report)}</TableCell>
                                     <TableCell className="text-right py-2">{formatToRupiah('transferAmount' in report ? report.transferAmount : ('withdrawalAmount' in report ? report.withdrawalAmount : ('topUpAmount' in report ? report.topUpAmount : ('paymentAmount' in report ? report.paymentAmount : 0))))}</TableCell>
                                     <TableCell className="text-right py-2">{formatToRupiah('bankAdminFee' in report ? report.bankAdminFee : ('adminFee' in report ? report.adminFee : 0))}</TableCell>
                                     <TableCell className="text-right py-2">{formatToRupiah(report.serviceFee)}</TableCell>
@@ -227,14 +251,14 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                         </TableBody>
                         <TableFooter>
                             <TableRow className="font-bold bg-muted/50">
-                                <TableCell colSpan={3} className="sticky left-0 bg-muted/50 z-10">Total</TableCell>
+                                <TableCell colSpan={4} className="sticky left-0 bg-muted/50 z-10">Total</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.nominal)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.adminBank)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.jasa)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.labaRugi)}</TableCell>
                             </TableRow>
                             <TableRow className="font-bold text-lg bg-muted">
-                                <TableCell colSpan={6} className="sticky left-0 bg-muted z-10">Total Laba BRILink</TableCell>
+                                <TableCell colSpan={7} className="sticky left-0 bg-muted z-10">Total Laba BRILink</TableCell>
                                 <TableCell className="text-right text-green-600 py-2">{formatToRupiah(brilinkTotals.labaRugi)}</TableCell>
                             </TableRow>
                         </TableFooter>
