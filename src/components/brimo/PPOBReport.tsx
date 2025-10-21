@@ -165,7 +165,9 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                                 <TableCell>{report.serviceName}</TableCell>
                                 <TableCell>{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
                                 <TableCell>{report.destination}</TableCell>
-                                <TableCell>{report.description}</TableCell>
+                                <TableCell>
+                                    {report.serviceName === 'Token Listrik' ? 'Token Listrik' : report.description}
+                                </TableCell>
                                 <TableCell className="text-right">{formatToRupiah(report.costPrice)}</TableCell>
                                 <TableCell className="text-right">{formatToRupiah(report.sellingPrice)}</TableCell>
                                 <TableCell>{report.deviceName}</TableCell>
