@@ -24,7 +24,7 @@ export default function AccountsContent({ onAccountClick, onSettlementClick }: A
     useEffect(() => {
         const checkTime = () => {
             const currentHour = new Date().getHours();
-            if (currentHour >= 23) {
+            if (currentHour >= 21) {
                 setShowSettlementShortcut(true);
             } else {
                 setShowSettlementShortcut(false);
