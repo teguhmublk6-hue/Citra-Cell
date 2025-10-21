@@ -15,7 +15,7 @@ export default function BottomNav({ activeTab, setActiveTab, children }: BottomN
   const navItemsToShow = navItems.filter(item => item.id !== 'qris');
   
   // Custom order for the bottom nav
-  const orderedNavIds: ActiveTab[] = ['home', 'mutasi', 'accounts', 'admin', 'settings'];
+  const orderedNavIds: ActiveTab[] = ['home', 'laporan', 'mutasi', 'accounts', 'admin'];
   const orderedNavItems = orderedNavIds.map(id => navItemsToShow.find(item => item.id === id)).filter(Boolean) as (typeof navItemsToShow);
 
   const middleIndex = 2; // Hardcoded to 2 for a 2-1-2 layout with 5 items

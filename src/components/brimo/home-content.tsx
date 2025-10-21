@@ -75,7 +75,7 @@ export const iconMap: { [key: string]: React.ElementType } = {
   'default': Wallet,
 };
 
-export type ActiveTab = 'home' | 'mutasi' | 'accounts' | 'admin' | 'settings';
+export type ActiveTab = 'home' | 'laporan' | 'mutasi' | 'accounts' | 'admin' | 'settings';
 type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview' | 'operationalCostReport';
 type FormSheet = 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'ppobPulsa' | 'ppobTokenListrik';
 
@@ -95,7 +95,6 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | CustomerKJPWithdrawalFormValues | MotivationFormValues | PPOBPulsaFormValues | PPOBTokenListrikFormValues | null>(null);
   const [isAdminAccessGranted, setIsAdminAccessGranted] = useState(false);
   const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
-  const [isBrilinkReportVisible, setIsBrilinkReportVisible] = useState(false);
   const [isPpobReportVisible, setIsPpobReportVisible] = useState(false);
   const [isProfitLossReportVisible, setIsProfitLossReportVisible] = useState(false);
   const [isOperationalCostReportVisible, setIsOperationalCostReportVisible] = useState(false);
@@ -255,10 +254,6 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     setReviewData(null);
     revalidateData();
   }
-
-  const handleBrilinkReportClick = () => {
-    setIsBrilinkReportVisible(true);
-  }
   
   const handlePpobReportClick = () => {
     setIsPpobReportVisible(true);
@@ -354,20 +349,16 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     };
   }, [kasAccounts]);
 
-  if (isBrilinkReportVisible) {
-    return <BookkeepingReport onDone={() => setIsBrilinkReportVisible(false)} />;
-  }
-  
-  if (isOperationalCostReportVisible) {
-    return <OperationalCostReport onDone={() => setIsOperationalCostReportVisible(false)} />;
-  }
-
   if (isPpobReportVisible) {
     return <PPOBReport onDone={() => setIsPpobReportVisible(false)} />;
   }
-
+  
   if (isProfitLossReportVisible) {
     return <ProfitLossReport onDone={() => setIsProfitLossReportVisible(false)} />;
+  }
+
+  if (isOperationalCostReportVisible) {
+    return <OperationalCostReport onDone={() => setIsOperationalCostReportVisible(false)} />;
   }
 
   const isKJPReview = activeSheet === 'customerKJPReview' && reviewData && 'withdrawalAmount' in reviewData && !('customerBankSource' in reviewData);
@@ -388,7 +379,6 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             <Header 
               onSync={revalidateData} 
               isSyncing={isAccountsLoading} 
-              onBrilinkReportClick={handleBrilinkReportClick}
               onPpobReportClick={handlePpobReportClick}
             />
             <div className="px-4 -mt-16">
@@ -432,6 +422,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             </div>
           </>
         );
+      case 'laporan':
+        return <BookkeepingReport onDone={() => setActiveTab('home')} />;
       case 'settings':
         return <SettingsContent />;
       case 'mutasi':

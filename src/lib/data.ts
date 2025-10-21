@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { Wallet, Building2, Zap, Smartphone, ShoppingBag, Send, CreditCard, Gift, FileText, QrCode, UserCog, Settings, Home, MoreHorizontal, Phone, Wifi, Lightbulb, Droplets, HeartPulse, Plus, Calculator, IdCard, GraduationCap } from 'lucide-react';
+import { Wallet, Building2, Zap, Smartphone, ShoppingBag, Send, CreditCard, Gift, FileText, QrCode, UserCog, Settings, Home, MoreHorizontal, Phone, Wifi, Lightbulb, Droplets, HeartPulse, Plus, Calculator, IdCard, GraduationCap, BookText } from 'lucide-react';
 
 export type KasAccount = {
   id: string;
@@ -70,13 +70,14 @@ export const recentTransactions: Transaction[] = [];
 
 
 export type NavItem = {
-    id: 'home' | 'mutasi' | 'accounts' | 'qris' | 'admin' | 'settings';
+    id: 'home' | 'laporan' | 'mutasi' | 'accounts' | 'qris' | 'admin' | 'settings';
     icon: LucideIcon;
     label: string;
 };
 
 export const navItems: NavItem[] = [
     { id: 'home', icon: Home, label: 'Beranda' },
+    { id: 'laporan', icon: BookText, label: 'Laporan' },
     { id: 'mutasi', icon: FileText, label: 'Riwayat' },
     { id: 'accounts', icon: Wallet, label: 'Akun' },
     { id: 'qris', icon: Plus, label: 'Mutasi' },
