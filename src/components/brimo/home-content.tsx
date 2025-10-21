@@ -61,9 +61,10 @@ import PPOBReport from './PPOBReport';
 import PPOBTokenListrikForm from './PPOBTokenListrikForm';
 import PPOBTokenListrikReview from './PPOBTokenListrikReview';
 import RepeatTransactionDialog from './RepeatTransactionDialog';
+import AccountsContent from './AccountsContent';
 
 
-const iconMap: { [key: string]: React.ElementType } = {
+export const iconMap: { [key: string]: React.ElementType } = {
   'Tunai': Wallet,
   'Bank': Building2,
   'PPOB': Zap,
@@ -72,7 +73,7 @@ const iconMap: { [key: string]: React.ElementType } = {
   'default': Wallet,
 };
 
-export type ActiveTab = 'home' | 'mutasi' | 'admin' | 'settings';
+export type ActiveTab = 'home' | 'mutasi' | 'accounts' | 'admin' | 'settings';
 type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview';
 
 interface HomeContentProps {
@@ -201,9 +202,9 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         setActiveSheet('settlementReview');
     } else if ('phoneNumber' in data) {
         setActiveSheet('ppobPulsaReview');
-    } else if ('costPrice' in data && 'customerName' in data) { // Token Listrik has costPrice and customerName
+    } else if ('costPrice' in data && 'customerName' in data && 'denomination' in data && !('phoneNumber' in data)) { // Token Listrik has these, but not phone
         setActiveSheet('ppobTokenListrikReview');
-    } else if ('withdrawalAmount' in data && 'customerName' in data) { // KJP has withdrawalAmount and customerName
+    } else if ('withdrawalAmount' in data && 'customerName' in data && !('customerBankSource' in data)) { // KJP has these, but not bank source
         setActiveSheet('customerKJPReview');
     }
   }
@@ -362,6 +363,9 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     return <ProfitLossReport onDone={() => setIsProfitLossReportVisible(false)} />;
   }
 
+  const isKJPReview = reviewData && 'withdrawalAmount' in reviewData && !('customerBankSource' in reviewData);
+  const isTokenReview = reviewData && 'costPrice' in reviewData && 'customerName' in reviewData && !('phoneNumber' in reviewData);
+
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
@@ -385,11 +389,9 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                     <BalanceCard balanceType="non-tunai" />
                   </CarouselItem>
                   <CarouselItem>
-                    <div role="button" tabIndex={0} onClick={() => virtualTunaiAccount && handleAccountClick(virtualTunaiAccount)} className="w-full text-left cursor-pointer">
-                      <BalanceCard 
+                     <BalanceCard 
                         balanceType="tunai" 
                       />
-                    </div>
                   </CarouselItem>
                    <CarouselItem>
                     <MotivationCard />
@@ -411,51 +413,6 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             </div>
             </div>
             <div className="flex flex-col gap-4 px-4 pb-28">
-                  <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="item-1" className="border-none">
-                      <div className="p-3 bg-card/80 backdrop-blur-md rounded-2xl shadow-lg border border-border/20 flex items-center justify-between gap-2 data-[state=open]:rounded-b-none">
-                        <AccordionTrigger className="flex-1 p-0 justify-start">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-sm">Saldo akun</p>
-                          </div>
-                        </AccordionTrigger>
-                      </div>
-
-                      <AccordionContent className="p-0">
-                        <ScrollArea className="h-[280px]">
-                            <div className="flex flex-col gap-0 rounded-b-2xl overflow-hidden border border-t-0 border-border/20 shadow-lg">
-                            {kasAccounts?.filter(account => account.type !== 'Tunai').map((account) => {
-                                const Icon = iconMap[account.type] || iconMap['default'];
-                                return (
-                                <div key={account.id} className="w-full text-left p-3 bg-card/80 backdrop-blur-md flex items-center justify-between gap-4 border-t border-border/10">
-                                    <button onClick={() => handleAccountClick(account)} className="flex-1 flex items-center gap-3">
-                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${account.color}`}>
-                                          {account.iconUrl ? <img src={account.iconUrl} alt={account.label} className="h-6 w-6 object-cover" /> : <Icon size={20} className="text-white" />}
-                                      </div>
-                                      <div>
-                                          <p className="font-semibold text-sm">{account.label}</p>
-                                          <p className="text-muted-foreground text-xs">Rp{account.balance.toLocaleString('id-ID')}</p>
-                                      </div>
-                                    </button>
-                                    <div className="flex items-center">
-                                      {account.type === 'Merchant' && (
-                                        <Button size="sm" variant="outline" onClick={() => handleSettlementClick(account)} className="flex items-center gap-2">
-                                          <Banknote size={14} />
-                                          <span>Settlement</span>
-                                        </Button>
-                                      )}
-                                      <button onClick={() => handleAccountClick(account)} className="p-2">
-                                        <ChevronRight size={18} className="text-muted-foreground" />
-                                      </button>
-                                    </div>
-                                </div>
-                                );
-                            })}
-                            </div>
-                        </ScrollArea>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
                 <QuickServices onServiceClick={handleQuickServiceClick} />
             </div>
           </>
@@ -464,6 +421,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         return <SettingsContent />;
       case 'mutasi':
         return <GlobalTransactionHistory />;
+      case 'accounts':
+        return <AccountsContent onAccountClick={handleAccountClick} onSettlementClick={handleSettlementClick} />;
       case 'admin':
         return isAdminAccessGranted ? <AdminContent onProfitLossReportClick={handleProfitLossReportClick} onSetMotivationClick={handleSetMotivationClick} onManageKasAccountsClick={handleManageKasAccountsClick} onManagePPOBPricingClick={handleManagePPOBPricingClick} onResetReportsClick={handleResetReportsClick}/> : null;
       default:
@@ -471,8 +430,6 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     }
   };
 
-  const isKJPReview = reviewData && 'withdrawalAmount' in reviewData && !('customerBankSource' in reviewData);
-  const isTokenReview = reviewData && 'costPrice' in reviewData && 'customerName' in reviewData;
 
   return (
     <>

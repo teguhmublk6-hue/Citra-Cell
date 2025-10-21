@@ -70,7 +70,7 @@ export const recentTransactions: Transaction[] = [];
 
 
 export type NavItem = {
-    id: 'home' | 'mutasi' | 'qris' | 'admin' | 'settings';
+    id: 'home' | 'mutasi' | 'accounts' | 'qris' | 'admin' | 'settings';
     icon: LucideIcon;
     label: string;
 };
@@ -78,9 +78,10 @@ export type NavItem = {
 export const navItems: NavItem[] = [
     { id: 'home', icon: Home, label: 'Beranda' },
     { id: 'mutasi', icon: FileText, label: 'Riwayat' },
+    { id: 'accounts', icon: Wallet, label: 'Akun' },
     { id: 'qris', icon: Plus, label: 'Mutasi' },
     { id: 'admin', icon: UserCog, label: 'Admin' },
-    { id: 'settings', icon: Settings, label: 'Akun' },
+    { id: 'settings', icon: Settings, label: 'Setelan' },
 ];
 
 export const accountTypes = [
