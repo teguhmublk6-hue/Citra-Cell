@@ -10,7 +10,7 @@ import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw, Banknote, ArrowLeft
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, writeBatch, getDocs } from 'firebase/firestore';
 import type { KasAccount as KasAccountType } from '@/lib/data';
-import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight, CreditCard, IdCard, GraduationCap, Lightbulb } from 'lucide-react';
+import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight, CreditCard, IdCard, GraduationCap, Lightbulb, BookText } from 'lucide-react';
 import Header from './header';
 import BalanceCard from './balance-card';
 import {
@@ -338,6 +338,19 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     setActiveTab('admin');
     setIsPasscodeDialogOpen(false);
   };
+  
+    if (isProfitLossReportVisible) {
+        return <ProfitLossReport onDone={() => setIsProfitLossReportVisible(false)} />;
+    }
+
+    if (isOperationalCostReportVisible) {
+        return <OperationalCostReport onDone={() => setIsOperationalCostReportVisible(false)} />;
+    }
+
+    if (isPpobReportVisible) {
+        return <PPOBReport onDone={() => setIsPpobReportVisible(false)} />;
+    }
+
 
   const isKJPReview = activeSheet === 'customerKJPReview' && reviewData && 'withdrawalAmount' in reviewData && !('customerBankSource' in reviewData);
   const isTokenReview = activeSheet === 'ppobTokenListrikReview' && reviewData && 'costPrice' in reviewData && 'customerName' in reviewData && !('phoneNumber' in reviewData);
@@ -537,7 +550,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         </SheetContent>
       </Sheet>
 
-      {activeTab !== 'admin' && (
+      {activeTab !== 'admin' && !isProfitLossReportVisible && !isOperationalCostReportVisible && (
         <BottomNav activeTab={activeTab} setActiveTab={setActiveTab}>
           <Sheet>
               <SheetTrigger asChild>
