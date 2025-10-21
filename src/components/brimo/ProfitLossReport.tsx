@@ -257,6 +257,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                             <TableHead className="py-2">Tujuan</TableHead>
                             <TableHead className="text-right py-2">Harga Modal</TableHead>
                             <TableHead className="text-right py-2">Harga Jual</TableHead>
+                            <TableHead className="text-right py-2">Laba/Rugi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -267,6 +268,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                 <TableCell className="py-2">{report.destination}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.sellingPrice)}</TableCell>
+                                <TableCell className="text-right font-semibold text-green-500 py-2">{formatToRupiah(report.profit)}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -275,9 +277,10 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                             <TableCell colSpan={3} className="sticky left-0 bg-muted/50 z-10">Total</TableCell>
                             <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.costPrice)}</TableCell>
                             <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.sellingPrice)}</TableCell>
+                            <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.profit)}</TableCell>
                         </TableRow>
                         <TableRow className="font-bold text-lg bg-muted">
-                            <TableCell colSpan={4} className="sticky left-0 bg-muted z-10">Total Laba PPOB</TableCell>
+                            <TableCell colSpan={5} className="sticky left-0 bg-muted z-10">Total Laba PPOB</TableCell>
                             <TableCell className="text-right text-green-600 py-2">{formatToRupiah(ppobTotals.profit)}</TableCell>
                         </TableRow>
                     </TableFooter>
