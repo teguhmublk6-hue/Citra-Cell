@@ -80,9 +80,8 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
   const totals = reports.reduce((acc, report) => {
     acc.costPrice += report.costPrice;
     acc.sellingPrice += report.sellingPrice;
-    acc.profit += report.profit;
     return acc;
-  }, { costPrice: 0, sellingPrice: 0, profit: 0 });
+  }, { costPrice: 0, sellingPrice: 0 });
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -156,7 +155,6 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                             <TableHead>Deskripsi</TableHead>
                             <TableHead className="text-right">Harga Modal</TableHead>
                             <TableHead className="text-right">Harga Jual</TableHead>
-                            <TableHead className="text-right">Laba</TableHead>
                             <TableHead>Oleh</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -170,7 +168,6 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                                 <TableCell>{report.description}</TableCell>
                                 <TableCell className="text-right">{formatToRupiah(report.costPrice)}</TableCell>
                                 <TableCell className="text-right">{formatToRupiah(report.sellingPrice)}</TableCell>
-                                <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.profit)}</TableCell>
                                 <TableCell>{report.deviceName}</TableCell>
                             </TableRow>
                         ))}
@@ -180,12 +177,7 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                             <TableCell colSpan={5}>Total</TableCell>
                             <TableCell className="text-right">{formatToRupiah(totals.costPrice)}</TableCell>
                             <TableCell className="text-right">{formatToRupiah(totals.sellingPrice)}</TableCell>
-                            <TableCell className="text-right">{formatToRupiah(totals.profit)}</TableCell>
                             <TableCell></TableCell>
-                        </TableRow>
-                        <TableRow className="font-bold text-lg bg-muted">
-                            <TableCell colSpan={7}>Total Laba PPOB</TableCell>
-                            <TableCell colSpan={2} className="text-right text-green-600">{formatToRupiah(totals.profit)}</TableCell>
                         </TableRow>
                     </TableFooter>
                 </Table>
