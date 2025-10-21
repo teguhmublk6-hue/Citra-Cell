@@ -126,14 +126,13 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
 
   return (
     <div className="h-full flex flex-col bg-background">
-        <header className="p-4 flex items-center gap-4 border-b sticky top-0 bg-background z-10">
-            <Button variant="ghost" size="icon" onClick={onDone}>
-                <ArrowLeft />
-            </Button>
-            <h1 className="text-lg font-semibold">Laporan Biaya Operasional</h1>
-        </header>
-
-        <div className="p-4 space-y-4">
+        <header className="p-4 space-y-4 border-b bg-background z-20">
+             <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" onClick={onDone}>
+                    <ArrowLeft />
+                </Button>
+                <h1 className="text-lg font-semibold">Laporan Biaya Operasional</h1>
+            </div>
              <Popover>
                 <PopoverTrigger asChild>
                     <Button
@@ -170,47 +169,47 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
                     />
                 </PopoverContent>
             </Popover>
-        </div>
+        </header>
       
-        <div className="flex-1 overflow-auto px-4">
+        <div className="flex-1 overflow-auto">
             {isLoading ? (
-                <div className="space-y-2">
+                <div className="px-4 space-y-2">
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-12 w-full" />
                     <Skeleton className="h-12 w-full" />
                 </div>
             ) : costs.length === 0 ? (
-                <Card>
-                    <CardContent className="pt-6 text-center text-muted-foreground">
-                        Tidak ada biaya operasional untuk tanggal ini.
-                    </CardContent>
-                </Card>
+                <div className="flex flex-col items-center justify-center h-full py-20 text-center">
+                    <CalendarIcon size={48} strokeWidth={1} className="text-muted-foreground mb-4" />
+                    <p className="font-semibold">Belum Ada Laporan</p>
+                    <p className="text-sm text-muted-foreground">Tidak ada biaya operasional untuk rentang tanggal yang dipilih.</p>
+                </div>
             ) : (
-                <Table>
-                    <TableHeader>
+                <Table className="text-[11px] whitespace-nowrap">
+                    <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
-                            <TableHead className="w-[40px]">No</TableHead>
-                            <TableHead>Tanggal</TableHead>
-                            <TableHead>Deskripsi Biaya</TableHead>
-                            <TableHead>Sumber</TableHead>
-                            <TableHead className="text-right">Jumlah</TableHead>
+                            <TableHead className="w-[40px] sticky left-0 bg-background z-20 py-2">No</TableHead>
+                            <TableHead className="sticky left-[40px] bg-background z-20 py-2">Tanggal</TableHead>
+                            <TableHead className="py-2">Deskripsi Biaya</TableHead>
+                            <TableHead className="py-2">Sumber</TableHead>
+                            <TableHead className="text-right py-2">Jumlah</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {costs.map((cost, index) => (
                             <TableRow key={cost.id}>
-                                <TableCell>{index + 1}</TableCell>
-                                <TableCell>{format(cost.date, 'dd/MM/yy HH:mm')}</TableCell>
-                                <TableCell>{cost.description}</TableCell>
-                                <TableCell>{cost.source}</TableCell>
-                                <TableCell className="text-right">{formatToRupiah(cost.amount)}</TableCell>
+                                <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
+                                <TableCell className="sticky left-[40px] bg-background z-10 py-2">{format(cost.date, 'dd/MM/yy HH:mm')}</TableCell>
+                                <TableCell className="py-2">{cost.description}</TableCell>
+                                <TableCell className="py-2">{cost.source}</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(cost.amount)}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
                     <TableFooter>
                         <TableRow className="font-bold text-lg bg-muted">
-                            <TableCell colSpan={4}>Total Biaya Operasional</TableCell>
-                            <TableCell className="text-right text-destructive">{formatToRupiah(totalCost)}</TableCell>
+                            <TableCell colSpan={4} className="sticky left-0 bg-muted z-10">Total Biaya Operasional</TableCell>
+                            <TableCell className="text-right text-destructive py-2">{formatToRupiah(totalCost)}</TableCell>
                         </TableRow>
                     </TableFooter>
                 </Table>
