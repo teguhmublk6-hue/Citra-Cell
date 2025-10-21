@@ -122,7 +122,7 @@ export default function PPOBTokenListrikReview({ formData, onConfirm, onBack }: 
                 transaction.update(sourcePPOBAccountRef, { balance: currentSourcePPOBBalance - costPrice });
                 const debitTxRef = doc(collection(sourcePPOBAccountRef, 'transactions'));
                 transaction.set(debitTxRef, {
-                    kasAccountId: sourcePPOBAccount.id, type: 'debit', name: `Beli Token Listrik ${formData.denomination}`, account: formData.meterNumber, date: nowISO, amount: costPrice, balanceBefore: currentSourcePPOBBalance, balanceAfter: currentSourcePPOBBalance - costPrice, category: 'ppob_purchase', deviceName
+                    kasAccountId: sourcePPOBAccount.id, type: 'debit', name: `Beli Token Listrik ${formData.denomination}`, account: formData.customerName, date: nowISO, amount: costPrice, balanceBefore: currentSourcePPOBBalance, balanceAfter: currentSourcePPOBBalance - costPrice, category: 'ppob_purchase', deviceName
                 });
                 
                 switch (paymentMethod) {
@@ -130,7 +130,7 @@ export default function PPOBTokenListrikReview({ formData, onConfirm, onBack }: 
                         transaction.update(finalLaciAccountRef, { balance: currentLaciBalance + sellingPrice });
                         const creditTunaiRef = doc(collection(finalLaciAccountRef, 'transactions'));
                         transaction.set(creditTunaiRef, {
-                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Token ${formData.denomination}`, account: formData.meterNumber, date: nowISO, amount: sellingPrice, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + sellingPrice, category: 'customer_payment_ppob', deviceName
+                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Token ${formData.denomination}`, account: formData.customerName, date: nowISO, amount: sellingPrice, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + sellingPrice, category: 'customer_payment_ppob', deviceName
                         });
                         break;
                     case 'Transfer':
@@ -138,7 +138,7 @@ export default function PPOBTokenListrikReview({ formData, onConfirm, onBack }: 
                         transaction.update(paymentAccRef, { balance: currentPaymentAccBalance + sellingPrice });
                         const creditTransferRef = doc(collection(paymentAccRef, 'transactions'));
                         transaction.set(creditTransferRef, {
-                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Token ${formData.denomination}`, account: formData.meterNumber, date: nowISO, amount: sellingPrice, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + sellingPrice, category: 'customer_payment_ppob', deviceName
+                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Token ${formData.denomination}`, account: formData.customerName, date: nowISO, amount: sellingPrice, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + sellingPrice, category: 'customer_payment_ppob', deviceName
                         });
                         break;
                     case 'Split':
@@ -146,13 +146,13 @@ export default function PPOBTokenListrikReview({ formData, onConfirm, onBack }: 
                         transaction.update(finalLaciAccountRef, { balance: currentLaciBalance + splitTunaiAmount });
                         const creditSplitTunaiRef = doc(collection(finalLaciAccountRef, 'transactions'));
                         transaction.set(creditSplitTunaiRef, {
-                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Tunai Token`, account: formData.meterNumber, date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + splitTunaiAmount, category: 'customer_payment_ppob', deviceName
+                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Tunai Token`, account: formData.customerName, date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + splitTunaiAmount, category: 'customer_payment_ppob', deviceName
                         });
 
                         transaction.update(paymentAccRef, { balance: currentPaymentAccBalance + splitTransferAmount });
                         const creditSplitTransferRef = doc(collection(paymentAccRef, 'transactions'));
                         transaction.set(creditSplitTransferRef, {
-                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Token`, account: formData.meterNumber, date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + splitTransferAmount, category: 'customer_payment_ppob', deviceName
+                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Token`, account: formData.customerName, date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + splitTransferAmount, category: 'customer_payment_ppob', deviceName
                         });
                         break;
                 }
@@ -162,7 +162,7 @@ export default function PPOBTokenListrikReview({ formData, onConfirm, onBack }: 
                 date: now,
                 serviceName: 'Token Listrik',
                 destination: formData.meterNumber,
-                description: `Token Listrik ${formData.denomination}`,
+                description: `Token ${formData.denomination} an. ${formData.customerName}`,
                 costPrice: formData.costPrice,
                 sellingPrice: formData.sellingPrice,
                 profit,
@@ -205,6 +205,7 @@ export default function PPOBTokenListrikReview({ formData, onConfirm, onBack }: 
                     <div className="space-y-2">
                         <h4 className="font-semibold text-lg">Detail Transaksi Token Listrik</h4>
                         <div className="text-sm space-y-1 text-muted-foreground">
+                            <p>Nama Pelanggan: <strong>{formData.customerName}</strong></p>
                             <p>No. Meter / ID Pel: <strong>{formData.meterNumber}</strong></p>
                             <p>Denominasi: <strong>Token {formatToRupiah(formData.denomination)}</strong></p>
                             <p>Sumber Deposit: <strong>{sourcePPOBAccount?.label}</strong></p>
@@ -255,5 +256,3 @@ export default function PPOBTokenListrikReview({ formData, onConfirm, onBack }: 
         </div>
     );
 }
-
-    

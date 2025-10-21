@@ -63,6 +63,7 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
     resolver: zodResolver(refinedSchema),
     defaultValues: {
         sourcePPOBAccountId: '',
+        customerName: '',
         meterNumber: '',
         denomination: '',
         costPrice: undefined,
@@ -173,6 +174,13 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
 
             {currentStep === 2 && (
               <div className="space-y-4">
+                 <FormField control={form.control} name="customerName" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Nama Pemilik Meteran</FormLabel>
+                        <FormControl><Input placeholder="Masukkan nama..." {...field} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}/>
                 <FormField control={form.control} name="meterNumber" render={({ field }) => (
                     <FormItem>
                         <FormLabel>No. Meter / ID Pelanggan</FormLabel>
