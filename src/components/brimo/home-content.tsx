@@ -62,6 +62,7 @@ import PPOBTokenListrikForm from './PPOBTokenListrikForm';
 import PPOBTokenListrikReview from './PPOBTokenListrikReview';
 import RepeatTransactionDialog from './RepeatTransactionDialog';
 import AccountsContent from './AccountsContent';
+import PendingSettlements from './PendingSettlements';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -219,6 +220,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const handleTransactionComplete = () => {
     revalidateData();
     let formSheet: FormSheet | null = null;
+    
+    // Determine which form was just completed
     if (activeSheet === 'customerTransferReview') formSheet = 'customerTransfer';
     else if (activeSheet === 'customerWithdrawalReview') formSheet = 'customerWithdrawal';
     else if (activeSheet === 'customerTopUpReview') formSheet = 'customerTopUp';
@@ -232,6 +235,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     if (formSheet) {
       setLastCompletedSheet(formSheet);
       setIsRepeatDialogOpen(true);
+      setActiveSheet(null); // Close the review sheet
     } else {
       closeAllSheets();
     }
@@ -246,8 +250,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const handleRepeatYes = () => {
     setIsRepeatDialogOpen(false);
     if (lastCompletedSheet) {
-      setReviewData(null); // Clear review data
-      setActiveSheet(lastCompletedSheet); // Re-open the form sheet
+      setReviewData(null); // Clear previous review data
+      setActiveSheet(lastCompletedSheet); // Re-open the original form sheet
     }
   };
   
@@ -421,6 +425,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             </div>
             <div className="flex flex-col gap-4 px-4 pb-28">
                 <QuickServices onServiceClick={handleQuickServiceClick} />
+                <PendingSettlements onSettlementClick={handleSettlementClick} />
             </div>
           </>
         );
@@ -569,5 +574,3 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     </>
   );
 }
-
-    
