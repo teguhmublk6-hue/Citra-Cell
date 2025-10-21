@@ -248,7 +248,7 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                 </div>
             )}
             {!isLoading && reports.length > 0 && (
-                <Table className="text-xs whitespace-nowrap">
+                <Table className="text-[11px] whitespace-nowrap">
                     <TableHeader>
                         <TableRow>
                             <TableHead className="sticky left-0 bg-background z-10 w-[50px]">No</TableHead>
