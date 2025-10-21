@@ -1,7 +1,6 @@
 
 import { navItems } from '@/lib/data';
 import type { ActiveTab } from './home-content';
-import { Plus } from 'lucide-react';
 import React from 'react';
 import { cn } from '@/lib/utils';
 
@@ -12,17 +11,15 @@ interface BottomNavProps {
 }
 
 export default function BottomNav({ activeTab, setActiveTab, children }: BottomNavProps) {
-  const navItemsToShow = navItems.filter(item => item.id !== 'qris');
-  
-  // Custom order for the bottom nav
-  const orderedNavIds: ActiveTab[] = ['home', 'laporan', 'mutasi', 'accounts', 'admin'];
-  const orderedNavItems = orderedNavIds.map(id => navItemsToShow.find(item => item.id === id)).filter(Boolean) as (typeof navItemsToShow);
+  // Show only the 4 main tabs
+  const orderedNavIds: ActiveTab[] = ['home', 'laporan', 'mutasi', 'accounts'];
+  const orderedNavItems = orderedNavIds.map(id => navItems.find(item => item.id === id)).filter(Boolean) as (typeof navItems);
 
-  const middleIndex = 2; // Hardcoded to 2 for a 2-1-2 layout with 5 items
+  const middleIndex = 2;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-card/90 backdrop-blur-lg border-t border-border/80 z-50">
-      <div className="flex justify-around items-center h-[72px]">
+      <div className="flex justify-around items-center h-[60px] px-2">
         {orderedNavItems.slice(0, middleIndex).map((tab) => (
           <button
             key={tab.id}
@@ -35,14 +32,11 @@ export default function BottomNav({ activeTab, setActiveTab, children }: BottomN
             aria-label={tab.label}
           >
              {activeTab === tab.id && <div className="absolute top-0 h-1 w-8 bg-primary rounded-full" />}
-            <tab.icon size={24} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
-            <span className="text-xs font-medium">
-              {tab.label}
-            </span>
+            <tab.icon size={22} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
           </button>
         ))}
 
-        <div className="w-16 flex justify-center">
+        <div className="w-16 flex justify-center -mt-6">
             {children}
         </div>
 
@@ -58,10 +52,7 @@ export default function BottomNav({ activeTab, setActiveTab, children }: BottomN
             aria-label={tab.label}
           >
              {activeTab === tab.id && <div className="absolute top-0 h-1 w-8 bg-primary rounded-full" />}
-            <tab.icon size={24} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
-            <span className="text-xs font-medium">
-              {tab.label}
-            </span>
+            <tab.icon size={22} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
           </button>
         ))}
       </div>

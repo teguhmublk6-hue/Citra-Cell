@@ -75,8 +75,8 @@ export const iconMap: { [key: string]: React.ElementType } = {
   'default': Wallet,
 };
 
-export type ActiveTab = 'home' | 'laporan' | 'mutasi' | 'accounts' | 'admin' | 'settings';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview' | 'operationalCostReport';
+export type ActiveTab = 'home' | 'laporan' | 'mutasi' | 'accounts';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview' | 'operationalCostReport' | 'admin' | 'settings';
 type FormSheet = 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'ppobPulsa' | 'ppobTokenListrik';
 
 
@@ -112,11 +112,11 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         clearTimeout(adminTimeoutRef.current);
     }
 
-    if (isAdminAccessGranted && activeTab !== 'admin') {
+    if (isAdminAccessGranted && activeSheet !== 'admin') {
         adminTimeoutRef.current = setTimeout(() => {
             setIsAdminAccessGranted(false);
             sessionStorage.removeItem('brimoAdminAccess');
-        }, 10000); // 10 seconds
+        }, 30000); // 30 seconds
     }
 
     return () => {
@@ -124,7 +124,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             clearTimeout(adminTimeoutRef.current);
         }
     };
-  }, [activeTab, isAdminAccessGranted]);
+  }, [activeSheet, isAdminAccessGranted]);
 
   const firestore = useFirestore();
 
@@ -320,46 +320,24 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     }
   };
 
-  const handleTabChange = (tab: ActiveTab) => {
-    if (tab === 'admin' && !isAdminAccessGranted) {
+  const handleAdminClick = () => {
+     if (!isAdminAccessGranted) {
       setIsPasscodeDialogOpen(true);
     } else {
-      setActiveTab(tab);
+      setActiveSheet('admin');
     }
-  };
+  }
+
+  const handleSettingsClick = () => {
+    setActiveSheet('settings');
+  }
 
   const handlePasscodeSuccess = () => {
     sessionStorage.setItem('brimoAdminAccess', 'true');
     setIsAdminAccessGranted(true);
-    setActiveTab('admin');
+    setActiveSheet('admin');
     setIsPasscodeDialogOpen(false);
   };
-
-  const virtualTunaiAccount = useMemo<KasAccountType | null>(() => {
-    if (!kasAccounts) return null;
-    const tunaiAccounts = kasAccounts.filter(acc => acc.type === 'Tunai');
-    const totalBalance = tunaiAccounts.reduce((sum, acc) => sum + acc.balance, 0);
-    return {
-      id: 'tunai-gabungan',
-      label: 'Semua Akun Tunai',
-      type: 'Tunai',
-      balance: totalBalance,
-      minimumBalance: 0,
-      color: 'bg-green-500',
-    };
-  }, [kasAccounts]);
-
-  if (isPpobReportVisible) {
-    return <PPOBReport onDone={() => setIsPpobReportVisible(false)} />;
-  }
-  
-  if (isProfitLossReportVisible) {
-    return <ProfitLossReport onDone={() => setIsProfitLossReportVisible(false)} />;
-  }
-
-  if (isOperationalCostReportVisible) {
-    return <OperationalCostReport onDone={() => setIsOperationalCostReportVisible(false)} />;
-  }
 
   const isKJPReview = activeSheet === 'customerKJPReview' && reviewData && 'withdrawalAmount' in reviewData && !('customerBankSource' in reviewData);
   const isTokenReview = activeSheet === 'ppobTokenListrikReview' && reviewData && 'costPrice' in reviewData && 'customerName' in reviewData && !('phoneNumber' in reviewData);
@@ -424,14 +402,15 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         );
       case 'laporan':
         return <BookkeepingReport onDone={() => setActiveTab('home')} />;
-      case 'settings':
-        return <SettingsContent />;
       case 'mutasi':
         return <GlobalTransactionHistory />;
       case 'accounts':
-        return <AccountsContent onAccountClick={handleAccountClick} onSettlementClick={handleSettlementClick} />;
-      case 'admin':
-        return isAdminAccessGranted ? <AdminContent onProfitLossReportClick={handleProfitLossReportClick} onOperationalCostReportClick={handleOperationalCostReportClick} onSetMotivationClick={handleSetMotivationClick} onManageKasAccountsClick={handleManageKasAccountsClick} onManagePPOBPricingClick={handleManagePPOBPricingClick} onResetReportsClick={handleResetReportsClick}/> : null;
+        return <AccountsContent 
+                    onAccountClick={handleAccountClick} 
+                    onSettlementClick={handleSettlementClick}
+                    onAdminClick={handleAdminClick}
+                    onSettingsClick={handleSettingsClick}
+                />;
       default:
         return <div className="px-4"><QuickServices onServiceClick={handleQuickServiceClick}/></div>;
     }
@@ -491,6 +470,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                   {activeSheet === 'ppobTokenListrik' && 'Transaksi Token Listrik'}
                   {activeSheet === 'ppobTokenListrikReview' && 'Review Transaksi Token Listrik'}
                   {activeSheet === 'operationalCostReport' && 'Laporan Biaya Operasional'}
+                  {activeSheet === 'admin' && 'Menu Admin'}
+                  {activeSheet === 'settings' && 'Pengaturan'}
                 </SheetTitle>
             </SheetHeader>
             {activeSheet === 'history' && selectedAccount && <TransactionHistory account={selectedAccount} onDone={() => setActiveSheet(null)} />}
@@ -532,13 +513,15 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             {isTokenReview && <PPOBTokenListrikReview formData={reviewData as PPOBTokenListrikFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('ppobTokenListrik')} />}
             
             {activeSheet === 'operationalCostReport' && <OperationalCostReport onDone={closeAllSheets} />}
+            {activeSheet === 'admin' && isAdminAccessGranted && <AdminContent onProfitLossReportClick={handleProfitLossReportClick} onOperationalCostReportClick={handleOperationalCostReportClick} onSetMotivationClick={handleSetMotivationClick} onManageKasAccountsClick={handleManageKasAccountsClick} onManagePPOBPricingClick={handleManagePPOBPricingClick} onResetReportsClick={handleResetReportsClick}/>}
+            {activeSheet === 'settings' && <SettingsContent />}
         </SheetContent>
       </Sheet>
 
-      <BottomNav activeTab={activeTab} setActiveTab={handleTabChange}>
+      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab}>
          <Sheet>
             <SheetTrigger asChild>
-                <button id="mutation-menu-trigger" className="h-14 w-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center -mt-4 shadow-lg shadow-primary/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                <button id="mutation-menu-trigger" className="h-14 w-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
                     <RotateCw size={28} />
                 </button>
             </SheetTrigger>

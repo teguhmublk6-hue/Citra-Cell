@@ -6,18 +6,17 @@ import { collection } from 'firebase/firestore';
 import type { KasAccount as KasAccountType } from '@/lib/data';
 import { iconMap } from './home-content';
 import { Button } from '../ui/button';
-import { Banknote, ChevronRight } from 'lucide-react';
+import { Banknote, ChevronRight, Settings, UserCog } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
-import { ScrollArea } from '../ui/scroll-area';
-import { Separator } from '../ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface AccountsContentProps {
     onAccountClick: (account: KasAccountType) => void;
     onSettlementClick: (account: KasAccountType) => void;
+    onAdminClick: () => void;
+    onSettingsClick: () => void;
 }
 
-export default function AccountsContent({ onAccountClick, onSettlementClick }: AccountsContentProps) {
+export default function AccountsContent({ onAccountClick, onSettlementClick, onAdminClick, onSettingsClick }: AccountsContentProps) {
     const firestore = useFirestore();
     const [showSettlementShortcut, setShowSettlementShortcut] = useState(false);
 
@@ -85,7 +84,19 @@ export default function AccountsContent({ onAccountClick, onSettlementClick }: A
 
     return (
         <div className="py-4 px-4 pb-28 h-full flex flex-col">
-            <h1 className="text-2xl font-bold mb-4">Saldo Akun</h1>
+            <h1 className="text-2xl font-bold mb-4">Akun & Pengaturan</h1>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+                <button onClick={onAdminClick} className="flex flex-col items-center justify-center p-4 bg-card-foreground/5 rounded-xl w-full hover:bg-card-foreground/10 transition-colors gap-2">
+                    <UserCog size={24} className="text-muted-foreground" />
+                    <span className="font-medium text-sm">Menu Admin</span>
+                </button>
+                 <button onClick={onSettingsClick} className="flex flex-col items-center justify-center p-4 bg-card-foreground/5 rounded-xl w-full hover:bg-card-foreground/10 transition-colors gap-2">
+                    <Settings size={24} className="text-muted-foreground" />
+                    <span className="font-medium text-sm">Pengaturan</span>
+                </button>
+            </div>
+
 
             {kasAccounts && accountTypes.length > 0 ? (
                 <div className="flex flex-col flex-1">
