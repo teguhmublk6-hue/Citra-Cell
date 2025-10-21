@@ -248,12 +248,12 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                 </div>
             )}
             {!isLoading && reports.length > 0 && (
-                <Table>
+                <Table className="text-xs whitespace-nowrap">
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[50px]">No</TableHead>
-                            <TableHead>Layanan</TableHead>
-                            <TableHead>Akun Kas</TableHead>
+                            <TableHead className="sticky left-0 bg-background z-10 w-[50px]">No</TableHead>
+                            <TableHead className="sticky left-[50px] bg-background z-10">Layanan</TableHead>
+                            <TableHead className="sticky left-[150px] bg-background z-10">Akun Kas</TableHead>
                             <TableHead>Bank/Tujuan</TableHead>
                             <TableHead>Nama</TableHead>
                             <TableHead className="text-right">Nominal</TableHead>
@@ -263,11 +263,11 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                     <TableBody>
                         {reports.map((report, index) => (
                             <TableRow key={report.id}>
-                                <TableCell>{index + 1}</TableCell>
+                                <TableCell className="sticky left-0 bg-background z-10">{index + 1}</TableCell>
                                 {report.transactionType === 'Transfer' ? (
                                     <>
-                                        <TableCell>Transfer</TableCell>
-                                        <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                                        <TableCell className="sticky left-[50px] bg-background z-10">Transfer</TableCell>
+                                        <TableCell className="sticky left-[150px] bg-background z-10">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
                                         <TableCell>{report.destinationBankName}</TableCell>
                                         <TableCell>{report.destinationAccountName}</TableCell>
                                         <TableCell className="text-right">{formatToRupiah(report.transferAmount)}</TableCell>
@@ -275,8 +275,8 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                                     </>
                                 ) : report.transactionType === 'Tarik Tunai' ? (
                                     <>
-                                        <TableCell>Tarik Tunai</TableCell>
-                                        <TableCell>{getAccountLabel(report.destinationKasAccountId)}</TableCell>
+                                        <TableCell className="sticky left-[50px] bg-background z-10">Tarik Tunai</TableCell>
+                                        <TableCell className="sticky left-[150px] bg-background z-10">{getAccountLabel(report.destinationKasAccountId)}</TableCell>
                                         <TableCell>{report.customerBankSource}</TableCell>
                                         <TableCell>{report.customerName}</TableCell>
                                         <TableCell className="text-right">{formatToRupiah(report.withdrawalAmount)}</TableCell>
@@ -284,8 +284,8 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                                     </>
                                 ) : report.transactionType === 'Top Up' ? (
                                     <>
-                                        <TableCell>Top Up</TableCell>
-                                        <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                                        <TableCell className="sticky left-[50px] bg-background z-10">Top Up</TableCell>
+                                        <TableCell className="sticky left-[150px] bg-background z-10">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
                                         <TableCell>{report.destinationEwallet}</TableCell>
                                         <TableCell>{report.customerName}</TableCell>
                                         <TableCell className="text-right">{formatToRupiah(report.topUpAmount)}</TableCell>
@@ -293,8 +293,8 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                                     </>
                                 ) : report.transactionType === 'Top Up E-Money' ? (
                                     <>
-                                        <TableCell>Top Up E-Money</TableCell>
-                                        <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                                        <TableCell className="sticky left-[50px] bg-background z-10">Top Up E-Money</TableCell>
+                                        <TableCell className="sticky left-[150px] bg-background z-10">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
                                         <TableCell>{report.destinationEmoney}</TableCell>
                                         <TableCell>-</TableCell>
                                         <TableCell className="text-right">{formatToRupiah(report.topUpAmount)}</TableCell>
@@ -302,8 +302,8 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                                     </>
                                 ) : report.transactionType === 'VA Payment' ? (
                                     <>
-                                        <TableCell>VA Payment</TableCell>
-                                        <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                                        <TableCell className="sticky left-[50px] bg-background z-10">VA Payment</TableCell>
+                                        <TableCell className="sticky left-[150px] bg-background z-10">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
                                         <TableCell>{report.serviceProvider}</TableCell>
                                         <TableCell>{report.recipientName}</TableCell>
                                         <TableCell className="text-right">{formatToRupiah(report.paymentAmount)}</TableCell>
@@ -311,8 +311,8 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                                     </>
                                 ) : report.transactionType === 'Layanan EDC' ? (
                                      <>
-                                        <TableCell>Layanan EDC</TableCell>
-                                        <TableCell>{getAccountLabel(report.paymentToKasTunaiAccountId)}</TableCell>
+                                        <TableCell className="sticky left-[50px] bg-background z-10">Layanan EDC</TableCell>
+                                        <TableCell className="sticky left-[150px] bg-background z-10">{getAccountLabel(report.paymentToKasTunaiAccountId)}</TableCell>
                                         <TableCell>{report.machineUsed}</TableCell>
                                         <TableCell>{report.customerName}</TableCell>
                                         <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
@@ -320,8 +320,8 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                                     </>
                                 ) : report.transactionType === 'Tarik Tunai KJP' ? (
                                     <>
-                                       <TableCell>Tarik KJP</TableCell>
-                                       <TableCell>{getAccountLabel(report.destinationMerchantAccountId)}</TableCell>
+                                       <TableCell className="sticky left-[50px] bg-background z-10">Tarik KJP</TableCell>
+                                       <TableCell className="sticky left-[150px] bg-background z-10">{getAccountLabel(report.destinationMerchantAccountId)}</TableCell>
                                        <TableCell>Bank DKI</TableCell>
                                        <TableCell>{report.customerName}</TableCell>
                                        <TableCell className="text-right">{formatToRupiah(report.withdrawalAmount)}</TableCell>
