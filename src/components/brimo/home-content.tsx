@@ -188,7 +188,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const handleReview = (data: CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | CustomerKJPWithdrawalFormValues | PPOBPulsaFormValues | PPOBTokenListrikFormValues) => {
     setReviewData(data);
     if ('destinationBank' in data) {
-      setActiveSheet('customerTransferReview');
+        setActiveSheet('customerTransferReview');
     } else if ('customerBankSource' in data) {
         setActiveSheet('customerWithdrawalReview');
     } else if ('destinationEwallet' in data) {
@@ -201,9 +201,9 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         setActiveSheet('settlementReview');
     } else if ('phoneNumber' in data) {
         setActiveSheet('ppobPulsaReview');
-    } else if ('customerName' in data && !('phoneNumber' in data) && !('customerBankSource' in data) && !('destinationEwallet' in data) && !('destinationEmoney' in data) && !('serviceProvider' in data)) {
+    } else if ('costPrice' in data && 'customerName' in data) { // Token Listrik has costPrice and customerName
         setActiveSheet('ppobTokenListrikReview');
-    } else if ('withdrawalAmount' in data && !('customerBankSource' in data) && !('sourceMerchantAccountId' in data) && !('serviceProvider' in data) && !('destinationEmoney' in data) && !('destinationEwallet' in data)) {
+    } else if ('withdrawalAmount' in data && 'customerName' in data) { // KJP has withdrawalAmount and customerName
         setActiveSheet('customerKJPReview');
     }
   }
@@ -215,11 +215,18 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
 
   const handleTransactionComplete = () => {
     revalidateData();
-    // This assumes the review sheet is the one that was just completed
     const reviewSheet = activeSheet;
     let formSheet: ActiveSheet | null = null;
     if (reviewSheet === 'customerTransferReview') formSheet = 'customerTransfer';
-    // Add other mappings here...
+    else if (reviewSheet === 'customerWithdrawalReview') formSheet = 'customerWithdrawal';
+    else if (reviewSheet === 'customerTopUpReview') formSheet = 'customerTopUp';
+    else if (reviewSheet === 'customerEmoneyTopUpReview') formSheet = 'customerEmoneyTopUp';
+    else if (reviewSheet === 'customerVAPaymentReview') formSheet = 'customerVAPayment';
+    else if (reviewSheet === 'ppobPulsaReview') formSheet = 'ppobPulsa';
+    else if (reviewSheet === 'ppobTokenListrikReview') formSheet = 'ppobTokenListrik';
+    else if (reviewSheet === 'customerKJPReview') formSheet = 'customerKJP';
+    else if (reviewSheet === 'settlementReview') formSheet = 'settlement';
+    // No repeat for EDC, AddCapital, Withdraw, etc.
 
     if (formSheet) {
       setLastCompletedSheet(formSheet);
@@ -240,9 +247,6 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const handleRepeatYes = () => {
     setIsRepeatDialogOpen(false);
     setReviewData(null);
-    // This reopens the form by setting the active sheet to the last form sheet.
-    // The form component itself should reset its state when it becomes active again.
-    // A key prop on the form component might be needed if it doesn't reset automatically.
     setActiveSheet(lastCompletedSheet); 
   };
   
@@ -467,6 +471,9 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     }
   };
 
+  const isKJPReview = reviewData && 'withdrawalAmount' in reviewData && !('customerBankSource' in reviewData);
+  const isTokenReview = reviewData && 'costPrice' in reviewData && 'customerName' in reviewData;
+
   return (
     <>
       {renderContent()}
@@ -528,25 +535,25 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             {activeSheet === 'customerTransfer' && <CustomerTransferForm onReview={handleReview} onDone={closeAllSheets} />}
             {activeSheet === 'customerTransferReview' && reviewData && 'destinationBank' in reviewData && <CustomerTransferReview formData={reviewData} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('customerTransfer')} />}
             {activeSheet === 'customerWithdrawal' && <CustomerWithdrawalForm onReview={handleReview} onDone={closeAllSheets} />}
-            {activeSheet === 'customerWithdrawalReview' && reviewData && 'customerBankSource' in reviewData && <CustomerWithdrawalReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerWithdrawal')} />}
+            {activeSheet === 'customerWithdrawalReview' && reviewData && 'customerBankSource' in reviewData && <CustomerWithdrawalReview formData={reviewData} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('customerWithdrawal')} />}
             {activeSheet === 'customerTopUp' && <CustomerTopUpForm onReview={handleReview} onDone={closeAllSheets} />}
-            {activeSheet === 'customerTopUpReview' && reviewData && 'destinationEwallet' in reviewData && <CustomerTopUpReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerTopUp')} />}
+            {activeSheet === 'customerTopUpReview' && reviewData && 'destinationEwallet' in reviewData && <CustomerTopUpReview formData={reviewData} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('customerTopUp')} />}
             {activeSheet === 'customerEmoneyTopUp' && <CustomerEmoneyTopUpForm onReview={handleReview} onDone={closeAllSheets} />}
-            {activeSheet === 'customerEmoneyTopUpReview' && reviewData && 'destinationEmoney' in reviewData && <CustomerEmoneyTopUpReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerEmoneyTopUp')} />}
+            {activeSheet === 'customerEmoneyTopUpReview' && reviewData && 'destinationEmoney' in reviewData && <CustomerEmoneyTopUpReview formData={reviewData} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('customerEmoneyTopUp')} />}
             {activeSheet === 'customerVAPayment' && <CustomerVAPaymentForm onReview={handleReview} onDone={closeAllSheets} />}
-            {activeSheet === 'customerVAPaymentReview' && reviewData && 'serviceProvider' in reviewData && <CustomerVAPaymentReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerVAPayment')} />}
+            {activeSheet === 'customerVAPaymentReview' && reviewData && 'serviceProvider' in reviewData && <CustomerVAPaymentReview formData={reviewData} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('customerVAPayment')} />}
             {activeSheet === 'EDCService' && <EDCServiceForm onDone={closeAllSheets} />}
             {activeSheet === 'settlement' && selectedAccount && <SettlementForm account={selectedAccount} onReview={handleReview} onDone={closeAllSheets} />}
-            {activeSheet === 'settlementReview' && reviewData && 'sourceMerchantAccountId' in reviewData && <SettlementReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('settlement')} />}
+            {activeSheet === 'settlementReview' && reviewData && 'sourceMerchantAccountId' in reviewData && <SettlementReview formData={reviewData} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('settlement')} />}
             {activeSheet === 'customerKJP' && <CustomerKJPWithdrawalForm onReview={handleReview} onDone={closeAllSheets} />}
-            {activeSheet === 'customerKJPReview' && reviewData && !('sourceMerchantAccountId' in reviewData) && !('serviceProvider' in reviewData) && !('destinationEmoney' in reviewData) && !('destinationEwallet' in reviewData) && !('customerBankSource' in reviewData) && !('destinationBank' in reviewData) && ('withdrawalAmount' in reviewData) && <CustomerKJPWithdrawalReview formData={reviewData as CustomerKJPWithdrawalFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerKJP')} />}
+            {activeSheet === 'customerKJPReview' && isKJPReview && <CustomerKJPWithdrawalReview formData={reviewData as CustomerKJPWithdrawalFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('customerKJP')} />}
             {activeSheet === 'setMotivation' && <SetMotivationForm onDone={closeAllSheets} />}
             {activeSheet === 'manageKasAccounts' && <KasManagement />}
             {activeSheet === 'managePPOBPricing' && <PPOBPricingManager onDone={closeAllSheets} />}
             {activeSheet === 'ppobPulsa' && <PPOBPulsaForm onReview={handleReview} onDone={closeAllSheets} />}
-            {activeSheet === 'ppobPulsaReview' && reviewData && 'phoneNumber' in reviewData && <PPOBPulsaReview formData={reviewData as PPOBPulsaFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('ppobPulsa')} />}
+            {activeSheet === 'ppobPulsaReview' && reviewData && 'phoneNumber' in reviewData && <PPOBPulsaReview formData={reviewData as PPOBPulsaFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('ppobPulsa')} />}
             {activeSheet === 'ppobTokenListrik' && <PPOBTokenListrikForm onReview={handleReview} onDone={closeAllSheets} />}
-            {activeSheet === 'ppobTokenListrikReview' && reviewData && 'customerName' in reviewData && !('phoneNumber' in reviewData) && !('customerBankSource' in reviewData) && !('destinationEwallet' in reviewData) && <PPOBTokenListrikReview formData={reviewData as PPOBTokenListrikFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('ppobTokenListrik')} />}
+            {activeSheet === 'ppobTokenListrikReview' && isTokenReview && <PPOBTokenListrikReview formData={reviewData as PPOBTokenListrikFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('ppobTokenListrik')} />}
         </SheetContent>
       </Sheet>
 
