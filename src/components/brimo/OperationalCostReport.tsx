@@ -207,7 +207,7 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
                         ))}
                     </TableBody>
                     <TableFooter>
-                        <TableRow className="font-bold text-lg bg-muted">
+                        <TableRow className="font-bold text-xl bg-muted">
                             <TableCell colSpan={4} className="sticky left-0 bg-muted z-10">Total Biaya Operasional</TableCell>
                             <TableCell className="text-right text-destructive py-2">{formatToRupiah(totalCost)}</TableCell>
                         </TableRow>
