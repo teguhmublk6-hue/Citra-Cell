@@ -9,7 +9,7 @@ import { Button } from '../ui/button';
 import { Banknote, ChevronRight } from 'lucide-react';
 import { useMemo } from 'react';
 import { ScrollArea } from '../ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Separator } from '../ui/separator';
 
 interface AccountsContentProps {
     onAccountClick: (account: KasAccountType) => void;
@@ -74,19 +74,11 @@ export default function AccountsContent({ onAccountClick, onSettlementClick }: A
             <h1 className="text-2xl font-bold mb-4">Saldo Akun</h1>
 
             {kasAccounts && accountTypes.length > 0 ? (
-                <Tabs defaultValue={accountTypes[0]} className="flex flex-col flex-1">
-                    <ScrollArea className="w-full whitespace-nowrap rounded-lg">
-                        <TabsList>
-                            {accountTypes.map((type) => (
-                                <TabsTrigger key={type} value={type}>{type}</TabsTrigger>
-                            ))}
-                        </TabsList>
-                    </ScrollArea>
-                    
-                    <div className="flex-1 mt-4 overflow-y-auto">
+                <ScrollArea className="flex-1">
+                    <div className="space-y-6">
                         {accountTypes.map((type) => (
-                        <TabsContent key={type} value={type} className="h-full m-0">
-                            <ScrollArea className="h-full">
+                            <div key={type}>
+                                <h2 className="text-base font-semibold text-muted-foreground mb-3">{type}</h2>
                                 <div className="space-y-3">
                                 {groupedAccounts[type]?.map((account) => {
                                     const Icon = iconMap[account.type] || iconMap['default'];
@@ -117,11 +109,10 @@ export default function AccountsContent({ onAccountClick, onSettlementClick }: A
                                     );
                                 })}
                                 </div>
-                            </ScrollArea>
-                        </TabsContent>
+                            </div>
                         ))}
                     </div>
-                </Tabs>
+                </ScrollArea>
             ) : (
                 <div className="flex-1 flex items-center justify-center">
                     <p className="text-muted-foreground">Tidak ada akun kas.</p>
