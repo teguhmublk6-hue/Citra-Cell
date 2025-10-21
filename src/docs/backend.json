@@ -485,7 +485,7 @@
         "customerName": { "type": "string" },
         "withdrawalAmount": { "type": "number" },
         "serviceFee": { "type": "number" },
-        "totalReceived": { "type": "number" },
+        "feePaymentMethod": { "type": "string", "enum": ["Dipotong", "Tunai"] },
         "destinationMerchantAccountId": { "type": "string" },
         "sourceKasTunaiAccountId": { "type": "string" },
         "deviceName": { "type": "string" }
@@ -495,7 +495,7 @@
         "customerName",
         "withdrawalAmount",
         "serviceFee",
-        "totalReceived",
+        "feePaymentMethod",
         "destinationMerchantAccountId",
         "sourceKasTunaiAccountId",
         "deviceName"

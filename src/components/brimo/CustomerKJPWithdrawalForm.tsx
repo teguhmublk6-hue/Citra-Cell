@@ -11,6 +11,7 @@ import { useEffect } from 'react';
 import type { CustomerKJPWithdrawalFormValues } from '@/lib/types';
 import { CustomerKJPWithdrawalFormSchema } from '@/lib/types';
 import Image from 'next/image';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 
 interface CustomerKJPWithdrawalFormProps {
   onReview: (data: CustomerKJPWithdrawalFormValues) => void;
@@ -48,6 +49,7 @@ export default function CustomerKJPWithdrawalForm({ onReview, onDone }: Customer
         customerName: '',
         withdrawalAmount: undefined,
         serviceFee: undefined,
+        feePaymentMethod: undefined,
     },
   });
 
@@ -105,6 +107,30 @@ export default function CustomerKJPWithdrawalForm({ onReview, onDone }: Customer
                     </FormItem>
                 )}/>
             </div>
+
+             <FormField
+              control={form.control}
+              name="feePaymentMethod"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Pembayaran Biaya Jasa</FormLabel>
+                  <FormControl>
+                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl><RadioGroupItem value="Dipotong" /></FormControl>
+                        <FormLabel className="font-normal">Potong dari Uang Tunai</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl><RadioGroupItem value="Tunai" /></FormControl>
+                        <FormLabel className="font-normal">Bayar Tunai Terpisah</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
