@@ -64,7 +64,6 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
     defaultValues: {
         sourcePPOBAccountId: '',
         customerName: '',
-        meterNumber: '',
         denomination: '',
         costPrice: undefined,
         sellingPrice: undefined,
@@ -178,13 +177,6 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
                     <FormItem>
                         <FormLabel>Nama Pemilik Meteran</FormLabel>
                         <FormControl><Input placeholder="Masukkan nama..." {...field} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )}/>
-                <FormField control={form.control} name="meterNumber" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>No. Meter / ID Pelanggan</FormLabel>
-                        <FormControl><Input placeholder="Masukkan nomor..." {...field} type="tel" /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}/>
@@ -302,3 +294,5 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
     </Form>
   );
 }
+
+    

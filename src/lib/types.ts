@@ -239,7 +239,6 @@ export type PPOBPulsaFormValues = z.infer<typeof PPOBPulsaFormSchema>;
 export const PPOBTokenListrikFormSchema = z.object({
   sourcePPOBAccountId: z.string().min(1, 'Akun PPOB sumber harus dipilih'),
   customerName: z.string().min(1, 'Nama pemilik meteran harus diisi.'),
-  meterNumber: z.string().min(10, 'Nomor Meter/ID Pelanggan minimal 10 digit').max(16, 'Nomor Meter/ID Pelanggan maksimal 16 digit'),
   denomination: z.string().min(1, 'Denominasi harus dipilih'),
   costPrice: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Harga modal harus angka" }).min(0, 'Harga modal tidak boleh negatif')),
   sellingPrice: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Harga jual harus angka" }).min(0, 'Harga jual tidak boleh negatif')),
@@ -267,5 +266,7 @@ export type PPOBTransaction = {
     paymentToKasTransferAmount?: number;
     deviceName: string;
 }
+
+    
 
     

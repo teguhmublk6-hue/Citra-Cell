@@ -161,7 +161,7 @@ export default function PPOBTokenListrikReview({ formData, onConfirm, onBack }: 
             await addDoc(collection(firestore, 'ppobTransactions'), {
                 date: now,
                 serviceName: 'Token Listrik',
-                destination: formData.meterNumber,
+                destination: formData.customerName,
                 description: `Token ${formData.denomination} an. ${formData.customerName}`,
                 costPrice: formData.costPrice,
                 sellingPrice: formData.sellingPrice,
@@ -206,7 +206,6 @@ export default function PPOBTokenListrikReview({ formData, onConfirm, onBack }: 
                         <h4 className="font-semibold text-lg">Detail Transaksi Token Listrik</h4>
                         <div className="text-sm space-y-1 text-muted-foreground">
                             <p>Nama Pelanggan: <strong>{formData.customerName}</strong></p>
-                            <p>No. Meter / ID Pel: <strong>{formData.meterNumber}</strong></p>
                             <p>Denominasi: <strong>Token {formatToRupiah(formData.denomination)}</strong></p>
                             <p>Sumber Deposit: <strong>{sourcePPOBAccount?.label}</strong></p>
                         </div>
@@ -256,3 +255,5 @@ export default function PPOBTokenListrikReview({ formData, onConfirm, onBack }: 
         </div>
     );
 }
+
+    
