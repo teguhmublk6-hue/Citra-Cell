@@ -56,7 +56,7 @@ import DeleteAllReportsDialog from './DeleteAllReportsDialog';
 import { useToast } from '@/hooks/use-toast';
 import PPOBPulsaForm from './PPOBPulsaForm';
 import PPOBPulsaReview from './PPOBPulsaReview';
-import ShopeePricingManager from './ShopeePricingManager';
+import PPOBPricingManager from './PPOBPricingManager';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -69,7 +69,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'admin' | 'settings';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'manageShopeePricing' | 'ppobPulsa' | 'ppobPulsaReview';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -224,8 +224,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     setActiveSheet('manageKasAccounts');
   }
   
-  const handleManageShopeePricingClick = () => {
-    setActiveSheet('manageShopeePricing');
+  const handleManagePPOBPricingClick = () => {
+    setActiveSheet('managePPOBPricing');
   }
 
   const handleResetReportsClick = () => {
@@ -404,7 +404,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
       case 'mutasi':
         return <GlobalTransactionHistory />;
       case 'admin':
-        return isAdminAccessGranted ? <AdminContent onProfitLossReportClick={handleProfitLossReportClick} onSetMotivationClick={handleSetMotivationClick} onManageKasAccountsClick={handleManageKasAccountsClick} onManageShopeePricingClick={handleManageShopeePricingClick} onResetReportsClick={handleResetReportsClick}/> : null;
+        return isAdminAccessGranted ? <AdminContent onProfitLossReportClick={handleProfitLossReportClick} onSetMotivationClick={handleSetMotivationClick} onManageKasAccountsClick={handleManageKasAccountsClick} onManagePPOBPricingClick={handleManagePPOBPricingClick} onResetReportsClick={handleResetReportsClick}/> : null;
       default:
         return <div className="px-4"><QuickServices onServiceClick={handleQuickServiceClick}/></div>;
     }
@@ -451,7 +451,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                   {activeSheet === 'settlementReview' && 'Review Settlement'}
                   {activeSheet === 'setMotivation' && 'Atur Motivasi Harian'}
                   {activeSheet === 'manageKasAccounts' && 'Manajemen Akun Kas'}
-                  {activeSheet === 'manageShopeePricing' && 'Kelola Harga Shopee'}
+                  {activeSheet === 'managePPOBPricing' && 'Kelola Harga Pulsa'}
                   {activeSheet === 'ppobPulsa' && 'Transaksi Pulsa'}
                   {activeSheet === 'ppobPulsaReview' && 'Review Transaksi Pulsa'}
                 </SheetTitle>
@@ -477,7 +477,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             {activeSheet === 'customerKJPReview' && reviewData && !('sourceMerchantAccountId' in reviewData) && !('serviceProvider' in reviewData) && !('destinationEmoney' in reviewData) && !('destinationEwallet' in reviewData) && !('customerBankSource' in reviewData) && !('destinationBank' in reviewData) && ('withdrawalAmount' in reviewData) && <CustomerKJPWithdrawalReview formData={reviewData as CustomerKJPWithdrawalFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerKJP')} />}
             {activeSheet === 'setMotivation' && <SetMotivationForm onDone={closeAllSheets} />}
             {activeSheet === 'manageKasAccounts' && <KasManagement />}
-            {activeSheet === 'manageShopeePricing' && <ShopeePricingManager onDone={closeAllSheets} />}
+            {activeSheet === 'managePPOBPricing' && <PPOBPricingManager onDone={closeAllSheets} />}
             {activeSheet === 'ppobPulsa' && <PPOBPulsaForm onReview={handleReview} onDone={closeAllSheets} />}
             {activeSheet === 'ppobPulsaReview' && reviewData && 'costPrice' in reviewData && <PPOBPulsaReview formData={reviewData as PPOBPulsaFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('ppobPulsa')} />}
         </SheetContent>

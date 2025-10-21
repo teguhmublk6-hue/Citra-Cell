@@ -20,7 +20,7 @@ import { PPOBPulsaFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
-import shopeePricing from '@/lib/shopee-pricing.json';
+import ppobPricing from '@/lib/ppob-pricing.json';
 
 interface PPOBPulsaFormProps {
   onReview: (data: PPOBPulsaFormValues) => void;
@@ -99,8 +99,8 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
   const selectedPPOBAccount = useMemo(() => kasAccounts?.find(acc => acc.id === sourcePPOBAccountId), [kasAccounts, sourcePPOBAccountId]);
 
   const availableDenominations = useMemo(() => {
-    if (selectedPPOBAccount?.label === 'Mitra Shopee' && detectedProvider) {
-      const providerPricing = (shopeePricing as any)[detectedProvider];
+    if (selectedPPOBAccount && detectedProvider) {
+      const providerPricing = (ppobPricing as any)[detectedProvider];
       if (providerPricing) {
         return Object.keys(providerPricing).map(d => parseInt(d, 10)).sort((a,b) => a - b).map(String);
       }
@@ -109,8 +109,8 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
   }, [selectedPPOBAccount, detectedProvider]);
 
   useEffect(() => {
-    if (selectedPPOBAccount?.label === 'Mitra Shopee' && detectedProvider && denomination) {
-      const pricing = (shopeePricing as any)[detectedProvider];
+    if (selectedPPOBAccount && detectedProvider && denomination) {
+      const pricing = (ppobPricing as any)[detectedProvider];
       const denomKey = denomination.replace(/\./g, '');
       const denomPrice = pricing ? pricing[denomKey] : null;
 
@@ -163,7 +163,9 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
                         >
                             <CardContent className="p-0 flex flex-col items-center justify-center h-full text-center">
                                {acc.iconUrl ? (
-                                    <Image src={acc.iconUrl} alt={acc.label} fill className="object-cover" />
+                                    <>
+                                        <Image src={acc.iconUrl} alt={acc.label} fill className="object-cover" />
+                                    </>
                                 ) : (
                                     <div className="p-2">
                                         <p className="font-semibold text-lg">{acc.label}</p>

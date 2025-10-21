@@ -9,11 +9,11 @@ interface AdminContentProps {
   onProfitLossReportClick: () => void;
   onSetMotivationClick: () => void;
   onManageKasAccountsClick: () => void;
-  onManageShopeePricingClick: () => void;
+  onManagePPOBPricingClick: () => void;
   onResetReportsClick: () => void;
 }
 
-export default function AdminContent({ onProfitLossReportClick, onSetMotivationClick, onManageKasAccountsClick, onManageShopeePricingClick, onResetReportsClick }: AdminContentProps) {
+export default function AdminContent({ onProfitLossReportClick, onSetMotivationClick, onManageKasAccountsClick, onManagePPOBPricingClick, onResetReportsClick }: AdminContentProps) {
   return (
     <div className="px-4 py-4">
       <Card>
@@ -52,12 +52,12 @@ export default function AdminContent({ onProfitLossReportClick, onSetMotivationC
                 <ChevronRight size={20} className="text-muted-foreground" />
             </button>
             <button 
-                onClick={onManageShopeePricingClick}
+                onClick={onManagePPOBPricingClick}
                 className="flex items-center justify-between p-4 bg-card-foreground/5 rounded-xl w-full hover:bg-card-foreground/10 transition-colors"
             >
                 <div className="flex items-center gap-4">
                   <Tags size={20} className="text-muted-foreground" />
-                  <span className="font-medium">Kelola Harga Shopee</span>
+                  <span className="font-medium">Kelola Harga Pulsa</span>
                 </div>
                 <ChevronRight size={20} className="text-muted-foreground" />
             </button>

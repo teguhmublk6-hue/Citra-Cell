@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import shopeePricingData from '@/lib/shopee-pricing.json';
+import ppobPricingData from '@/lib/ppob-pricing.json';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -12,11 +12,11 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '..
 
 // This is a stand-in for a proper backend call.
 // In a real app, this would be an API call to a server-side function.
-async function savePricingData(data: typeof shopeePricingData): Promise<{ success: boolean; message: string }> {
+async function savePricingData(data: typeof ppobPricingData): Promise<{ success: boolean; message: string }> {
   try {
     // Here, we would make a fetch request to a serverless function
     // For example:
-    // const response = await fetch('/api/save-shopee-pricing', {
+    // const response = await fetch('/api/save-ppob-pricing', {
     //   method: 'POST',
     //   headers: { 'Content-Type': 'application/json' },
     //   body: JSON.stringify(data),
@@ -49,8 +49,8 @@ const parseRupiah = (value: string | undefined | null): number => {
 }
 
 
-export default function ShopeePricingManager({ onDone }: { onDone: () => void }) {
-  const [pricing, setPricing] = useState(shopeePricingData);
+export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
+  const [pricing, setPricing] = useState(ppobPricingData);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
@@ -75,7 +75,7 @@ export default function ShopeePricingManager({ onDone }: { onDone: () => void })
     // In a real application, you would make an API call here to a server-side
     // function that has permission to write to the filesystem.
     // For this example, we will just log a message.
-    console.log("Perubahan ini perlu disimpan ke `src/lib/shopee-pricing.json`. Karena keterbatasan lingkungan, saya tidak bisa menulis file secara langsung. Terapkan perubahan ini secara manual atau buat endpoint API untuk menanganinya.");
+    console.log("Perubahan ini perlu disimpan ke `src/lib/ppob-pricing.json`. Karena keterbatasan lingkungan, saya tidak bisa menulis file secara langsung. Terapkan perubahan ini secara manual atau buat endpoint API untuk menanganinya.");
     
     toast({
         title: 'Simulasi Berhasil',
@@ -92,7 +92,7 @@ export default function ShopeePricingManager({ onDone }: { onDone: () => void })
       <ScrollArea className="flex-1 -mx-6 px-6">
         <div className="space-y-4 pt-4 pb-6">
             <p className="text-sm text-muted-foreground">
-                Atur harga modal dan harga jual untuk setiap denominasi pulsa yang dijual melalui Mitra Shopee. Perubahan di sini akan memengaruhi pengisian otomatis pada form transaksi pulsa.
+                Atur harga modal dan harga jual untuk setiap denominasi pulsa. Perubahan di sini akan memengaruhi pengisian otomatis pada form transaksi pulsa untuk semua akun PPOB.
             </p>
             <Accordion type="multiple" className="w-full">
             {Object.entries(pricing).map(([provider, denominations]) => (
