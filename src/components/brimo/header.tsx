@@ -10,10 +10,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 interface HeaderProps {
     onSync: () => void;
     isSyncing: boolean;
-    onPpobReportClick: () => void;
 }
 
-export default function Header({ onSync, isSyncing, onPpobReportClick }: HeaderProps) {
+export default function Header({ onSync, isSyncing }: HeaderProps) {
   const [deviceName, setDeviceName] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -82,19 +81,6 @@ export default function Header({ onSync, isSyncing, onPpobReportClick }: HeaderP
           )}
         </div>
         <div className="flex gap-2">
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="bg-white/10 hover:bg-white/20 rounded-full text-primary-foreground">
-                        <BookText size={20} />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={onPpobReportClick}>
-                        <FileText className="mr-2 h-4 w-4" />
-                        <span>Laporan Transaksi PPOB</span>
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
           <Button variant="ghost" size="icon" className="bg-white/10 hover:bg-white/20 rounded-full text-primary-foreground" onClick={onSync} disabled={isSyncing}>
             <RotateCw size={20} className={isSyncing ? "animate-spin" : ""} />
           </Button>

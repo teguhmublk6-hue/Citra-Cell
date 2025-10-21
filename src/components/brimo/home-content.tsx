@@ -64,6 +64,7 @@ import RepeatTransactionDialog from './RepeatTransactionDialog';
 import AccountsContent from './AccountsContent';
 import PendingSettlements from './PendingSettlements';
 import OperationalCostReport from './OperationalCostReport';
+import ReportsContent from './ReportsContent';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -95,6 +96,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | CustomerKJPWithdrawalFormValues | MotivationFormValues | PPOBPulsaFormValues | PPOBTokenListrikFormValues | null>(null);
   const [isAdminAccessGranted, setIsAdminAccessGranted] = useState(false);
   const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
+  const [isBrilinkReportVisible, setIsBrilinkReportVisible] = useState(false);
   const [isPpobReportVisible, setIsPpobReportVisible] = useState(false);
   const [isProfitLossReportVisible, setIsProfitLossReportVisible] = useState(false);
   const [isOperationalCostReportVisible, setIsOperationalCostReportVisible] = useState(false);
@@ -255,10 +257,6 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     revalidateData();
   }
   
-  const handlePpobReportClick = () => {
-    setIsPpobReportVisible(true);
-  }
-
   const handleProfitLossReportClick = () => {
     setIsProfitLossReportVisible(true);
   }
@@ -339,6 +337,14 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     setIsPasscodeDialogOpen(false);
   };
   
+    if (isBrilinkReportVisible) {
+        return <BookkeepingReport onDone={() => setIsBrilinkReportVisible(false)} />;
+    }
+    
+    if (isPpobReportVisible) {
+        return <PPOBReport onDone={() => setIsPpobReportVisible(false)} />;
+    }
+  
     if (isProfitLossReportVisible) {
         return <ProfitLossReport onDone={() => setIsProfitLossReportVisible(false)} />;
     }
@@ -346,11 +352,6 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     if (isOperationalCostReportVisible) {
         return <OperationalCostReport onDone={() => setIsOperationalCostReportVisible(false)} />;
     }
-
-    if (isPpobReportVisible) {
-        return <PPOBReport onDone={() => setIsPpobReportVisible(false)} />;
-    }
-
 
   const isKJPReview = activeSheet === 'customerKJPReview' && reviewData && 'withdrawalAmount' in reviewData && !('customerBankSource' in reviewData);
   const isTokenReview = activeSheet === 'ppobTokenListrikReview' && reviewData && 'costPrice' in reviewData && 'customerName' in reviewData && !('phoneNumber' in reviewData);
@@ -370,7 +371,6 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             <Header 
               onSync={revalidateData} 
               isSyncing={isAccountsLoading} 
-              onPpobReportClick={handlePpobReportClick}
             />
             <div className="px-4 -mt-16">
               <Carousel 
@@ -414,7 +414,10 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
           </>
         );
       case 'laporan':
-        return <BookkeepingReport onDone={() => setActiveTab('home')} />;
+        return <ReportsContent 
+                    onBrilinkReportClick={() => setIsBrilinkReportVisible(true)} 
+                    onPpobReportClick={() => setIsPpobReportVisible(true)} 
+                />;
       case 'mutasi':
         return <GlobalTransactionHistory />;
       case 'accounts':
