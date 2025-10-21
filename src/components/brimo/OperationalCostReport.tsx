@@ -84,22 +84,26 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
             // 2. Fetch 'operational_fee' or 'operational' from transactions
             if (kasAccounts) {
                  for (const account of kasAccounts) {
+                    // Query only by date to avoid composite index requirement
                     const transQuery = query(
                         collection(firestore, 'kasAccounts', account.id, 'transactions'),
-                        where('category', 'in', ['operational', 'operational_fee']),
                          ...(dateFrom ? [where('date', '>=', dateFrom.toDate().toISOString())] : []),
                          ...(dateTo ? [where('date', '<=', dateTo.toDate().toISOString())] : [])
                     );
                     const transSnapshot = await getDocs(transQuery);
+                    
+                    // Filter by category on the client side
                     transSnapshot.forEach(docSnap => {
                         const data = docSnap.data() as Transaction;
-                         combinedCosts.push({
-                            id: `trx-${docSnap.id}`,
-                            date: new Date(data.date),
-                            description: data.name,
-                            amount: data.amount,
-                            source: `Akun ${account.label}`
-                        });
+                        if (data.category === 'operational' || data.category === 'operational_fee') {
+                            combinedCosts.push({
+                                id: `trx-${docSnap.id}`,
+                                date: new Date(data.date),
+                                description: data.name,
+                                amount: data.amount,
+                                source: `Akun ${account.label}`
+                            });
+                        }
                     })
                  }
             }
