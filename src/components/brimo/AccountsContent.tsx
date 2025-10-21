@@ -76,7 +76,7 @@ export default function AccountsContent({ onAccountClick, onSettlementClick }: A
             {kasAccounts && accountTypes.length > 0 ? (
                 <Tabs defaultValue={accountTypes[0]} className="flex flex-col flex-1">
                     <ScrollArea className="w-full whitespace-nowrap">
-                        <TabsList className="grid-flow-col">
+                        <TabsList>
                             {accountTypes.map((type) => (
                                 <TabsTrigger key={type} value={type}>{type}</TabsTrigger>
                             ))}
