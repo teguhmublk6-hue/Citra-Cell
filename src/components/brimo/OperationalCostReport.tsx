@@ -206,15 +206,17 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
                             </TableRow>
                         ))}
                     </TableBody>
-                    <TableFooter>
-                        <TableRow className="font-bold text-xl bg-muted">
-                            <TableCell colSpan={4} className="sticky left-0 bg-muted z-10">Total Biaya Operasional</TableCell>
-                            <TableCell className="text-right text-destructive py-2">{formatToRupiah(totalCost)}</TableCell>
-                        </TableRow>
-                    </TableFooter>
                 </Table>
             )}
         </div>
+        {!isLoading && costs.length > 0 && (
+             <div className="border-t bg-muted/50 p-4">
+                <div className="flex justify-between items-center">
+                    <p className="text-lg font-bold">Total Biaya Operasional</p>
+                    <p className="text-xl font-bold text-destructive">{formatToRupiah(totalCost)}</p>
+                </div>
+            </div>
+        )}
     </div>
   );
 }
