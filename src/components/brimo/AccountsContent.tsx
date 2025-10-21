@@ -75,7 +75,7 @@ export default function AccountsContent({ onAccountClick, onSettlementClick }: A
 
             {kasAccounts && accountTypes.length > 0 ? (
                 <Tabs defaultValue={accountTypes[0]} className="flex flex-col flex-1">
-                    <ScrollArea className="w-full whitespace-nowrap">
+                    <ScrollArea className="w-full whitespace-nowrap rounded-lg">
                         <TabsList>
                             {accountTypes.map((type) => (
                                 <TabsTrigger key={type} value={type}>{type}</TabsTrigger>
@@ -83,7 +83,7 @@ export default function AccountsContent({ onAccountClick, onSettlementClick }: A
                         </TabsList>
                     </ScrollArea>
                     
-                    <div className="flex-1 mt-4">
+                    <div className="flex-1 mt-4 overflow-y-auto">
                         {accountTypes.map((type) => (
                         <TabsContent key={type} value={type} className="h-full m-0">
                             <ScrollArea className="h-full">
