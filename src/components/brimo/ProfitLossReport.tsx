@@ -225,10 +225,10 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                     <Table className="text-[11px] whitespace-nowrap">
                         <TableHeader className="sticky top-0 bg-background z-10">
                             <TableRow>
-                                <TableHead className="w-[40px] sticky left-0 bg-background z-20 py-2">No</TableHead>
-                                <TableHead className="sticky left-[40px] bg-background z-20 py-2">Layanan</TableHead>
-                                <TableHead className="sticky left-[120px] bg-background z-20 py-2">Nama</TableHead>
-                                <TableHead className="sticky left-[220px] bg-background z-20 py-2">Bank/Tujuan</TableHead>
+                                <TableHead className="w-[40px] py-2">No</TableHead>
+                                <TableHead className="sticky left-0 bg-background z-20 py-2">Layanan</TableHead>
+                                <TableHead className="py-2">Nama</TableHead>
+                                <TableHead className="py-2">Bank/Tujuan</TableHead>
                                 <TableHead className="text-right py-2">Nominal</TableHead>
                                 <TableHead className="text-right py-2">Admin Bank</TableHead>
                                 <TableHead className="text-right py-2">Jasa</TableHead>
@@ -238,10 +238,10 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                         <TableBody>
                             {brilinkReports.map((report, index) => (
                                 <TableRow key={report.id}>
-                                    <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
-                                    <TableCell className="sticky left-[40px] bg-background z-10 py-2">{report.transactionType}</TableCell>
-                                    <TableCell className="sticky left-[120px] bg-background z-10 py-2">{'destinationAccountName' in report ? report.destinationAccountName : report.customerName}</TableCell>
-                                    <TableCell className="sticky left-[220px] bg-background z-10 py-2">{getBrilinkBankInfo(report)}</TableCell>
+                                    <TableCell className="py-2">{index + 1}</TableCell>
+                                    <TableCell className="sticky left-0 bg-background z-10 py-2">{report.transactionType}</TableCell>
+                                    <TableCell className="py-2">{'destinationAccountName' in report ? report.destinationAccountName : report.customerName}</TableCell>
+                                    <TableCell className="py-2">{getBrilinkBankInfo(report)}</TableCell>
                                     <TableCell className="text-right py-2">{formatToRupiah('transferAmount' in report ? report.transferAmount : ('withdrawalAmount' in report ? report.withdrawalAmount : ('topUpAmount' in report ? report.topUpAmount : ('paymentAmount' in report ? report.paymentAmount : 0))))}</TableCell>
                                     <TableCell className="text-right py-2">{formatToRupiah('bankAdminFee' in report ? report.bankAdminFee : ('adminFee' in report ? report.adminFee : 0))}</TableCell>
                                     <TableCell className="text-right py-2">{formatToRupiah(report.serviceFee)}</TableCell>
