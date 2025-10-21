@@ -75,6 +75,8 @@ export const iconMap: { [key: string]: React.ElementType } = {
 
 export type ActiveTab = 'home' | 'mutasi' | 'accounts' | 'admin' | 'settings';
 type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview';
+type FormSheet = 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'ppobPulsa' | 'ppobTokenListrik';
+
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -84,7 +86,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
   const [isRepeatDialogOpen, setIsRepeatDialogOpen] = useState(false);
-  const [lastCompletedSheet, setLastCompletedSheet] = useState<ActiveSheet>(null);
+  const [lastCompletedSheet, setLastCompletedSheet] = useState<FormSheet | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -216,18 +218,16 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
 
   const handleTransactionComplete = () => {
     revalidateData();
-    const reviewSheet = activeSheet;
-    let formSheet: ActiveSheet | null = null;
-    
-    if (reviewSheet === 'customerTransferReview') formSheet = 'customerTransfer';
-    else if (reviewSheet === 'customerWithdrawalReview') formSheet = 'customerWithdrawal';
-    else if (reviewSheet === 'customerTopUpReview') formSheet = 'customerTopUp';
-    else if (reviewSheet === 'customerEmoneyTopUpReview') formSheet = 'customerEmoneyTopUp';
-    else if (reviewSheet === 'customerVAPaymentReview') formSheet = 'customerVAPayment';
-    else if (reviewSheet === 'ppobPulsaReview') formSheet = 'ppobPulsa';
-    else if (reviewSheet === 'ppobTokenListrikReview') formSheet = 'ppobTokenListrik';
-    else if (reviewSheet === 'customerKJPReview') formSheet = 'customerKJP';
-    else if (reviewSheet === 'settlementReview') formSheet = 'settlement';
+    let formSheet: FormSheet | null = null;
+    if (activeSheet === 'customerTransferReview') formSheet = 'customerTransfer';
+    else if (activeSheet === 'customerWithdrawalReview') formSheet = 'customerWithdrawal';
+    else if (activeSheet === 'customerTopUpReview') formSheet = 'customerTopUp';
+    else if (activeSheet === 'customerEmoneyTopUpReview') formSheet = 'customerEmoneyTopUp';
+    else if (activeSheet === 'customerVAPaymentReview') formSheet = 'customerVAPayment';
+    else if (activeSheet === 'ppobPulsaReview') formSheet = 'ppobPulsa';
+    else if (activeSheet === 'ppobTokenListrikReview') formSheet = 'ppobTokenListrik';
+    else if (activeSheet === 'customerKJPReview') formSheet = 'customerKJP';
+    else if (activeSheet === 'settlementReview') formSheet = 'settlement';
     
     if (formSheet) {
       setLastCompletedSheet(formSheet);
@@ -239,15 +239,16 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
 
   const handleRepeatNo = () => {
     setIsRepeatDialogOpen(false);
-    setActiveSheet(null);
-    setReviewData(null);
     setLastCompletedSheet(null);
+    closeAllSheets();
   };
 
   const handleRepeatYes = () => {
     setIsRepeatDialogOpen(false);
-    setReviewData(null);
-    setActiveSheet(lastCompletedSheet); 
+    if (lastCompletedSheet) {
+      setReviewData(null); // Clear review data
+      setActiveSheet(lastCompletedSheet); // Re-open the form sheet
+    }
   };
   
   const closeAllSheets = () => {
@@ -568,3 +569,5 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     </>
   );
 }
+
+    
