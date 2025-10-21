@@ -83,6 +83,12 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
     acc.profit += report.profit;
     return acc;
   }, { costPrice: 0, sellingPrice: 0, profit: 0 });
+  
+  const parseDenomination = (description: string) => {
+    const match = description.match(/\d+/);
+    return match ? parseInt(match[0], 10).toLocaleString('id-ID') : description;
+  };
+
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -166,7 +172,7 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                                 <TableCell className="py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
                                 <TableCell className="py-2">{report.destination}</TableCell>
                                 <TableCell className="py-2">
-                                    {report.serviceName === 'Token Listrik' ? 'Token Listrik' : report.description}
+                                    {report.serviceName === 'Token Listrik' ? parseDenomination(report.description) : report.description}
                                 </TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.sellingPrice)}</TableCell>
