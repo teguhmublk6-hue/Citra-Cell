@@ -63,6 +63,7 @@ import PPOBTokenListrikReview from './PPOBTokenListrikReview';
 import RepeatTransactionDialog from './RepeatTransactionDialog';
 import AccountsContent from './AccountsContent';
 import PendingSettlements from './PendingSettlements';
+import OperationalCostReport from './OperationalCostReport';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -75,7 +76,7 @@ export const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'accounts' | 'admin' | 'settings';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview' | 'operationalCostReport';
 type FormSheet = 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'ppobPulsa' | 'ppobTokenListrik';
 
 
@@ -97,6 +98,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const [isBrilinkReportVisible, setIsBrilinkReportVisible] = useState(false);
   const [isPpobReportVisible, setIsPpobReportVisible] = useState(false);
   const [isProfitLossReportVisible, setIsProfitLossReportVisible] = useState(false);
+  const [isOperationalCostReportVisible, setIsOperationalCostReportVisible] = useState(false);
   const [isDeleteReportsDialogOpen, setIsDeleteReportsDialogOpen] = useState(false);
   const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
@@ -232,13 +234,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     else if (activeSheet === 'customerKJPReview') formSheet = 'customerKJP';
     else if (activeSheet === 'settlementReview') formSheet = 'settlement';
     
-    if (formSheet) {
-      setLastCompletedSheet(formSheet);
-      setIsRepeatDialogOpen(true);
-      setActiveSheet(null); // Close the review sheet
-    } else {
-      closeAllSheets();
-    }
+    setLastCompletedSheet(formSheet);
+    setIsRepeatDialogOpen(true);
   }
 
   const handleRepeatNo = () => {
@@ -249,10 +246,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
 
   const handleRepeatYes = () => {
     setIsRepeatDialogOpen(false);
-    if (lastCompletedSheet) {
-      setReviewData(null); // Clear previous review data
-      setActiveSheet(lastCompletedSheet); // Re-open the original form sheet
-    }
+    setReviewData(null); // Clear previous review data
+    setActiveSheet(lastCompletedSheet); // Re-open the original form sheet
   };
   
   const closeAllSheets = () => {
@@ -271,6 +266,10 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
 
   const handleProfitLossReportClick = () => {
     setIsProfitLossReportVisible(true);
+  }
+
+  const handleOperationalCostReportClick = () => {
+    setIsOperationalCostReportVisible(true);
   }
 
   const handleSetMotivationClick = () => {
@@ -358,6 +357,10 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   if (isBrilinkReportVisible) {
     return <BookkeepingReport onDone={() => setIsBrilinkReportVisible(false)} />;
   }
+  
+  if (isOperationalCostReportVisible) {
+    return <OperationalCostReport onDone={() => setIsOperationalCostReportVisible(false)} />;
+  }
 
   if (isPpobReportVisible) {
     return <PPOBReport onDone={() => setIsPpobReportVisible(false)} />;
@@ -436,7 +439,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
       case 'accounts':
         return <AccountsContent onAccountClick={handleAccountClick} onSettlementClick={handleSettlementClick} />;
       case 'admin':
-        return isAdminAccessGranted ? <AdminContent onProfitLossReportClick={handleProfitLossReportClick} onSetMotivationClick={handleSetMotivationClick} onManageKasAccountsClick={handleManageKasAccountsClick} onManagePPOBPricingClick={handleManagePPOBPricingClick} onResetReportsClick={handleResetReportsClick}/> : null;
+        return isAdminAccessGranted ? <AdminContent onProfitLossReportClick={handleProfitLossReportClick} onOperationalCostReportClick={handleOperationalCostReportClick} onSetMotivationClick={handleSetMotivationClick} onManageKasAccountsClick={handleManageKasAccountsClick} onManagePPOBPricingClick={handleManagePPOBPricingClick} onResetReportsClick={handleResetReportsClick}/> : null;
       default:
         return <div className="px-4"><QuickServices onServiceClick={handleQuickServiceClick}/></div>;
     }
@@ -495,6 +498,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                   {activeSheet === 'ppobPulsaReview' && 'Review Transaksi Pulsa'}
                   {activeSheet === 'ppobTokenListrik' && 'Transaksi Token Listrik'}
                   {activeSheet === 'ppobTokenListrikReview' && 'Review Transaksi Token Listrik'}
+                  {activeSheet === 'operationalCostReport' && 'Laporan Biaya Operasional'}
                 </SheetTitle>
             </SheetHeader>
             {activeSheet === 'history' && selectedAccount && <TransactionHistory account={selectedAccount} onDone={() => setActiveSheet(null)} />}
@@ -534,6 +538,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
 
             {activeSheet === 'ppobTokenListrik' && <PPOBTokenListrikForm onReview={handleReview} onDone={closeAllSheets} />}
             {isTokenReview && <PPOBTokenListrikReview formData={reviewData as PPOBTokenListrikFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('ppobTokenListrik')} />}
+            
+            {activeSheet === 'operationalCostReport' && <OperationalCostReport onDone={closeAllSheets} />}
         </SheetContent>
       </Sheet>
 

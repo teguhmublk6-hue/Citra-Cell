@@ -96,15 +96,6 @@ export default function SettlementReview({ formData, onConfirm, onBack }: Settle
                 transaction.set(creditTrxRef, {
                     kasAccountId: destinationAccount.id, type: 'credit', name: `Settlement dari ${sourceAccount.label}`, account: 'Internal', date: nowISO, amount: netAmount, balanceBefore: currentDestBalance, balanceAfter: currentDestBalance + netAmount, category: 'settlement_credit', deviceName
                 });
-
-                // 5. Create debit transaction for MDR fee from destination
-                const mdrTrxRef = doc(collection(destAccountRef, 'transactions'));
-                transaction.set(mdrTrxRef, {
-                     kasAccountId: destinationAccount.id, type: 'debit', name: `Biaya MDR Settlement dari ${sourceAccount.label}`, account: 'Biaya MDR', date: nowISO, amount: mdrFee, balanceBefore: currentDestBalance + netAmount, balanceAfter: currentDestBalance + netAmount - mdrFee, category: 'operational_fee', deviceName
-                });
-                
-                // We need to adjust destination balance again for the MDR fee
-                transaction.update(destAccountRef, { balance: currentDestBalance + netAmount - mdrFee });
             });
 
             await addDoc(collection(firestore, 'settlements'), {
@@ -155,7 +146,7 @@ export default function SettlementReview({ formData, onConfirm, onBack }: Settle
                             <ul className="list-disc pl-5 space-y-1 mt-2">
                                <li>Saldo <strong>{sourceAccount?.label}</strong> akan menjadi <span className="font-semibold">{formatToRupiah(0)}</span>.</li>
                                <li>Saldo <strong>{destinationAccount?.label}</strong> akan bertambah bersih sebesar <span className="font-semibold text-green-500">{formatToRupiah(netAmount)}</span>.</li>
-                               <li>Biaya MDR sebesar <span className="font-semibold text-red-500">{formatToRupiah(mdrFee)}</span> akan dicatat sebagai pengeluaran di akun tujuan.</li>
+                               <li>Biaya MDR dicatat sebagai biaya operasional dan tidak memotong saldo akun kas.</li>
                             </ul>
                         </AlertDescription>
                     </Alert>
