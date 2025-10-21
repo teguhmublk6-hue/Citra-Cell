@@ -104,7 +104,9 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
   }, [denomination, form]);
 
 
-  const ppobAccounts = useMemo(() => kasAccounts?.filter(acc => acc.type === 'PPOB'), [kasAccounts]);
+  const ppobAccounts = useMemo(() => {
+    return kasAccounts?.filter(acc => acc.type === 'PPOB' && ['Mitra Shopee', 'Mitra Bukalapak'].includes(acc.label));
+  }, [kasAccounts]);
 
   const onSubmit = (values: PPOBTokenListrikFormValues) => { onReview(values); };
   
@@ -138,7 +140,7 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
                         <Card 
                             key={acc.id} 
                             onClick={() => { form.setValue('sourcePPOBAccountId', acc.id); setCurrentStep(2); }} 
-                            className="cursor-pointer hover:ring-2 hover:ring-primary transition relative overflow-hidden group aspect-[1.5/1]"
+                            className="cursor-pointer hover:ring-2 hover:ring-primary transition relative overflow-hidden group aspect-video"
                         >
                             <CardContent className="p-0 flex flex-col items-center justify-center h-full text-center">
                                {acc.iconUrl ? (
@@ -153,7 +155,7 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
                         </Card>
                     ))}
                     </div>
-                     {ppobAccounts?.length === 0 && <p className='text-sm text-muted-foreground text-center py-8'>Tidak ada Akun Kas dengan tipe "PPOB". Silakan buat terlebih dahulu di menu Admin.</p>}
+                     {ppobAccounts?.length === 0 && <p className='text-sm text-muted-foreground text-center py-8'>Tidak ada Akun Kas "Mitra Shopee" atau "Mitra Bukalapak". Silakan buat terlebih dahulu di menu Admin.</p>}
                 </div>
             )}
             
