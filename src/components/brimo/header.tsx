@@ -10,10 +10,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 interface HeaderProps {
     onSync: () => void;
     isSyncing: boolean;
-    onReportClick: () => void;
+    onBrilinkReportClick: () => void;
+    onPpobReportClick: () => void;
 }
 
-export default function Header({ onSync, isSyncing, onReportClick }: HeaderProps) {
+export default function Header({ onSync, isSyncing, onBrilinkReportClick, onPpobReportClick }: HeaderProps) {
   const [deviceName, setDeviceName] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -89,9 +90,13 @@ export default function Header({ onSync, isSyncing, onReportClick }: HeaderProps
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={onReportClick}>
+                    <DropdownMenuItem onClick={onBrilinkReportClick}>
                         <FileText className="mr-2 h-4 w-4" />
-                        <span>Laporan Pembukuan</span>
+                        <span>Laporan BRILink</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onPpobReportClick}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        <span>Laporan Transaksi PPOB</span>
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -103,5 +108,3 @@ export default function Header({ onSync, isSyncing, onReportClick }: HeaderProps
     </header>
   );
 }
-
-    

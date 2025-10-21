@@ -57,6 +57,7 @@ import { useToast } from '@/hooks/use-toast';
 import PPOBPulsaForm from './PPOBPulsaForm';
 import PPOBPulsaReview from './PPOBPulsaReview';
 import PPOBPricingManager from './PPOBPricingManager';
+import PPOBReport from './PPOBReport';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -84,7 +85,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | CustomerKJPWithdrawalFormValues | MotivationFormValues | PPOBPulsaFormValues | null>(null);
   const [isAdminAccessGranted, setIsAdminAccessGranted] = useState(false);
   const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
-  const [isReportVisible, setIsReportVisible] = useState(false);
+  const [isBrilinkReportVisible, setIsBrilinkReportVisible] = useState(false);
+  const [isPpobReportVisible, setIsPpobReportVisible] = useState(false);
   const [isProfitLossReportVisible, setIsProfitLossReportVisible] = useState(false);
   const [isDeleteReportsDialogOpen, setIsDeleteReportsDialogOpen] = useState(false);
   const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -208,8 +210,12 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     revalidateData();
   }
 
-  const handleReportClick = () => {
-    setIsReportVisible(true);
+  const handleBrilinkReportClick = () => {
+    setIsBrilinkReportVisible(true);
+  }
+  
+  const handlePpobReportClick = () => {
+    setIsPpobReportVisible(true);
   }
 
   const handleProfitLossReportClick = () => {
@@ -298,8 +304,12 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     };
   }, [kasAccounts]);
 
-  if (isReportVisible) {
-    return <BookkeepingReport onDone={() => setIsReportVisible(false)} />;
+  if (isBrilinkReportVisible) {
+    return <BookkeepingReport onDone={() => setIsBrilinkReportVisible(false)} />;
+  }
+
+  if (isPpobReportVisible) {
+    return <PPOBReport onDone={() => setIsPpobReportVisible(false)} />;
   }
 
   if (isProfitLossReportVisible) {
@@ -311,7 +321,12 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
       case 'home':
         return (
           <>
-            <Header onSync={revalidateData} isSyncing={isAccountsLoading} onReportClick={handleReportClick} />
+            <Header 
+              onSync={revalidateData} 
+              isSyncing={isAccountsLoading} 
+              onBrilinkReportClick={handleBrilinkReportClick}
+              onPpobReportClick={handlePpobReportClick}
+            />
             <div className="px-4 -mt-16">
               <Carousel 
                 setApi={setCarouselApi}
