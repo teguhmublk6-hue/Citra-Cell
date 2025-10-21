@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
-import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal } from '@/lib/types';
+import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal, PPOBTransaction } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ interface ProfitLossReportProps {
   onDone: () => void;
 }
 
-type ReportItem = 
+type BrilinkReportItem = 
     | (CustomerTransfer & { id: string; transactionType: 'Transfer' }) 
     | (CustomerWithdrawal & { id: string; transactionType: 'Tarik Tunai' }) 
     | (CustomerTopUp & { id: string; transactionType: 'Top Up' })
@@ -40,7 +40,8 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 
 export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
   const firestore = useFirestore();
-  const [reports, setReports] = useState<ReportItem[]>([]);
+  const [brilinkReports, setBrilinkReports] = useState<BrilinkReportItem[]>([]);
+  const [ppobReports, setPpobReports] = useState<(PPOBTransaction & {id: string})[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
 
@@ -59,7 +60,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
             const dateFrom = dateRange?.from ? Timestamp.fromDate(startOfDay(dateRange.from)) : null;
             const dateTo = dateRange?.to ? Timestamp.fromDate(endOfDay(dateRange.to)) : null;
 
-            const queries = [
+            const brilinkQueries = [
                 getDocs(query(collection(firestore, 'customerTransfers'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
                 getDocs(query(collection(firestore, 'customerWithdrawals'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
                 getDocs(query(collection(firestore, 'customerTopUps'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
@@ -68,87 +69,39 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                 getDocs(query(collection(firestore, 'edcServices'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
                 getDocs(query(collection(firestore, 'customerKJPWithdrawals'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
             ];
+
+            const ppobQuery = getDocs(query(collection(firestore, 'ppobTransactions'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
             
-            const [transfersSnapshot, withdrawalsSnapshot, topUpsSnapshot, emoneyTopUpsSnapshot, vaPaymentsSnapshot, edcServicesSnapshot, kjpWithdrawalsSnapshot] = await Promise.all(queries);
+            const [
+                transfersSnapshot, 
+                withdrawalsSnapshot, 
+                topUpsSnapshot, 
+                emoneyTopUpsSnapshot, 
+                vaPaymentsSnapshot, 
+                edcServicesSnapshot, 
+                kjpWithdrawalsSnapshot,
+                ppobSnapshot
+            ] = await Promise.all([...brilinkQueries, ppobQuery]);
 
-            const combinedReports: ReportItem[] = [];
+            const combinedBrilinkReports: BrilinkReportItem[] = [];
 
-            transfersSnapshot.forEach((doc) => {
-                const data = doc.data();
-                combinedReports.push({ 
-                    id: doc.id, 
-                    ...(data as CustomerTransfer),
-                    date: (data.date as Timestamp).toDate(),
-                    transactionType: 'Transfer' 
-                });
-            });
+            transfersSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerTransfer), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Transfer' }));
+            withdrawalsSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerWithdrawal), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Tarik Tunai' }));
+            topUpsSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerTopUp), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Top Up' }));
+            emoneyTopUpsSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerEmoneyTopUp), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Top Up E-Money' }));
+            vaPaymentsSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerVAPayment), date: (doc.data().date as Timestamp).toDate(), transactionType: 'VA Payment' }));
+            edcServicesSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as EDCService), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Layanan EDC' }));
+            kjpWithdrawalsSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerKJPWithdrawal), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Tarik Tunai KJP' }));
 
-            withdrawalsSnapshot.forEach((doc) => {
-                const data = doc.data();
-                combinedReports.push({ 
-                    id: doc.id, 
-                    ...(data as CustomerWithdrawal),
-                    date: (data.date as Timestamp).toDate(),
-                    transactionType: 'Tarik Tunai' 
-                });
-            });
-
-            topUpsSnapshot.forEach((doc) => {
-                const data = doc.data();
-                combinedReports.push({
-                    id: doc.id,
-                    ...(data as CustomerTopUp),
-                    date: (data.date as Timestamp).toDate(),
-                    transactionType: 'Top Up'
-                });
-            });
-
-            emoneyTopUpsSnapshot.forEach((doc) => {
-                const data = doc.data();
-                combinedReports.push({
-                    id: doc.id,
-                    ...(data as CustomerEmoneyTopUp),
-                    date: (data.date as Timestamp).toDate(),
-                    transactionType: 'Top Up E-Money'
-                });
-            });
-
-            vaPaymentsSnapshot.forEach((doc) => {
-                const data = doc.data();
-                combinedReports.push({
-                    id: doc.id,
-                    ...(data as CustomerVAPayment),
-                    date: (data.date as Timestamp).toDate(),
-                    transactionType: 'VA Payment'
-                });
-            });
-
-            edcServicesSnapshot.forEach((doc) => {
-                const data = doc.data();
-                combinedReports.push({
-                    id: doc.id,
-                    ...(data as EDCService),
-                    date: (data.date as Timestamp).toDate(),
-                    transactionType: 'Layanan EDC'
-                });
-            });
-
-            kjpWithdrawalsSnapshot.forEach((doc) => {
-                const data = doc.data();
-                combinedReports.push({
-                    id: doc.id,
-                    ...(data as CustomerKJPWithdrawal),
-                    date: (data.date as Timestamp).toDate(),
-                    transactionType: 'Tarik Tunai KJP'
-                });
-            });
-
-            combinedReports.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            combinedBrilinkReports.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             
-            setReports(combinedReports);
+            const fetchedPpobReports = ppobSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PPOBTransaction & {id: string}));
+
+            setBrilinkReports(combinedBrilinkReports);
+            setPpobReports(fetchedPpobReports);
 
         } catch (error) {
-            console.error("Error fetching bookkeeping reports: ", error);
+            console.error("Error fetching profit/loss reports: ", error);
         } finally {
             setIsLoading(false);
         }
@@ -163,22 +116,14 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
     return kasAccounts?.find(acc => acc.id === accountId)?.label || accountId;
   };
   
-  const totals = reports.reduce((acc, report) => {
+  const brilinkTotals = brilinkReports.reduce((acc, report) => {
     if (report.transactionType === 'Transfer') {
         acc.nominal += report.transferAmount;
         acc.adminBank += report.bankAdminFee;
         acc.jasa += report.serviceFee;
         acc.labaRugi += report.netProfit;
-    } else if (report.transactionType === 'Tarik Tunai') {
-        acc.nominal += report.withdrawalAmount;
-        acc.jasa += report.serviceFee;
-        acc.labaRugi += report.serviceFee;
-    } else if (report.transactionType === 'Top Up') {
-        acc.nominal += report.topUpAmount;
-        acc.jasa += report.serviceFee;
-        acc.labaRugi += report.serviceFee;
-    } else if (report.transactionType === 'Top Up E-Money') {
-        acc.nominal += report.topUpAmount;
+    } else if (report.transactionType === 'Tarik Tunai' || report.transactionType === 'Top Up' || report.transactionType === 'Top Up E-Money' || report.transactionType === 'Layanan EDC' || report.transactionType === 'Tarik Tunai KJP') {
+        acc.nominal += 'withdrawalAmount' in report ? report.withdrawalAmount : ('topUpAmount' in report ? report.topUpAmount : 0);
         acc.jasa += report.serviceFee;
         acc.labaRugi += report.serviceFee;
     } else if (report.transactionType === 'VA Payment') {
@@ -186,17 +131,18 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
         acc.adminBank += report.adminFee;
         acc.jasa += report.serviceFee;
         acc.labaRugi += report.netProfit;
-    } else if (report.transactionType === 'Layanan EDC') {
-        acc.nominal += 0; // No principal amount
-        acc.jasa += report.serviceFee;
-        acc.labaRugi += report.serviceFee;
-    } else if (report.transactionType === 'Tarik Tunai KJP') {
-        acc.nominal += report.withdrawalAmount;
-        acc.jasa += report.serviceFee;
-        acc.labaRugi += report.serviceFee;
     }
     return acc;
   }, { nominal: 0, adminBank: 0, jasa: 0, labaRugi: 0 });
+
+  const ppobTotals = ppobReports.reduce((acc, report) => {
+    acc.costPrice += report.costPrice;
+    acc.sellingPrice += report.sellingPrice;
+    acc.profit += report.profit;
+    return acc;
+  }, { costPrice: 0, sellingPrice: 0, profit: 0 });
+
+  const totalNetProfit = brilinkTotals.labaRugi + ppobTotals.profit;
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -249,140 +195,47 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
         <div className="flex-1 overflow-auto px-4 space-y-6">
             <div>
                 <h2 className="text-lg font-semibold mb-2">A. BRILink</h2>
-                {isLoading && (
-                <div className="space-y-2">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                </div>
-                )}
-                {!isLoading && reports.length === 0 && (
-                    <Card>
-                        <CardContent className="pt-6 text-center text-muted-foreground">
-                            Tidak ada transaksi BRILink untuk tanggal ini.
-                        </CardContent>
-                    </Card>
-                )}
-                {!isLoading && reports.length > 0 && (
+                {isLoading ? (
+                    <div className="space-y-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
+                ) : brilinkReports.length === 0 ? (
+                    <Card><CardContent className="pt-6 text-center text-muted-foreground">Tidak ada transaksi BRILink untuk tanggal ini.</CardContent></Card>
+                ) : (
                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[40px]">No</TableHead>
                                 <TableHead>Layanan</TableHead>
-                                <TableHead>Akun Kas</TableHead>
-                                <TableHead>Bank/Tujuan</TableHead>
                                 <TableHead>Nama</TableHead>
                                 <TableHead className="text-right">Nominal</TableHead>
                                 <TableHead className="text-right">Admin Bank</TableHead>
                                 <TableHead className="text-right">Jasa</TableHead>
                                 <TableHead className="text-right">Laba/Rugi</TableHead>
-                                <TableHead>Oleh</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {reports.map((report, index) => (
+                            {brilinkReports.map((report, index) => (
                                 <TableRow key={report.id}>
                                     <TableCell>{index + 1}</TableCell>
-                                    {report.transactionType === 'Transfer' ? (
-                                        <>
-                                            <TableCell>Transfer</TableCell>
-                                            <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
-                                            <TableCell>{report.destinationBankName}</TableCell>
-                                            <TableCell>{report.destinationAccountName}</TableCell>
-                                            <TableCell className="text-right">{formatToRupiah(report.transferAmount)}</TableCell>
-                                            <TableCell className="text-right">{formatToRupiah(report.bankAdminFee)}</TableCell>
-                                            <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
-                                            <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.netProfit)}</TableCell>
-                                            <TableCell>{report.deviceName}</TableCell>
-                                        </>
-                                    ) : report.transactionType === 'Tarik Tunai' ? (
-                                        <>
-                                            <TableCell>Tarik Tunai</TableCell>
-                                            <TableCell>{getAccountLabel(report.destinationKasAccountId)}</TableCell>
-                                            <TableCell>{report.customerBankSource}</TableCell>
-                                            <TableCell>{report.customerName}</TableCell>
-                                            <TableCell className="text-right">{formatToRupiah(report.withdrawalAmount)}</TableCell>
-                                            <TableCell className="text-right">Rp 0</TableCell>
-                                            <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
-                                            <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
-                                            <TableCell>{report.deviceName}</TableCell>
-                                        </>
-                                    ) : report.transactionType === 'Top Up' ? (
-                                        <>
-                                            <TableCell>Top Up</TableCell>
-                                            <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
-                                            <TableCell>{report.destinationEwallet}</TableCell>
-                                            <TableCell>{report.customerName}</TableCell>
-                                            <TableCell className="text-right">{formatToRupiah(report.topUpAmount)}</TableCell>
-                                            <TableCell className="text-right">Rp 0</TableCell>
-                                            <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
-                                            <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
-                                            <TableCell>{report.deviceName}</TableCell>
-                                        </>
-                                    ) : report.transactionType === 'Top Up E-Money' ? (
-                                        <>
-                                            <TableCell>Top Up E-Money</TableCell>
-                                            <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
-                                            <TableCell>{report.destinationEmoney}</TableCell>
-                                            <TableCell>-</TableCell>
-                                            <TableCell className="text-right">{formatToRupiah(report.topUpAmount)}</TableCell>
-                                            <TableCell className="text-right">Rp 0</TableCell>
-                                            <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
-                                            <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
-                                            <TableCell>{report.deviceName}</TableCell>
-                                        </>
-                                    ) : report.transactionType === 'VA Payment' ? (
-                                        <>
-                                            <TableCell>VA Payment</TableCell>
-                                            <TableCell>{getAccountLabel(report.sourceKasAccountId)}</TableCell>
-                                            <TableCell>{report.serviceProvider}</TableCell>
-                                            <TableCell>{report.recipientName}</TableCell>
-                                            <TableCell className="text-right">{formatToRupiah(report.paymentAmount)}</TableCell>
-                                            <TableCell className="text-right">{formatToRupiah(report.adminFee)}</TableCell>
-                                            <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
-                                            <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.netProfit)}</TableCell>
-                                            <TableCell>{report.deviceName}</TableCell>
-                                        </>
-                                    ) : report.transactionType === 'Layanan EDC' ? (
-                                        <>
-                                            <TableCell>Layanan EDC</TableCell>
-                                            <TableCell>{getAccountLabel(report.paymentToKasTunaiAccountId)}</TableCell>
-                                            <TableCell>{report.machineUsed}</TableCell>
-                                            <TableCell>{report.customerName}</TableCell>
-                                            <TableCell className="text-right">Rp 0</TableCell>
-                                            <TableCell className="text-right">Rp 0</TableCell>
-                                            <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
-                                            <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
-                                            <TableCell>{report.deviceName}</TableCell>
-                                        </>
-                                    ) : report.transactionType === 'Tarik Tunai KJP' ? (
-                                        <>
-                                            <TableCell>Tarik KJP</TableCell>
-                                            <TableCell>{getAccountLabel(report.destinationMerchantAccountId)}</TableCell>
-                                            <TableCell>Bank DKI</TableCell>
-                                            <TableCell>{report.customerName}</TableCell>
-                                            <TableCell className="text-right">{formatToRupiah(report.withdrawalAmount)}</TableCell>
-                                            <TableCell className="text-right">Rp 0</TableCell>
-                                            <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
-                                            <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.serviceFee)}</TableCell>
-                                            <TableCell>{report.deviceName}</TableCell>
-                                        </>
-                                    ) : null}
+                                    <TableCell>{report.transactionType}</TableCell>
+                                    <TableCell>{'destinationAccountName' in report ? report.destinationAccountName : report.customerName}</TableCell>
+                                    <TableCell className="text-right">{formatToRupiah('transferAmount' in report ? report.transferAmount : ('withdrawalAmount' in report ? report.withdrawalAmount : ('topUpAmount' in report ? report.topUpAmount : ('paymentAmount' in report ? report.paymentAmount : 0))))}</TableCell>
+                                    <TableCell className="text-right">{formatToRupiah('bankAdminFee' in report ? report.bankAdminFee : ('adminFee' in report ? report.adminFee : 0))}</TableCell>
+                                    <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
+                                    <TableCell className="text-right font-semibold text-green-500">{formatToRupiah('netProfit' in report ? report.netProfit : report.serviceFee)}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                         <TableFooter>
                             <TableRow className="font-bold bg-muted/50">
-                                <TableCell colSpan={5}>Total</TableCell>
-                                <TableCell className="text-right">{formatToRupiah(totals.nominal)}</TableCell>
-                                <TableCell className="text-right">{formatToRupiah(totals.adminBank)}</TableCell>
-                                <TableCell className="text-right">{formatToRupiah(totals.jasa)}</TableCell>
-                                <TableCell className="text-right">{formatToRupiah(totals.labaRugi)}</TableCell>
-                                <TableCell></TableCell>
+                                <TableCell colSpan={3}>Total</TableCell>
+                                <TableCell className="text-right">{formatToRupiah(brilinkTotals.nominal)}</TableCell>
+                                <TableCell className="text-right">{formatToRupiah(brilinkTotals.adminBank)}</TableCell>
+                                <TableCell className="text-right">{formatToRupiah(brilinkTotals.jasa)}</TableCell>
+                                <TableCell className="text-right">{formatToRupiah(brilinkTotals.labaRugi)}</TableCell>
                             </TableRow>
                             <TableRow className="font-bold text-lg bg-muted">
-                                <TableCell colSpan={8}>Total Laba Bersih</TableCell>
-                                <TableCell colSpan={2} className="text-right text-green-600">{formatToRupiah(totals.labaRugi)}</TableCell>
+                                <TableCell colSpan={6}>Total Laba BRILink</TableCell>
+                                <TableCell className="text-right text-green-600">{formatToRupiah(brilinkTotals.labaRugi)}</TableCell>
                             </TableRow>
                         </TableFooter>
                     </Table>
@@ -391,31 +244,59 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
 
             <div>
                 <h2 className="text-lg font-semibold mb-2">B. PPOB</h2>
+                 {isLoading ? (
+                    <div className="space-y-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-12 w-full" /></div>
+                ) : ppobReports.length === 0 ? (
+                    <Card><CardContent className="pt-6 text-center text-muted-foreground">Tidak ada transaksi PPOB untuk tanggal ini.</CardContent></Card>
+                ) : (
                 <Table>
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-[40px]">No.</TableHead>
-                            <TableHead>Nama Layanan</TableHead>
-                            <TableHead>Akun Kas</TableHead>
+                            <TableHead>Layanan</TableHead>
                             <TableHead>Tujuan</TableHead>
-                            <TableHead>Deskripsi</TableHead>
                             <TableHead className="text-right">Harga Modal</TableHead>
                             <TableHead className="text-right">Harga Jual</TableHead>
                             <TableHead className="text-right">Laba/Rugi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        <TableRow>
-                            <TableCell colSpan={8} className="text-center text-muted-foreground pt-8">
-                                Belum ada transaksi PPOB untuk tanggal ini.
-                            </TableCell>
-                        </TableRow>
+                        {ppobReports.map((report, index) => (
+                             <TableRow key={report.id}>
+                                <TableCell>{index + 1}</TableCell>
+                                <TableCell>{report.description}</TableCell>
+                                <TableCell>{report.destination}</TableCell>
+                                <TableCell className="text-right">{formatToRupiah(report.costPrice)}</TableCell>
+                                <TableCell className="text-right">{formatToRupiah(report.sellingPrice)}</TableCell>
+                                <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.profit)}</TableCell>
+                            </TableRow>
+                        ))}
                     </TableBody>
+                    <TableFooter>
+                        <TableRow className="font-bold bg-muted/50">
+                            <TableCell colSpan={3}>Total</TableCell>
+                            <TableCell className="text-right">{formatToRupiah(ppobTotals.costPrice)}</TableCell>
+                            <TableCell className="text-right">{formatToRupiah(ppobTotals.sellingPrice)}</TableCell>
+                            <TableCell className="text-right">{formatToRupiah(ppobTotals.profit)}</TableCell>
+                        </TableRow>
+                        <TableRow className="font-bold text-lg bg-muted">
+                            <TableCell colSpan={5}>Total Laba PPOB</TableCell>
+                            <TableCell className="text-right text-green-600">{formatToRupiah(ppobTotals.profit)}</TableCell>
+                        </TableRow>
+                    </TableFooter>
                 </Table>
+                )}
             </div>
+            <Card className="my-6">
+                <CardHeader>
+                    <CardTitle>Total Laba Bersih Keseluruhan</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-3xl font-bold text-green-500">{formatToRupiah(totalNetProfit)}</p>
+                    <p className="text-sm text-muted-foreground">({formatToRupiah(brilinkTotals.labaRugi)} dari BRILink + {formatToRupiah(ppobTotals.profit)} dari PPOB)</p>
+                </CardContent>
+            </Card>
         </div>
     </div>
   );
 }
-
-    
