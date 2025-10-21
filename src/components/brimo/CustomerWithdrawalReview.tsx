@@ -42,7 +42,8 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
         serviceFee,
     } = formData;
 
-    const totalTransferFromCustomer = withdrawalAmount + serviceFee;
+    const totalTransferFromCustomer = withdrawalAmount;
+    const netCashGivenToCustomer = withdrawalAmount - serviceFee;
 
     const handleSaveTransaction = async () => {
         if (!firestore || !destinationAccount || !kasAccounts) {
@@ -58,8 +59,8 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
             return;
         }
 
-        if (laciAccount.balance < withdrawalAmount) {
-            toast({ variant: "destructive", title: "Saldo Laci Tidak Cukup", description: `Saldo ${laciAccount.label} tidak mencukupi untuk penarikan ini.` });
+        if (laciAccount.balance < netCashGivenToCustomer) {
+            toast({ variant: "destructive", title: "Saldo Laci Tidak Cukup", description: `Saldo ${laciAccount.label} tidak mencukupi untuk memberikan uang tunai.` });
             return;
         }
 
@@ -73,7 +74,6 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
         try {
             await runTransaction(firestore, async (transaction) => {
                 
-                // --- PHASE 1: READS ---
                 const destAccountRef = doc(firestore, 'kasAccounts', destinationAccount.id);
                 const laciAccountRef = doc(firestore, 'kasAccounts', laciAccount.id);
                 
@@ -88,12 +88,11 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
                 const currentDestBalance = destAccountDoc.data().balance;
                 const currentLaciBalance = laciAccountDoc.data().balance;
 
-                if (currentLaciBalance < withdrawalAmount) {
+                if (currentLaciBalance < netCashGivenToCustomer) {
                     throw new Error(`Saldo ${laciAccount.label} tidak mencukupi.`);
                 }
 
-                // --- PHASE 2: WRITES ---
-                // 1. Credit Destination Account
+                // 1. Credit Destination Account with the withdrawal amount
                 const newDestBalance = currentDestBalance + totalTransferFromCustomer;
                 transaction.update(destAccountRef, { balance: newDestBalance });
                 const creditTrxRef = doc(collection(destAccountRef, 'transactions'));
@@ -110,9 +109,11 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
                     deviceName
                 });
 
-                // 2. Debit Laci (Tunai) Account
-                const newLaciBalance = currentLaciBalance - withdrawalAmount;
+                // 2. Debit Laci for the cash given to customer
+                const newLaciBalance = currentLaciBalance - netCashGivenToCustomer;
                 transaction.update(laciAccountRef, { balance: newLaciBalance });
+
+                // Debit transaction for the net cash given out
                 const debitTrxRef = doc(collection(laciAccountRef, 'transactions'));
                 transaction.set(debitTrxRef, {
                     kasAccountId: laciAccount.id,
@@ -120,7 +121,7 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
                     name: `Tarik Tunai a/n ${formData.customerName}`,
                     account: 'Pelanggan',
                     date: nowISO,
-                    amount: withdrawalAmount,
+                    amount: netCashGivenToCustomer,
                     balanceBefore: currentLaciBalance,
                     balanceAfter: newLaciBalance,
                     category: 'customer_withdrawal_debit',
@@ -128,14 +129,13 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
                 });
             });
 
-            // --- PHASE 3: AUDIT LOG (after transaction) ---
+            // --- AUDIT LOG (after transaction) ---
             await addDoc(collection(firestore, 'customerWithdrawals'), {
-                date: now, // Use Date object here
+                date: now,
                 customerName: formData.customerName,
                 customerBankSource: formData.customerBankSource,
                 withdrawalAmount: formData.withdrawalAmount,
                 serviceFee: formData.serviceFee,
-                totalTransfer: totalTransferFromCustomer,
                 destinationKasAccountId: formData.destinationAccountId,
                 sourceKasTunaiAccountId: laciAccount!.id,
                 deviceName: deviceName
@@ -162,7 +162,7 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
                         <div className="text-sm space-y-1 text-muted-foreground">
                             <p>Pelanggan: <strong>{formData.customerName}</strong></p>
                             <p>Sumber Dana: <strong>{formData.customerBankSource}</strong></p>
-                            <p>Uang Tunai Diberikan: <strong className="text-lg">{formatToRupiah(withdrawalAmount)}</strong></p>
+                            <p>Uang Tunai Diberikan: <strong className="text-lg">{formatToRupiah(netCashGivenToCustomer)}</strong></p>
                         </div>
                     </div>
                     <Separator />
@@ -190,7 +190,7 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
                         <AlertDescription>
                             <ul className="list-disc pl-5 space-y-1 mt-2">
                                <li>Saldo <strong>{destinationAccount?.label}</strong> akan bertambah <span className="font-semibold text-green-500">{formatToRupiah(totalTransferFromCustomer)}</span>.</li>
-                               <li>Saldo <strong>{tunaiAccount?.label || 'Laci'}</strong> akan berkurang <span className="font-semibold text-red-500">{formatToRupiah(withdrawalAmount)}</span>.</li>
+                               <li>Saldo <strong>{tunaiAccount?.label || 'Laci'}</strong> akan berkurang <span className="font-semibold text-red-500">{formatToRupiah(netCashGivenToCustomer)}</span>.</li>
                             </ul>
                         </AlertDescription>
                     </Alert>
@@ -208,4 +208,5 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
         </div>
     );
 }
+
     

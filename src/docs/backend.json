@@ -234,7 +234,6 @@
         "customerBankSource": { "type": "string" },
         "withdrawalAmount": { "type": "number" },
         "serviceFee": { "type": "number" },
-        "totalTransfer": { "type": "number" },
         "destinationKasAccountId": { "type": "string" },
         "sourceKasTunaiAccountId": { "type": "string" },
         "deviceName": { "type": "string" }
@@ -245,7 +244,6 @@
         "customerBankSource",
         "withdrawalAmount",
         "serviceFee",
-        "totalTransfer",
         "destinationKasAccountId",
         "sourceKasTunaiAccountId",
         "deviceName"
@@ -577,3 +575,5 @@
     }
   }
 }
+
+    

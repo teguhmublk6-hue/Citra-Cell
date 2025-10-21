@@ -57,7 +57,6 @@ export type CustomerWithdrawal = {
     customerBankSource: string;
     withdrawalAmount: number;
     serviceFee: number;
-    totalTransfer: number;
     destinationKasAccountId: string;
     sourceKasTunaiAccountId: string;
     deviceName: string;
@@ -266,6 +265,8 @@ export type PPOBTransaction = {
     paymentToKasTransferAmount?: number;
     deviceName: string;
 }
+
+    
 
     
 
