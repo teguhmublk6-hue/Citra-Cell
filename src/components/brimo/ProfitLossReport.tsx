@@ -200,42 +200,42 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                 ) : brilinkReports.length === 0 ? (
                     <Card><CardContent className="pt-6 text-center text-muted-foreground">Tidak ada transaksi BRILink untuk tanggal ini.</CardContent></Card>
                 ) : (
-                    <Table>
-                        <TableHeader>
+                    <Table className="text-[11px] whitespace-nowrap">
+                        <TableHeader className="sticky top-0 bg-background z-10">
                             <TableRow>
-                                <TableHead className="w-[40px]">No</TableHead>
-                                <TableHead>Layanan</TableHead>
-                                <TableHead>Nama</TableHead>
-                                <TableHead className="text-right">Nominal</TableHead>
-                                <TableHead className="text-right">Admin Bank</TableHead>
-                                <TableHead className="text-right">Jasa</TableHead>
-                                <TableHead className="text-right">Laba/Rugi</TableHead>
+                                <TableHead className="w-[40px] sticky left-0 bg-background z-20 py-2">No</TableHead>
+                                <TableHead className="sticky left-[40px] bg-background z-20 py-2">Layanan</TableHead>
+                                <TableHead className="sticky left-[120px] bg-background z-20 py-2">Nama</TableHead>
+                                <TableHead className="text-right py-2">Nominal</TableHead>
+                                <TableHead className="text-right py-2">Admin Bank</TableHead>
+                                <TableHead className="text-right py-2">Jasa</TableHead>
+                                <TableHead className="text-right py-2">Laba/Rugi</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {brilinkReports.map((report, index) => (
                                 <TableRow key={report.id}>
-                                    <TableCell>{index + 1}</TableCell>
-                                    <TableCell>{report.transactionType}</TableCell>
-                                    <TableCell>{'destinationAccountName' in report ? report.destinationAccountName : report.customerName}</TableCell>
-                                    <TableCell className="text-right">{formatToRupiah('transferAmount' in report ? report.transferAmount : ('withdrawalAmount' in report ? report.withdrawalAmount : ('topUpAmount' in report ? report.topUpAmount : ('paymentAmount' in report ? report.paymentAmount : 0))))}</TableCell>
-                                    <TableCell className="text-right">{formatToRupiah('bankAdminFee' in report ? report.bankAdminFee : ('adminFee' in report ? report.adminFee : 0))}</TableCell>
-                                    <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
-                                    <TableCell className="text-right font-semibold text-green-500">{formatToRupiah('netProfit' in report ? report.netProfit : report.serviceFee)}</TableCell>
+                                    <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
+                                    <TableCell className="sticky left-[40px] bg-background z-10 py-2">{report.transactionType}</TableCell>
+                                    <TableCell className="sticky left-[120px] bg-background z-10 py-2">{'destinationAccountName' in report ? report.destinationAccountName : report.customerName}</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah('transferAmount' in report ? report.transferAmount : ('withdrawalAmount' in report ? report.withdrawalAmount : ('topUpAmount' in report ? report.topUpAmount : ('paymentAmount' in report ? report.paymentAmount : 0))))}</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah('bankAdminFee' in report ? report.bankAdminFee : ('adminFee' in report ? report.adminFee : 0))}</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah(report.serviceFee)}</TableCell>
+                                    <TableCell className="text-right font-semibold text-green-500 py-2">{formatToRupiah('netProfit' in report ? report.netProfit : report.serviceFee)}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                         <TableFooter>
                             <TableRow className="font-bold bg-muted/50">
-                                <TableCell colSpan={3}>Total</TableCell>
-                                <TableCell className="text-right">{formatToRupiah(brilinkTotals.nominal)}</TableCell>
-                                <TableCell className="text-right">{formatToRupiah(brilinkTotals.adminBank)}</TableCell>
-                                <TableCell className="text-right">{formatToRupiah(brilinkTotals.jasa)}</TableCell>
-                                <TableCell className="text-right">{formatToRupiah(brilinkTotals.labaRugi)}</TableCell>
+                                <TableCell colSpan={3} className="sticky left-0 bg-muted/50 z-10">Total</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.nominal)}</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.adminBank)}</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.jasa)}</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.labaRugi)}</TableCell>
                             </TableRow>
                             <TableRow className="font-bold text-lg bg-muted">
-                                <TableCell colSpan={6}>Total Laba BRILink</TableCell>
-                                <TableCell className="text-right text-green-600">{formatToRupiah(brilinkTotals.labaRugi)}</TableCell>
+                                <TableCell colSpan={6} className="sticky left-0 bg-muted z-10">Total Laba BRILink</TableCell>
+                                <TableCell className="text-right text-green-600 py-2">{formatToRupiah(brilinkTotals.labaRugi)}</TableCell>
                             </TableRow>
                         </TableFooter>
                     </Table>
@@ -249,39 +249,36 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                 ) : ppobReports.length === 0 ? (
                     <Card><CardContent className="pt-6 text-center text-muted-foreground">Tidak ada transaksi PPOB untuk tanggal ini.</CardContent></Card>
                 ) : (
-                <Table>
-                    <TableHeader>
+                <Table className="text-[11px] whitespace-nowrap">
+                    <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
-                            <TableHead className="w-[40px]">No.</TableHead>
-                            <TableHead>Layanan</TableHead>
-                            <TableHead>Tujuan</TableHead>
-                            <TableHead className="text-right">Harga Modal</TableHead>
-                            <TableHead className="text-right">Harga Jual</TableHead>
-                            <TableHead className="text-right">Laba/Rugi</TableHead>
+                            <TableHead className="w-[40px] sticky left-0 bg-background z-20 py-2">No.</TableHead>
+                            <TableHead className="sticky left-[40px] bg-background z-20 py-2">Layanan</TableHead>
+                            <TableHead className="py-2">Tujuan</TableHead>
+                            <TableHead className="text-right py-2">Harga Modal</TableHead>
+                            <TableHead className="text-right py-2">Harga Jual</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {ppobReports.map((report, index) => (
                              <TableRow key={report.id}>
-                                <TableCell>{index + 1}</TableCell>
-                                <TableCell>{report.description}</TableCell>
-                                <TableCell>{report.destination}</TableCell>
-                                <TableCell className="text-right">{formatToRupiah(report.costPrice)}</TableCell>
-                                <TableCell className="text-right">{formatToRupiah(report.sellingPrice)}</TableCell>
-                                <TableCell className="text-right font-semibold text-green-500">{formatToRupiah(report.profit)}</TableCell>
+                                <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
+                                <TableCell className="sticky left-[40px] bg-background z-10 py-2">{report.description}</TableCell>
+                                <TableCell className="py-2">{report.destination}</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(report.sellingPrice)}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
                     <TableFooter>
                         <TableRow className="font-bold bg-muted/50">
-                            <TableCell colSpan={3}>Total</TableCell>
-                            <TableCell className="text-right">{formatToRupiah(ppobTotals.costPrice)}</TableCell>
-                            <TableCell className="text-right">{formatToRupiah(ppobTotals.sellingPrice)}</TableCell>
-                            <TableCell className="text-right">{formatToRupiah(ppobTotals.profit)}</TableCell>
+                            <TableCell colSpan={3} className="sticky left-0 bg-muted/50 z-10">Total</TableCell>
+                            <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.costPrice)}</TableCell>
+                            <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.sellingPrice)}</TableCell>
                         </TableRow>
                         <TableRow className="font-bold text-lg bg-muted">
-                            <TableCell colSpan={5}>Total Laba PPOB</TableCell>
-                            <TableCell className="text-right text-green-600">{formatToRupiah(ppobTotals.profit)}</TableCell>
+                            <TableCell colSpan={4} className="sticky left-0 bg-muted z-10">Total Laba PPOB</TableCell>
+                            <TableCell className="text-right text-green-600 py-2">{formatToRupiah(ppobTotals.profit)}</TableCell>
                         </TableRow>
                     </TableFooter>
                 </Table>
