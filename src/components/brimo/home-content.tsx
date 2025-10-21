@@ -60,6 +60,7 @@ import PPOBPricingManager from './PPOBPricingManager';
 import PPOBReport from './PPOBReport';
 import PPOBTokenListrikForm from './PPOBTokenListrikForm';
 import PPOBTokenListrikReview from './PPOBTokenListrikReview';
+import RepeatTransactionDialog from './RepeatTransactionDialog';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -81,6 +82,8 @@ interface HomeContentProps {
 export default function HomeContent({ revalidateData }: HomeContentProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
+  const [isRepeatDialogOpen, setIsRepeatDialogOpen] = useState(false);
+  const [lastCompletedSheet, setLastCompletedSheet] = useState<ActiveSheet>(null);
   const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -198,9 +201,9 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         setActiveSheet('settlementReview');
     } else if ('phoneNumber' in data) {
         setActiveSheet('ppobPulsaReview');
-    } else if ('customerName' in data && !('customerBankSource' in data)) {
+    } else if ('customerName' in data && !('phoneNumber' in data) && !('customerBankSource' in data) && !('destinationEwallet' in data) && !('destinationEmoney' in data) && !('serviceProvider' in data)) {
         setActiveSheet('ppobTokenListrikReview');
-    } else if ('withdrawalAmount' in data && !('customerBankSource' in data)) {
+    } else if ('withdrawalAmount' in data && !('customerBankSource' in data) && !('sourceMerchantAccountId' in data) && !('serviceProvider' in data) && !('destinationEmoney' in data) && !('destinationEwallet' in data)) {
         setActiveSheet('customerKJPReview');
     }
   }
@@ -210,6 +213,39 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     setActiveSheet('settlement');
   }
 
+  const handleTransactionComplete = () => {
+    revalidateData();
+    // This assumes the review sheet is the one that was just completed
+    const reviewSheet = activeSheet;
+    let formSheet: ActiveSheet | null = null;
+    if (reviewSheet === 'customerTransferReview') formSheet = 'customerTransfer';
+    // Add other mappings here...
+
+    if (formSheet) {
+      setLastCompletedSheet(formSheet);
+      setIsRepeatDialogOpen(true);
+    } else {
+      // If no mapping, just close everything
+      closeAllSheets();
+    }
+  }
+
+  const handleRepeatNo = () => {
+    setIsRepeatDialogOpen(false);
+    setActiveSheet(null);
+    setReviewData(null);
+    setLastCompletedSheet(null);
+  };
+
+  const handleRepeatYes = () => {
+    setIsRepeatDialogOpen(false);
+    setReviewData(null);
+    // This reopens the form by setting the active sheet to the last form sheet.
+    // The form component itself should reset its state when it becomes active again.
+    // A key prop on the form component might be needed if it doesn't reset automatically.
+    setActiveSheet(lastCompletedSheet); 
+  };
+  
   const closeAllSheets = () => {
     setActiveSheet(null);
     setReviewData(null);
@@ -441,6 +477,12 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         onSuccess={handlePasscodeSuccess}
       />
       
+      <RepeatTransactionDialog
+        isOpen={isRepeatDialogOpen}
+        onNo={handleRepeatNo}
+        onYes={handleRepeatYes}
+      />
+
       <DeleteAllReportsDialog 
         isOpen={isDeleteReportsDialogOpen}
         onClose={() => setIsDeleteReportsDialogOpen(false)}
@@ -484,7 +526,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             {activeSheet === 'addCapital' && <AddCapitalForm onDone={closeAllSheets} />}
             {activeSheet === 'withdraw' && <WithdrawBalanceForm onDone={closeAllSheets} />}
             {activeSheet === 'customerTransfer' && <CustomerTransferForm onReview={handleReview} onDone={closeAllSheets} />}
-            {activeSheet === 'customerTransferReview' && reviewData && 'destinationBank' in reviewData && <CustomerTransferReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerTransfer')} />}
+            {activeSheet === 'customerTransferReview' && reviewData && 'destinationBank' in reviewData && <CustomerTransferReview formData={reviewData} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('customerTransfer')} />}
             {activeSheet === 'customerWithdrawal' && <CustomerWithdrawalForm onReview={handleReview} onDone={closeAllSheets} />}
             {activeSheet === 'customerWithdrawalReview' && reviewData && 'customerBankSource' in reviewData && <CustomerWithdrawalReview formData={reviewData} onConfirm={closeAllSheets} onBack={() => setActiveSheet('customerWithdrawal')} />}
             {activeSheet === 'customerTopUp' && <CustomerTopUpForm onReview={handleReview} onDone={closeAllSheets} />}
@@ -504,7 +546,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             {activeSheet === 'ppobPulsa' && <PPOBPulsaForm onReview={handleReview} onDone={closeAllSheets} />}
             {activeSheet === 'ppobPulsaReview' && reviewData && 'phoneNumber' in reviewData && <PPOBPulsaReview formData={reviewData as PPOBPulsaFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('ppobPulsa')} />}
             {activeSheet === 'ppobTokenListrik' && <PPOBTokenListrikForm onReview={handleReview} onDone={closeAllSheets} />}
-            {activeSheet === 'ppobTokenListrikReview' && reviewData && 'customerName' in reviewData && !('phoneNumber' in reviewData) && <PPOBTokenListrikReview formData={reviewData as PPOBTokenListrikFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('ppobTokenListrik')} />}
+            {activeSheet === 'ppobTokenListrikReview' && reviewData && 'customerName' in reviewData && !('phoneNumber' in reviewData) && !('customerBankSource' in reviewData) && !('destinationEwallet' in reviewData) && <PPOBTokenListrikReview formData={reviewData as PPOBTokenListrikFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('ppobTokenListrik')} />}
         </SheetContent>
       </Sheet>
 
