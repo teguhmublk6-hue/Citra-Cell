@@ -288,7 +288,9 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                         {ppobReports.map((report, index) => (
                              <TableRow key={report.id}>
                                 <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
-                                <TableCell className="sticky left-[40px] bg-background z-10 py-2">{report.description}</TableCell>
+                                <TableCell className="sticky left-[40px] bg-background z-10 py-2">
+                                     {report.serviceName === 'Token Listrik' ? report.description.split(' an.')[0] : report.description}
+                                </TableCell>
                                 <TableCell className="py-2">{report.destination}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.sellingPrice)}</TableCell>
