@@ -6,7 +6,7 @@ import QuickServices from './quick-services';
 import BottomNav from './bottom-nav';
 import AdminContent from './AdminContent';
 import SettingsContent from './settings-content';
-import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw, Banknote } from 'lucide-react';
+import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw, Banknote, ArrowLeft } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, writeBatch, getDocs } from 'firebase/firestore';
 import type { KasAccount as KasAccountType } from '@/lib/data';
@@ -75,8 +75,8 @@ export const iconMap: { [key: string]: React.ElementType } = {
   'default': Wallet,
 };
 
-export type ActiveTab = 'home' | 'laporan' | 'mutasi' | 'accounts';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview' | 'operationalCostReport' | 'admin' | 'settings';
+export type ActiveTab = 'home' | 'laporan' | 'mutasi' | 'accounts' | 'admin';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview' | 'operationalCostReport' | 'settings';
 type FormSheet = 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'ppobPulsa' | 'ppobTokenListrik';
 
 
@@ -112,7 +112,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         clearTimeout(adminTimeoutRef.current);
     }
 
-    if (isAdminAccessGranted && activeSheet !== 'admin') {
+    if (isAdminAccessGranted && activeTab !== 'admin') {
         adminTimeoutRef.current = setTimeout(() => {
             setIsAdminAccessGranted(false);
             sessionStorage.removeItem('brimoAdminAccess');
@@ -124,7 +124,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             clearTimeout(adminTimeoutRef.current);
         }
     };
-  }, [activeSheet, isAdminAccessGranted]);
+  }, [activeTab, isAdminAccessGranted]);
 
   const firestore = useFirestore();
 
@@ -324,7 +324,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
      if (!isAdminAccessGranted) {
       setIsPasscodeDialogOpen(true);
     } else {
-      setActiveSheet('admin');
+      setActiveTab('admin');
     }
   }
 
@@ -335,7 +335,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const handlePasscodeSuccess = () => {
     sessionStorage.setItem('brimoAdminAccess', 'true');
     setIsAdminAccessGranted(true);
-    setActiveSheet('admin');
+    setActiveTab('admin');
     setIsPasscodeDialogOpen(false);
   };
 
@@ -411,6 +411,27 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                     onAdminClick={handleAdminClick}
                     onSettingsClick={handleSettingsClick}
                 />;
+      case 'admin':
+        return (
+          <div className="h-full flex flex-col">
+            <header className="p-4 flex items-center gap-4 border-b">
+                <Button variant="ghost" size="icon" onClick={() => setActiveTab('accounts')}>
+                    <ArrowLeft />
+                </Button>
+                <h1 className="text-lg font-semibold">Menu Admin</h1>
+            </header>
+            <div className="flex-1 overflow-auto">
+              <AdminContent 
+                onProfitLossReportClick={handleProfitLossReportClick} 
+                onOperationalCostReportClick={handleOperationalCostReportClick} 
+                onSetMotivationClick={handleSetMotivationClick} 
+                onManageKasAccountsClick={handleManageKasAccountsClick} 
+                onManagePPOBPricingClick={handleManagePPOBPricingClick} 
+                onResetReportsClick={handleResetReportsClick}
+              />
+            </div>
+          </div>
+        )
       default:
         return <div className="px-4"><QuickServices onServiceClick={handleQuickServiceClick}/></div>;
     }
@@ -470,7 +491,6 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                   {activeSheet === 'ppobTokenListrik' && 'Transaksi Token Listrik'}
                   {activeSheet === 'ppobTokenListrikReview' && 'Review Transaksi Token Listrik'}
                   {activeSheet === 'operationalCostReport' && 'Laporan Biaya Operasional'}
-                  {activeSheet === 'admin' && 'Menu Admin'}
                   {activeSheet === 'settings' && 'Pengaturan'}
                 </SheetTitle>
             </SheetHeader>
@@ -513,45 +533,46 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             {isTokenReview && <PPOBTokenListrikReview formData={reviewData as PPOBTokenListrikFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('ppobTokenListrik')} />}
             
             {activeSheet === 'operationalCostReport' && <OperationalCostReport onDone={closeAllSheets} />}
-            {activeSheet === 'admin' && isAdminAccessGranted && <AdminContent onProfitLossReportClick={handleProfitLossReportClick} onOperationalCostReportClick={handleOperationalCostReportClick} onSetMotivationClick={handleSetMotivationClick} onManageKasAccountsClick={handleManageKasAccountsClick} onManagePPOBPricingClick={handleManagePPOBPricingClick} onResetReportsClick={handleResetReportsClick}/>}
             {activeSheet === 'settings' && <SettingsContent />}
         </SheetContent>
       </Sheet>
 
-      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab}>
-         <Sheet>
-            <SheetTrigger asChild>
-                <button id="mutation-menu-trigger" className="h-14 w-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
-                    <RotateCw size={28} />
-                </button>
-            </SheetTrigger>
-            <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl" onOpenAutoFocus={(e) => e.preventDefault()}>
-                <SheetHeader className="mb-4">
-                    <SheetTitle>Menu Mutasi</SheetTitle>
-                </SheetHeader>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                    <button onClick={() => handleMutationMenuClick('transfer')} className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted">
-                        <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
-                            <ArrowRightLeft size={24} />
-                        </div>
-                        <span className="text-sm font-medium">Pindah Saldo</span>
-                    </button>
-                    <button onClick={() => handleMutationMenuClick('addCapital')} className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted">
-                        <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
-                            <TrendingUp size={24} />
-                        </div>
-                        <span className="text-sm font-medium">Tambah Modal</span>
-                    </button>
-                    <button onClick={() => handleMutationMenuClick('withdraw')} className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted">
-                        <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
-                            <TrendingDown size={24} />
-                        </div>
-                        <span className="text-sm font-medium">Tarik Pribadi</span>
-                    </button>
-                </div>
-            </SheetContent>
-         </Sheet>
-      </BottomNav>
+      {activeTab !== 'admin' && (
+        <BottomNav activeTab={activeTab} setActiveTab={setActiveTab}>
+          <Sheet>
+              <SheetTrigger asChild>
+                  <button id="mutation-menu-trigger" className="h-14 w-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                      <RotateCw size={28} />
+                  </button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl" onOpenAutoFocus={(e) => e.preventDefault()}>
+                  <SheetHeader className="mb-4">
+                      <SheetTitle>Menu Mutasi</SheetTitle>
+                  </SheetHeader>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                      <button onClick={() => handleMutationMenuClick('transfer')} className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted">
+                          <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
+                              <ArrowRightLeft size={24} />
+                          </div>
+                          <span className="text-sm font-medium">Pindah Saldo</span>
+                      </button>
+                      <button onClick={() => handleMutationMenuClick('addCapital')} className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted">
+                          <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
+                              <TrendingUp size={24} />
+                          </div>
+                          <span className="text-sm font-medium">Tambah Modal</span>
+                      </button>
+                      <button onClick={() => handleMutationMenuClick('withdraw')} className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted">
+                          <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
+                              <TrendingDown size={24} />
+                          </div>
+                          <span className="text-sm font-medium">Tarik Pribadi</span>
+                      </button>
+                  </div>
+              </SheetContent>
+          </Sheet>
+        </BottomNav>
+      )}
     </>
   );
 }
