@@ -10,7 +10,7 @@ import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw, Banknote, ArrowLeft
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, writeBatch, getDocs } from 'firebase/firestore';
 import type { KasAccount as KasAccountType } from '@/lib/data';
-import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight, CreditCard, IdCard, GraduationCap, Lightbulb, BookText } from 'lucide-react';
+import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight, CreditCard, IdCard, GraduationCap, Lightbulb, BookText, Home, FileText } from 'lucide-react';
 import Header from './header';
 import BalanceCard from './balance-card';
 import {
@@ -247,8 +247,13 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
 
   const handleRepeatYes = () => {
     setIsRepeatDialogOpen(false);
-    setReviewData(null); // Clear previous review data
-    setActiveSheet(lastCompletedSheet); // Re-open the original form sheet
+    // Close the sheet completely, then reopen the correct form.
+    // This ensures the form component is unmounted and remounted with a fresh state.
+    setActiveSheet(null); 
+    setReviewData(null);
+    setTimeout(() => {
+        setActiveSheet(lastCompletedSheet);
+    }, 100); // A small delay to ensure the sheet has time to close
   };
   
   const closeAllSheets = () => {
@@ -592,3 +597,5 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     </>
   );
 }
+
+    
