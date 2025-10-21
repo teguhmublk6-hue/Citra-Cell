@@ -249,11 +249,11 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
             )}
             {!isLoading && reports.length > 0 && (
                 <Table className="text-[11px] whitespace-nowrap">
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 bg-background z-20">
                         <TableRow>
-                            <TableHead className="sticky left-0 bg-background z-10 w-[50px]">No</TableHead>
-                            <TableHead className="sticky left-[50px] bg-background z-10">Layanan</TableHead>
-                            <TableHead className="sticky left-[150px] bg-background z-10">Akun Kas</TableHead>
+                            <TableHead className="sticky left-0 bg-background z-30 w-[50px]">No</TableHead>
+                            <TableHead className="sticky left-[50px] bg-background z-30">Layanan</TableHead>
+                            <TableHead className="sticky left-[150px] bg-background z-30">Akun Kas</TableHead>
                             <TableHead>Bank/Tujuan</TableHead>
                             <TableHead>Nama</TableHead>
                             <TableHead className="text-right">Nominal</TableHead>
@@ -337,5 +337,7 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
     </div>
   );
 }
+
+    
 
     
