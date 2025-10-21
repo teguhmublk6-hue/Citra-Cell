@@ -163,9 +163,7 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
                         >
                             <CardContent className="p-0 flex flex-col items-center justify-center h-full text-center">
                                {acc.iconUrl ? (
-                                    <>
-                                        <Image src={acc.iconUrl} alt={acc.label} fill className="object-cover" />
-                                    </>
+                                    <Image src={acc.iconUrl} alt={acc.label} fill className="object-cover" />
                                 ) : (
                                     <div className="p-2">
                                         <p className="font-semibold text-lg">{acc.label}</p>
