@@ -39,8 +39,6 @@ const parseRupiah = (value: string | undefined | null): number => {
     return Number(String(value).replace(/[^0-9]/g, ''));
 }
 
-const denominations = ["5.000", "10.000", "15.000", "20.000", "25.000", "30.000", "40.000", "50.000", "75.000", "100.000", "150.000", "200.000"];
-
 const providers = [
     { name: 'Telkomsel', prefixes: ['0811', '0812', '0813', '0821', '0822', '0852', '0853', '0823', '0851'] },
     { name: 'Indosat', prefixes: ['0814', '0815', '0816', '0855', '0856', '0857', '0858'] },
@@ -100,16 +98,26 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
 
   const selectedPPOBAccount = useMemo(() => kasAccounts?.find(acc => acc.id === sourcePPOBAccountId), [kasAccounts, sourcePPOBAccountId]);
 
+  const availableDenominations = useMemo(() => {
+    if (selectedPPOBAccount?.label === 'Mitra Shopee' && detectedProvider) {
+      const providerPricing = (shopeePricing as any)[detectedProvider];
+      if (providerPricing) {
+        return Object.keys(providerPricing).map(d => parseInt(d, 10)).sort((a,b) => a - b).map(String);
+      }
+    }
+    return [];
+  }, [selectedPPOBAccount, detectedProvider]);
+
   useEffect(() => {
     if (selectedPPOBAccount?.label === 'Mitra Shopee' && detectedProvider && denomination) {
       const pricing = (shopeePricing as any)[detectedProvider];
-      const denomPrice = pricing ? pricing[denomination.replace(/\./g, '')] : null;
+      const denomKey = denomination.replace(/\./g, '');
+      const denomPrice = pricing ? pricing[denomKey] : null;
 
       if (denomPrice) {
         form.setValue('costPrice', denomPrice.costPrice);
         form.setValue('sellingPrice', denomPrice.sellingPrice);
       } else {
-        // Reset if no price found for that combination
         form.setValue('costPrice', undefined);
         form.setValue('sellingPrice', undefined);
       }
@@ -122,13 +130,19 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
   const onSubmit = (values: PPOBPulsaFormValues) => { onReview(values); };
   
   const handleDenomClick = (denom: string) => {
-    form.setValue('denomination', denom);
+    form.setValue('denomination', denom, { shouldValidate: true });
     setIsManualDenom(false);
+  }
+  
+  const handleResetDenom = () => {
+    form.setValue('denomination', '', { shouldValidate: true });
+    form.setValue('costPrice', undefined);
+    form.setValue('sellingPrice', undefined);
   }
 
   const handleManualClick = () => {
+    handleResetDenom();
     setIsManualDenom(true);
-    form.setValue('denomination', ''); // Clear denomination when switching to manual
   }
 
   return (
@@ -148,10 +162,8 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
                             className="cursor-pointer hover:ring-2 hover:ring-primary transition relative overflow-hidden group aspect-[1.5/1]"
                         >
                             <CardContent className="p-0 flex flex-col items-center justify-center h-full text-center">
-                                {acc.iconUrl ? (
-                                    <>
-                                        <Image src={acc.iconUrl} alt={acc.label} fill className="object-cover" />
-                                    </>
+                               {acc.iconUrl ? (
+                                    <Image src={acc.iconUrl} alt={acc.label} fill className="object-cover" />
                                 ) : (
                                     <div className="p-2">
                                         <p className="font-semibold text-lg">{acc.label}</p>
@@ -192,20 +204,28 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
                 <FormField control={form.control} name="denomination" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Pilih Denominasi Pulsa</FormLabel>
-                        <div className="grid grid-cols-3 gap-2">
-                            {denominations.map(denom => (
-                                <Button key={denom} type="button" variant={!isManualDenom && field.value === denom ? 'default' : 'outline'} onClick={() => handleDenomClick(denom)}>
-                                    {denom}
+                        {field.value && !isManualDenom ? (
+                             <div className="flex items-center gap-2">
+                                <Button type="button" className="flex-1" disabled>{parseInt(field.value, 10).toLocaleString('id-ID')}</Button>
+                                <Button type="button" variant="outline" onClick={handleResetDenom}>Ganti</Button>
+                             </div>
+                        ) : (
+                            <div className="grid grid-cols-3 gap-2">
+                                {availableDenominations.map(denom => (
+                                    <Button key={denom} type="button" variant='outline' onClick={() => handleDenomClick(denom)}>
+                                        {parseInt(denom, 10).toLocaleString('id-ID')}
+                                    </Button>
+                                ))}
+                                <Button type="button" variant={isManualDenom ? 'default' : 'outline'} onClick={handleManualClick}>
+                                    Manual
                                 </Button>
-                            ))}
-                             <Button type="button" variant={isManualDenom ? 'default' : 'outline'} onClick={handleManualClick}>
-                                Manual
-                            </Button>
-                        </div>
+                            </div>
+                        )}
+
                         {isManualDenom && (
                              <FormControl className="mt-2">
                                 <Input 
-                                    placeholder="Masukkan nominal, cth: 12.000" 
+                                    placeholder="Masukkan nominal, cth: 12000" 
                                     onChange={field.onChange}
                                     type="text"
                                     autoFocus
