@@ -198,7 +198,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         setActiveSheet('settlementReview');
     } else if ('phoneNumber' in data) {
         setActiveSheet('ppobPulsaReview');
-    } else if ('meterNumber' in data) {
+    } else if ('customerName' in data && !('customerBankSource' in data)) {
         setActiveSheet('ppobTokenListrikReview');
     } else if ('withdrawalAmount' in data && !('customerBankSource' in data)) {
         setActiveSheet('customerKJPReview');
@@ -390,7 +390,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                                 <div key={account.id} className="w-full text-left p-3 bg-card/80 backdrop-blur-md flex items-center justify-between gap-4 border-t border-border/10">
                                     <button onClick={() => handleAccountClick(account)} className="flex-1 flex items-center gap-3">
                                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${account.color}`}>
-                                          {account.iconUrl ? <img src={account.iconUrl} alt={account.label} className="h-6 w-6 object-contain" /> : <Icon size={20} className="text-white" />}
+                                          {account.iconUrl ? <img src={account.iconUrl} alt={account.label} className="h-6 w-6 object-cover" /> : <Icon size={20} className="text-white" />}
                                       </div>
                                       <div>
                                           <p className="font-semibold text-sm">{account.label}</p>
@@ -504,7 +504,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             {activeSheet === 'ppobPulsa' && <PPOBPulsaForm onReview={handleReview} onDone={closeAllSheets} />}
             {activeSheet === 'ppobPulsaReview' && reviewData && 'phoneNumber' in reviewData && <PPOBPulsaReview formData={reviewData as PPOBPulsaFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('ppobPulsa')} />}
             {activeSheet === 'ppobTokenListrik' && <PPOBTokenListrikForm onReview={handleReview} onDone={closeAllSheets} />}
-            {activeSheet === 'ppobTokenListrikReview' && reviewData && 'meterNumber' in reviewData && <PPOBTokenListrikReview formData={reviewData as PPOBTokenListrikFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('ppobTokenListrik')} />}
+            {activeSheet === 'ppobTokenListrikReview' && reviewData && 'customerName' in reviewData && !('phoneNumber' in reviewData) && <PPOBTokenListrikReview formData={reviewData as PPOBTokenListrikFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('ppobTokenListrik')} />}
         </SheetContent>
       </Sheet>
 
@@ -545,5 +545,3 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     </>
   );
 }
-
-    
