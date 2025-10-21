@@ -168,14 +168,13 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
 
   return (
     <div className="h-full flex flex-col bg-background">
-        <header className="p-4 flex items-center gap-4 border-b sticky top-0 bg-background z-10">
-            <Button variant="ghost" size="icon" onClick={onDone}>
-                <ArrowLeft />
-            </Button>
-            <h1 className="text-lg font-semibold">Laporan Laba/Rugi Harian</h1>
-        </header>
-
-        <div className="p-4 space-y-4">
+        <header className="p-4 space-y-4 border-b sticky top-0 bg-background z-30">
+            <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" onClick={onDone}>
+                    <ArrowLeft />
+                </Button>
+                <h1 className="text-lg font-semibold">Laporan Laba/Rugi Harian</h1>
+            </div>
              <Popover>
                 <PopoverTrigger asChild>
                     <Button
@@ -212,9 +211,10 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                     />
                 </PopoverContent>
             </Popover>
-        </div>
-      
-        <div className="flex-1 overflow-auto px-4 space-y-6">
+        </header>
+
+        <div className="flex-1 overflow-auto">
+          <div className="px-4 pt-4 space-y-6">
             <div>
                 <h2 className="text-lg font-semibold mb-2">A. BRILink</h2>
                 {isLoading ? (
@@ -225,7 +225,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                     <Table className="text-[11px] whitespace-nowrap">
                         <TableHeader className="sticky top-0 bg-background z-10">
                             <TableRow>
-                                <TableHead className="w-[40px] py-2">No</TableHead>
+                                <TableHead className="py-2">No</TableHead>
                                 <TableHead className="sticky left-0 bg-background z-20 py-2">Layanan</TableHead>
                                 <TableHead className="py-2">Nama</TableHead>
                                 <TableHead className="py-2">Bank/Tujuan</TableHead>
@@ -320,6 +320,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                     <p className="text-sm text-muted-foreground">({formatToRupiah(brilinkTotals.labaRugi)} dari BRILink + {formatToRupiah(ppobTotals.profit)} dari PPOB)</p>
                 </CardContent>
             </Card>
+          </div>
         </div>
     </div>
   );
