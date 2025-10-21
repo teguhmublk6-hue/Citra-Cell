@@ -251,81 +251,81 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                 <Table className="text-[11px] whitespace-nowrap">
                     <TableHeader className="sticky top-0 bg-background z-20">
                         <TableRow>
-                            <TableHead className="sticky left-0 bg-background z-30 w-[50px]">No</TableHead>
-                            <TableHead className="sticky left-[50px] bg-background z-30">Layanan</TableHead>
-                            <TableHead className="sticky left-[150px] bg-background z-30">Akun Kas</TableHead>
-                            <TableHead>Bank/Tujuan</TableHead>
-                            <TableHead>Nama</TableHead>
-                            <TableHead className="text-right">Nominal</TableHead>
-                            <TableHead>Oleh</TableHead>
+                            <TableHead className="sticky left-0 bg-background z-30 w-[50px] py-2">No</TableHead>
+                            <TableHead className="sticky left-[50px] bg-background z-30 py-2">Layanan</TableHead>
+                            <TableHead className="sticky left-[150px] bg-background z-30 py-2">Akun Kas</TableHead>
+                            <TableHead className="py-2">Bank/Tujuan</TableHead>
+                            <TableHead className="py-2">Nama</TableHead>
+                            <TableHead className="text-right py-2">Nominal</TableHead>
+                            <TableHead className="py-2">Oleh</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {reports.map((report, index) => (
                             <TableRow key={report.id}>
-                                <TableCell className="sticky left-0 bg-background z-10">{index + 1}</TableCell>
+                                <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
                                 {report.transactionType === 'Transfer' ? (
                                     <>
-                                        <TableCell className="sticky left-[50px] bg-background z-10">Transfer</TableCell>
-                                        <TableCell className="sticky left-[150px] bg-background z-10">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
-                                        <TableCell>{report.destinationBankName}</TableCell>
-                                        <TableCell>{report.destinationAccountName}</TableCell>
-                                        <TableCell className="text-right">{formatToRupiah(report.transferAmount)}</TableCell>
-                                        <TableCell>{report.deviceName}</TableCell>
+                                        <TableCell className="sticky left-[50px] bg-background z-10 py-2">Transfer</TableCell>
+                                        <TableCell className="sticky left-[150px] bg-background z-10 py-2">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                                        <TableCell className="py-2">{report.destinationBankName}</TableCell>
+                                        <TableCell className="py-2">{report.destinationAccountName}</TableCell>
+                                        <TableCell className="text-right py-2">{formatToRupiah(report.transferAmount)}</TableCell>
+                                        <TableCell className="py-2">{report.deviceName}</TableCell>
                                     </>
                                 ) : report.transactionType === 'Tarik Tunai' ? (
                                     <>
-                                        <TableCell className="sticky left-[50px] bg-background z-10">Tarik Tunai</TableCell>
-                                        <TableCell className="sticky left-[150px] bg-background z-10">{getAccountLabel(report.destinationKasAccountId)}</TableCell>
-                                        <TableCell>{report.customerBankSource}</TableCell>
-                                        <TableCell>{report.customerName}</TableCell>
-                                        <TableCell className="text-right">{formatToRupiah(report.withdrawalAmount)}</TableCell>
-                                        <TableCell>{report.deviceName}</TableCell>
+                                        <TableCell className="sticky left-[50px] bg-background z-10 py-2">Tarik Tunai</TableCell>
+                                        <TableCell className="sticky left-[150px] bg-background z-10 py-2">{getAccountLabel(report.destinationKasAccountId)}</TableCell>
+                                        <TableCell className="py-2">{report.customerBankSource}</TableCell>
+                                        <TableCell className="py-2">{report.customerName}</TableCell>
+                                        <TableCell className="text-right py-2">{formatToRupiah(report.withdrawalAmount)}</TableCell>
+                                        <TableCell className="py-2">{report.deviceName}</TableCell>
                                     </>
                                 ) : report.transactionType === 'Top Up' ? (
                                     <>
-                                        <TableCell className="sticky left-[50px] bg-background z-10">Top Up</TableCell>
-                                        <TableCell className="sticky left-[150px] bg-background z-10">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
-                                        <TableCell>{report.destinationEwallet}</TableCell>
-                                        <TableCell>{report.customerName}</TableCell>
-                                        <TableCell className="text-right">{formatToRupiah(report.topUpAmount)}</TableCell>
-                                        <TableCell>{report.deviceName}</TableCell>
+                                        <TableCell className="sticky left-[50px] bg-background z-10 py-2">Top Up</TableCell>
+                                        <TableCell className="sticky left-[150px] bg-background z-10 py-2">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                                        <TableCell className="py-2">{report.destinationEwallet}</TableCell>
+                                        <TableCell className="py-2">{report.customerName}</TableCell>
+                                        <TableCell className="text-right py-2">{formatToRupiah(report.topUpAmount)}</TableCell>
+                                        <TableCell className="py-2">{report.deviceName}</TableCell>
                                     </>
                                 ) : report.transactionType === 'Top Up E-Money' ? (
                                     <>
-                                        <TableCell className="sticky left-[50px] bg-background z-10">Top Up E-Money</TableCell>
-                                        <TableCell className="sticky left-[150px] bg-background z-10">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
-                                        <TableCell>{report.destinationEmoney}</TableCell>
-                                        <TableCell>-</TableCell>
-                                        <TableCell className="text-right">{formatToRupiah(report.topUpAmount)}</TableCell>
-                                        <TableCell>{report.deviceName}</TableCell>
+                                        <TableCell className="sticky left-[50px] bg-background z-10 py-2">Top Up E-Money</TableCell>
+                                        <TableCell className="sticky left-[150px] bg-background z-10 py-2">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                                        <TableCell className="py-2">{report.destinationEmoney}</TableCell>
+                                        <TableCell className="py-2">-</TableCell>
+                                        <TableCell className="text-right py-2">{formatToRupiah(report.topUpAmount)}</TableCell>
+                                        <TableCell className="py-2">{report.deviceName}</TableCell>
                                     </>
                                 ) : report.transactionType === 'VA Payment' ? (
                                     <>
-                                        <TableCell className="sticky left-[50px] bg-background z-10">VA Payment</TableCell>
-                                        <TableCell className="sticky left-[150px] bg-background z-10">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
-                                        <TableCell>{report.serviceProvider}</TableCell>
-                                        <TableCell>{report.recipientName}</TableCell>
-                                        <TableCell className="text-right">{formatToRupiah(report.paymentAmount)}</TableCell>
-                                        <TableCell>{report.deviceName}</TableCell>
+                                        <TableCell className="sticky left-[50px] bg-background z-10 py-2">VA Payment</TableCell>
+                                        <TableCell className="sticky left-[150px] bg-background z-10 py-2">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                                        <TableCell className="py-2">{report.serviceProvider}</TableCell>
+                                        <TableCell className="py-2">{report.recipientName}</TableCell>
+                                        <TableCell className="text-right py-2">{formatToRupiah(report.paymentAmount)}</TableCell>
+                                        <TableCell className="py-2">{report.deviceName}</TableCell>
                                     </>
                                 ) : report.transactionType === 'Layanan EDC' ? (
                                      <>
-                                        <TableCell className="sticky left-[50px] bg-background z-10">Layanan EDC</TableCell>
-                                        <TableCell className="sticky left-[150px] bg-background z-10">{getAccountLabel(report.paymentToKasTunaiAccountId)}</TableCell>
-                                        <TableCell>{report.machineUsed}</TableCell>
-                                        <TableCell>{report.customerName}</TableCell>
-                                        <TableCell className="text-right">{formatToRupiah(report.serviceFee)}</TableCell>
-                                        <TableCell>{report.deviceName}</TableCell>
+                                        <TableCell className="sticky left-[50px] bg-background z-10 py-2">Layanan EDC</TableCell>
+                                        <TableCell className="sticky left-[150px] bg-background z-10 py-2">{getAccountLabel(report.paymentToKasTunaiAccountId)}</TableCell>
+                                        <TableCell className="py-2">{report.machineUsed}</TableCell>
+                                        <TableCell className="py-2">{report.customerName}</TableCell>
+                                        <TableCell className="text-right py-2">{formatToRupiah(report.serviceFee)}</TableCell>
+                                        <TableCell className="py-2">{report.deviceName}</TableCell>
                                     </>
                                 ) : report.transactionType === 'Tarik Tunai KJP' ? (
                                     <>
-                                       <TableCell className="sticky left-[50px] bg-background z-10">Tarik KJP</TableCell>
-                                       <TableCell className="sticky left-[150px] bg-background z-10">{getAccountLabel(report.destinationMerchantAccountId)}</TableCell>
-                                       <TableCell>Bank DKI</TableCell>
-                                       <TableCell>{report.customerName}</TableCell>
-                                       <TableCell className="text-right">{formatToRupiah(report.withdrawalAmount)}</TableCell>
-                                       <TableCell>{report.deviceName}</TableCell>
+                                       <TableCell className="sticky left-[50px] bg-background z-10 py-2">Tarik KJP</TableCell>
+                                       <TableCell className="sticky left-[150px] bg-background z-10 py-2">{getAccountLabel(report.destinationMerchantAccountId)}</TableCell>
+                                       <TableCell className="py-2">Bank DKI</TableCell>
+                                       <TableCell className="py-2">{report.customerName}</TableCell>
+                                       <TableCell className="text-right py-2">{formatToRupiah(report.withdrawalAmount)}</TableCell>
+                                       <TableCell className="py-2">{report.deviceName}</TableCell>
                                    </>
                                ) : null}
                             </TableRow>
