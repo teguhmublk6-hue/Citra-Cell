@@ -80,19 +80,19 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
   const totals = reports.reduce((acc, report) => {
     acc.costPrice += report.costPrice;
     acc.sellingPrice += report.sellingPrice;
+    acc.profit += report.profit;
     return acc;
-  }, { costPrice: 0, sellingPrice: 0 });
+  }, { costPrice: 0, sellingPrice: 0, profit: 0 });
 
   return (
     <div className="h-full flex flex-col bg-background">
-        <header className="p-4 flex items-center gap-4 border-b sticky top-0 bg-background z-10">
-            <Button variant="ghost" size="icon" onClick={onDone}>
-                <ArrowLeft />
-            </Button>
-            <h1 className="text-lg font-semibold">Laporan Transaksi PPOB</h1>
-        </header>
-
-        <div className="p-4 space-y-4">
+        <header className="p-4 space-y-4 border-b bg-background z-20">
+            <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" onClick={onDone}>
+                    <ArrowLeft />
+                </Button>
+                <h1 className="text-lg font-semibold">Laporan Transaksi PPOB</h1>
+            </div>
              <Popover>
                 <PopoverTrigger asChild>
                     <Button
@@ -129,56 +129,59 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                     />
                 </PopoverContent>
             </Popover>
-        </div>
+        </header>
       
-        <div className="flex-1 overflow-auto px-4">
+        <div className="flex-1 overflow-auto">
             {isLoading ? (
-                <div className="space-y-2">
+                <div className="p-4 space-y-2">
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-12 w-full" />
                     <Skeleton className="h-12 w-full" />
                 </div>
             ) : reports.length === 0 ? (
-                <Card>
+                <Card className="m-4">
                     <CardContent className="pt-6 text-center text-muted-foreground">
                         Tidak ada transaksi PPOB untuk tanggal ini.
                     </CardContent>
                 </Card>
             ) : (
-                <Table>
-                    <TableHeader>
+                <Table className="text-[11px] whitespace-nowrap">
+                    <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
-                            <TableHead className="w-[40px]">No</TableHead>
-                            <TableHead>Layanan</TableHead>
-                            <TableHead>Akun PPOB</TableHead>
-                            <TableHead>Tujuan</TableHead>
-                            <TableHead>Deskripsi</TableHead>
-                            <TableHead className="text-right">Harga Modal</TableHead>
-                            <TableHead className="text-right">Harga Jual</TableHead>
-                            <TableHead>Oleh</TableHead>
+                            <TableHead className="sticky left-0 bg-background z-20 w-[50px] py-2">No</TableHead>
+                            <TableHead className="sticky left-[50px] bg-background z-20 py-2">Layanan</TableHead>
+                            <TableHead className="py-2">Akun PPOB</TableHead>
+                            <TableHead className="py-2">Tujuan</TableHead>
+                            <TableHead className="py-2">Deskripsi</TableHead>
+                            <TableHead className="text-right py-2">Harga Modal</TableHead>
+                            <TableHead className="text-right py-2">Harga Jual</TableHead>
+                             <TableHead className="text-right py-2">Laba</TableHead>
+                            <TableHead className="py-2">Oleh</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {reports.map((report, index) => (
                             <TableRow key={report.id}>
-                                <TableCell>{index + 1}</TableCell>
-                                <TableCell>{report.serviceName}</TableCell>
-                                <TableCell>{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
-                                <TableCell>{report.destination}</TableCell>
-                                <TableCell>
+                                <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
+                                <TableCell className="sticky left-[50px] bg-background z-10 py-2">{report.serviceName}</TableCell>
+                                <TableCell className="py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
+                                <TableCell className="py-2">{report.destination}</TableCell>
+                                <TableCell className="py-2">
                                     {report.serviceName === 'Token Listrik' ? 'Token Listrik' : report.description}
                                 </TableCell>
-                                <TableCell className="text-right">{formatToRupiah(report.costPrice)}</TableCell>
-                                <TableCell className="text-right">{formatToRupiah(report.sellingPrice)}</TableCell>
-                                <TableCell>{report.deviceName}</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(report.sellingPrice)}</TableCell>
+                                <TableCell className="text-right text-green-500 font-medium py-2">{formatToRupiah(report.profit)}</TableCell>
+                                <TableCell className="py-2">{report.deviceName}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
                     <TableFooter>
                         <TableRow className="font-bold bg-muted/50">
                             <TableCell colSpan={5}>Total</TableCell>
-                            <TableCell className="text-right">{formatToRupiah(totals.costPrice)}</TableCell>
-                            <TableCell className="text-right">{formatToRupiah(totals.sellingPrice)}</TableCell>
+                            <TableCell className="text-right py-2">{formatToRupiah(totals.costPrice)}</TableCell>
+                            <TableCell className="text-right py-2">{formatToRupiah(totals.sellingPrice)}</TableCell>
+                            <TableCell className="text-right py-2">{formatToRupiah(totals.profit)}</TableCell>
                             <TableCell></TableCell>
                         </TableRow>
                     </TableFooter>
