@@ -19,7 +19,7 @@ export default function BottomNav({ activeTab, setActiveTab, children }: BottomN
 
   return (
     <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-card/90 backdrop-blur-lg border-t border-border/80 z-50">
-      <div className="flex justify-around items-center h-[60px] px-2">
+      <div className="flex justify-around items-center h-[70px] px-2 pt-1">
         {orderedNavItems.slice(0, middleIndex).map((tab) => (
           <button
             key={tab.id}
@@ -33,10 +33,11 @@ export default function BottomNav({ activeTab, setActiveTab, children }: BottomN
           >
              {activeTab === tab.id && <div className="absolute top-0 h-1 w-8 bg-primary rounded-full" />}
             <tab.icon size={22} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
+            <span className="text-xs font-medium">{tab.label}</span>
           </button>
         ))}
 
-        <div className="w-16 flex justify-center -mt-6">
+        <div className="w-16 flex justify-center -mt-8">
             {children}
         </div>
 
@@ -53,6 +54,7 @@ export default function BottomNav({ activeTab, setActiveTab, children }: BottomN
           >
              {activeTab === tab.id && <div className="absolute top-0 h-1 w-8 bg-primary rounded-full" />}
             <tab.icon size={22} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
+            <span className="text-xs font-medium">{tab.label}</span>
           </button>
         ))}
       </div>
