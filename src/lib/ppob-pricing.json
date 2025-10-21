@@ -92,5 +92,15 @@
         "80000": { "costPrice": 79500, "sellingPrice": 82000 },
         "90000": { "costPrice": 89500, "sellingPrice": 92000 },
         "100000": { "costPrice": 99000, "sellingPrice": 100000 }
+    },
+    "Token Listrik": {
+        "20000": { "costPrice": 20000, "sellingPrice": 22500 },
+        "50000": { "costPrice": 50000, "sellingPrice": 52500 },
+        "100000": { "costPrice": 100000, "sellingPrice": 102500 },
+        "200000": { "costPrice": 200000, "sellingPrice": 202500 },
+        "500000": { "costPrice": 500000, "sellingPrice": 502500 },
+        "1000000": { "costPrice": 1000000, "sellingPrice": 1002500 }
     }
 }
+
+    

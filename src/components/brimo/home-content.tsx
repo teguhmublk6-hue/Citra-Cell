@@ -10,7 +10,7 @@ import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw, Banknote } from 'lu
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, writeBatch, getDocs } from 'firebase/firestore';
 import type { KasAccount as KasAccountType } from '@/lib/data';
-import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight, CreditCard, IdCard, GraduationCap } from 'lucide-react';
+import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight, CreditCard, IdCard, GraduationCap, Lightbulb } from 'lucide-react';
 import Header from './header';
 import BalanceCard from './balance-card';
 import {
@@ -31,7 +31,7 @@ import AddCapitalForm from './AddCapitalForm';
 import WithdrawBalanceForm from './WithdrawBalanceForm';
 import CustomerTransferForm from './CustomerTransferForm';
 import CustomerTransferReview from './CustomerTransferReview';
-import type { CustomerEmoneyTopUpFormValues, CustomerKJPWithdrawalFormValues, CustomerTopUpFormValues, CustomerTransferFormValues, CustomerVAPaymentFormValues, CustomerWithdrawalFormValues, EDCServiceFormValues, SettlementFormValues, MotivationFormValues, PPOBPulsaFormValues } from '@/lib/types';
+import type { CustomerEmoneyTopUpFormValues, CustomerKJPWithdrawalFormValues, CustomerTopUpFormValues, CustomerTransferFormValues, CustomerVAPaymentFormValues, CustomerWithdrawalFormValues, EDCServiceFormValues, SettlementFormValues, MotivationFormValues, PPOBPulsaFormValues, PPOBTokenListrikFormValues } from '@/lib/types';
 import BookkeepingReport from './BookkeepingReport';
 import AdminPasscodeDialog from './AdminPasscodeDialog';
 import CustomerWithdrawalForm from './CustomerWithdrawalForm';
@@ -58,6 +58,8 @@ import PPOBPulsaForm from './PPOBPulsaForm';
 import PPOBPulsaReview from './PPOBPulsaReview';
 import PPOBPricingManager from './PPOBPricingManager';
 import PPOBReport from './PPOBReport';
+import PPOBTokenListrikForm from './PPOBTokenListrikForm';
+import PPOBTokenListrikReview from './PPOBTokenListrikReview';
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -70,7 +72,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'mutasi' | 'admin' | 'settings';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview';
 
 interface HomeContentProps {
   revalidateData: () => void;
@@ -82,7 +84,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
   const [currentSlide, setCurrentSlide] = useState(0)
-  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | CustomerKJPWithdrawalFormValues | MotivationFormValues | PPOBPulsaFormValues | null>(null);
+  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | CustomerKJPWithdrawalFormValues | MotivationFormValues | PPOBPulsaFormValues | PPOBTokenListrikFormValues | null>(null);
   const [isAdminAccessGranted, setIsAdminAccessGranted] = useState(false);
   const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
   const [isBrilinkReportVisible, setIsBrilinkReportVisible] = useState(false);
@@ -158,7 +160,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     }, 150);
   }
   
-  const handleQuickServiceClick = (service: 'customerTransfer' | 'withdraw' | 'topUp' | 'customerVAPayment' | 'EDCService' | 'Emoney' | 'KJP' | 'Pulsa') => {
+  const handleQuickServiceClick = (service: 'customerTransfer' | 'withdraw' | 'topUp' | 'customerVAPayment' | 'EDCService' | 'Emoney' | 'KJP' | 'Pulsa' | 'Token Listrik') => {
     if (service === 'customerTransfer') {
       setActiveSheet('customerTransfer');
     } else if (service === 'withdraw') {
@@ -175,10 +177,12 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
       setActiveSheet('customerKJP');
     } else if (service === 'Pulsa') {
       setActiveSheet('ppobPulsa');
+    } else if (service === 'Token Listrik') {
+        setActiveSheet('ppobTokenListrik');
     }
   }
 
-  const handleReview = (data: CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | CustomerKJPWithdrawalFormValues | PPOBPulsaFormValues) => {
+  const handleReview = (data: CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | CustomerKJPWithdrawalFormValues | PPOBPulsaFormValues | PPOBTokenListrikFormValues) => {
     setReviewData(data);
     if ('destinationBank' in data) {
       setActiveSheet('customerTransferReview');
@@ -192,8 +196,10 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         setActiveSheet('customerEmoneyTopUpReview');
     } else if ('sourceMerchantAccountId' in data) {
         setActiveSheet('settlementReview');
-    } else if ('costPrice' in data) {
+    } else if ('phoneNumber' in data) {
         setActiveSheet('ppobPulsaReview');
+    } else if ('meterNumber' in data) {
+        setActiveSheet('ppobTokenListrikReview');
     } else if ('withdrawalAmount' in data && !('customerBankSource' in data)) {
         setActiveSheet('customerKJPReview');
     }
@@ -384,7 +390,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                                 <div key={account.id} className="w-full text-left p-3 bg-card/80 backdrop-blur-md flex items-center justify-between gap-4 border-t border-border/10">
                                     <button onClick={() => handleAccountClick(account)} className="flex-1 flex items-center gap-3">
                                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${account.color}`}>
-                                          <Icon size={20} className="text-white" />
+                                          {account.iconUrl ? <img src={account.iconUrl} alt={account.label} className="h-6 w-6 object-contain" /> : <Icon size={20} className="text-white" />}
                                       </div>
                                       <div>
                                           <p className="font-semibold text-sm">{account.label}</p>
@@ -469,6 +475,8 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                   {activeSheet === 'managePPOBPricing' && 'Kelola Harga Pulsa'}
                   {activeSheet === 'ppobPulsa' && 'Transaksi Pulsa'}
                   {activeSheet === 'ppobPulsaReview' && 'Review Transaksi Pulsa'}
+                  {activeSheet === 'ppobTokenListrik' && 'Transaksi Token Listrik'}
+                  {activeSheet === 'ppobTokenListrikReview' && 'Review Transaksi Token Listrik'}
                 </SheetTitle>
             </SheetHeader>
             {activeSheet === 'history' && selectedAccount && <TransactionHistory account={selectedAccount} onDone={() => setActiveSheet(null)} />}
@@ -494,7 +502,9 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             {activeSheet === 'manageKasAccounts' && <KasManagement />}
             {activeSheet === 'managePPOBPricing' && <PPOBPricingManager onDone={closeAllSheets} />}
             {activeSheet === 'ppobPulsa' && <PPOBPulsaForm onReview={handleReview} onDone={closeAllSheets} />}
-            {activeSheet === 'ppobPulsaReview' && reviewData && 'costPrice' in reviewData && <PPOBPulsaReview formData={reviewData as PPOBPulsaFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('ppobPulsa')} />}
+            {activeSheet === 'ppobPulsaReview' && reviewData && 'phoneNumber' in reviewData && <PPOBPulsaReview formData={reviewData as PPOBPulsaFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('ppobPulsa')} />}
+            {activeSheet === 'ppobTokenListrik' && <PPOBTokenListrikForm onReview={handleReview} onDone={closeAllSheets} />}
+            {activeSheet === 'ppobTokenListrikReview' && reviewData && 'meterNumber' in reviewData && <PPOBTokenListrikReview formData={reviewData as PPOBTokenListrikFormValues} onConfirm={closeAllSheets} onBack={() => setActiveSheet('ppobTokenListrik')} />}
         </SheetContent>
       </Sheet>
 
@@ -535,3 +545,5 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     </>
   );
 }
+
+    

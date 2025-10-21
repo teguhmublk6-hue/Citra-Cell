@@ -236,12 +236,26 @@ export const PPOBPulsaFormSchema = z.object({
 
 export type PPOBPulsaFormValues = z.infer<typeof PPOBPulsaFormSchema>;
 
+export const PPOBTokenListrikFormSchema = z.object({
+  sourcePPOBAccountId: z.string().min(1, 'Akun PPOB sumber harus dipilih'),
+  meterNumber: z.string().min(10, 'Nomor Meter/ID Pelanggan minimal 10 digit').max(16, 'Nomor Meter/ID Pelanggan maksimal 16 digit'),
+  denomination: z.string().min(1, 'Denominasi harus dipilih'),
+  costPrice: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Harga modal harus angka" }).min(0, 'Harga modal tidak boleh negatif')),
+  sellingPrice: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Harga jual harus angka" }).min(0, 'Harga jual tidak boleh negatif')),
+  paymentMethod: z.enum(['Tunai', 'Transfer', 'Split'], { required_error: 'Metode pembayaran harus dipilih' }),
+  paymentToKasTransferAccountId: z.string().optional(),
+  splitTunaiAmount: z.preprocess(numberPreprocessor, z.number().optional()),
+});
+
+export type PPOBTokenListrikFormValues = z.infer<typeof PPOBTokenListrikFormSchema>;
+
+
 export type PPOBTransaction = {
     id: string;
     date: string;
-    serviceName: string; // e.g., "Pulsa"
-    destination: string; // e.g., Phone number
-    description: string; // e.g., "Telkomsel 20000"
+    serviceName: string; // e.g., "Pulsa", "Token Listrik"
+    destination: string; // e.g., Phone number, Meter number
+    description: string; // e.g., "Telkomsel 20000", "Token Listrik 50000"
     costPrice: number;
     sellingPrice: number;
     profit: number;
@@ -252,3 +266,5 @@ export type PPOBTransaction = {
     paymentToKasTransferAmount?: number;
     deviceName: string;
 }
+
+    
