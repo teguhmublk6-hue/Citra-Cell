@@ -15,7 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import bankData from '@/lib/banks.json';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Check, ChevronsUpDown } from 'lucide-react';
@@ -116,6 +116,10 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
   }, [firestore]);
 
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
+  
+  const sourceKasAccounts = useMemo(() => {
+      return kasAccounts?.filter(acc => ['Bank', 'E-Wallet'].includes(acc.type));
+  }, [kasAccounts]);
 
   const form = useForm<CustomerTransferFormValues>({
     resolver: zodResolver(refinedSchema),
@@ -166,7 +170,7 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {kasAccounts?.map(acc => (
+                      {sourceKasAccounts?.map(acc => (
                         <SelectItem key={acc.id} value={acc.id}>{acc.label} ({formatToRupiah(acc.balance)})</SelectItem>
                       ))}
                     </SelectContent>
@@ -373,5 +377,3 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
     </Form>
   );
 }
-
-    

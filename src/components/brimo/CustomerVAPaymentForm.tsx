@@ -14,7 +14,7 @@ import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import vaProviderData from '@/lib/va-providers.json';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Check, ChevronsUpDown } from 'lucide-react';
@@ -116,6 +116,10 @@ export default function CustomerVAPaymentForm({ onReview, onDone }: CustomerVAPa
   }, [firestore]);
 
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
+  
+  const sourceKasAccounts = useMemo(() => {
+      return kasAccounts?.filter(acc => ['Bank', 'E-Wallet'].includes(acc.type));
+  }, [kasAccounts]);
 
   const form = useForm<CustomerVAPaymentFormValues>({
     resolver: zodResolver(refinedSchema),
@@ -170,7 +174,7 @@ export default function CustomerVAPaymentForm({ onReview, onDone }: CustomerVAPa
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {kasAccounts?.map(acc => (
+                      {sourceKasAccounts?.map(acc => (
                         <SelectItem key={acc.id} value={acc.id}>{acc.label} ({formatToRupiah(acc.balance)})</SelectItem>
                       ))}
                     </SelectContent>
@@ -390,5 +394,3 @@ export default function CustomerVAPaymentForm({ onReview, onDone }: CustomerVAPa
     </Form>
   );
 }
-
-    
