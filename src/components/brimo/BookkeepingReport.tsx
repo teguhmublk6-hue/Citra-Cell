@@ -185,7 +185,7 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
 
   return (
     <div className="h-full flex flex-col bg-background">
-        <header className="p-4 space-y-4 border-b sticky top-0 bg-background z-20">
+        <header className="p-4 space-y-4 border-b bg-background z-20">
             <div className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={onDone}>
                     <ArrowLeft />
@@ -232,28 +232,26 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
 
       
         <div className="flex-1 overflow-auto">
-            {isLoading && (
+            {isLoading ? (
             <div className="px-4 space-y-2">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-12 w-full" />
                 <Skeleton className="h-12 w-full" />
                 <Skeleton className="h-12 w-full" />
             </div>
-            )}
-            {!isLoading && reports.length === 0 && (
+            ) : reports.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full py-20 text-center">
                     <CalendarIcon size={48} strokeWidth={1} className="text-muted-foreground mb-4" />
                     <p className="font-semibold">Belum Ada Laporan</p>
                     <p className="text-sm text-muted-foreground">Tidak ada transaksi untuk rentang tanggal yang dipilih.</p>
                 </div>
-            )}
-            {!isLoading && reports.length > 0 && (
+            ) : (
                 <Table className="text-[11px] whitespace-nowrap">
                     <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
-                            <TableHead className="sticky left-0 bg-background z-10 w-[50px] py-2">No</TableHead>
-                            <TableHead className="sticky left-[50px] bg-background z-10 py-2">Layanan</TableHead>
-                            <TableHead className="sticky left-[150px] bg-background z-10 py-2">Akun Kas</TableHead>
+                            <TableHead className="sticky left-0 bg-background z-20 w-[50px] py-2">No</TableHead>
+                            <TableHead className="sticky left-[50px] bg-background z-20 py-2">Layanan</TableHead>
+                            <TableHead className="sticky left-[150px] bg-background z-20 py-2">Akun Kas</TableHead>
                             <TableHead className="py-2">Bank/Tujuan</TableHead>
                             <TableHead className="py-2">Nama</TableHead>
                             <TableHead className="text-right py-2">Nominal</TableHead>
@@ -343,3 +341,6 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
     
 
 
+
+
+    
