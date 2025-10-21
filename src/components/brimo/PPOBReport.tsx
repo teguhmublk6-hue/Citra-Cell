@@ -155,7 +155,6 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                             <TableHead className="py-2">Deskripsi</TableHead>
                             <TableHead className="text-right py-2">Harga Modal</TableHead>
                             <TableHead className="text-right py-2">Harga Jual</TableHead>
-                             <TableHead className="text-right py-2">Laba</TableHead>
                             <TableHead className="py-2">Oleh</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -171,7 +170,6 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                                 </TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.sellingPrice)}</TableCell>
-                                <TableCell className="text-right text-green-500 font-medium py-2">{formatToRupiah(report.profit)}</TableCell>
                                 <TableCell className="py-2">{report.deviceName}</TableCell>
                             </TableRow>
                         ))}
@@ -181,7 +179,6 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                             <TableCell colSpan={5}>Total</TableCell>
                             <TableCell className="text-right py-2">{formatToRupiah(totals.costPrice)}</TableCell>
                             <TableCell className="text-right py-2">{formatToRupiah(totals.sellingPrice)}</TableCell>
-                            <TableCell className="text-right py-2">{formatToRupiah(totals.profit)}</TableCell>
                             <TableCell></TableCell>
                         </TableRow>
                     </TableFooter>
