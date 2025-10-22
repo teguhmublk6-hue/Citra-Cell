@@ -294,8 +294,9 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                     <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
                             <TableHead className="w-[40px] sticky left-0 bg-background z-20 py-2">No.</TableHead>
-                            <TableHead className="sticky left-[40px] bg-background z-20 py-2">Deskripsi</TableHead>
+                            <TableHead className="sticky left-[40px] bg-background z-20 py-2">Layanan</TableHead>
                             <TableHead className="py-2">Tujuan</TableHead>
+                            <TableHead className="py-2">Akun PPOB</TableHead>
                             <TableHead className="text-right py-2">Harga Modal</TableHead>
                             <TableHead className="text-right py-2">Harga Jual</TableHead>
                             <TableHead className="text-right py-2">Laba/Rugi</TableHead>
@@ -305,10 +306,9 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                         {ppobReports.map((report, index) => (
                              <TableRow key={report.id}>
                                 <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
-                                <TableCell className="sticky left-[40px] bg-background z-10 py-2">
-                                     {report.serviceName === 'Token Listrik' ? report.description.split(' an.')[0] : report.description}
-                                </TableCell>
+                                <TableCell className="sticky left-[40px] bg-background z-10 py-2">{report.serviceName}</TableCell>
                                 <TableCell className="py-2">{report.destination}</TableCell>
+                                <TableCell className="py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.sellingPrice)}</TableCell>
                                 <TableCell className="text-right font-semibold text-green-500 py-2">{formatToRupiah(report.profit)}</TableCell>
@@ -319,6 +319,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                 <TableCell className="sticky left-0 bg-background z-10 py-2">{ppobReports.length + index + 1}</TableCell>
                                 <TableCell className="sticky left-[40px] bg-background z-10 py-2">{report.serviceName}</TableCell>
                                 <TableCell className="py-2">{report.customerName}</TableCell>
+                                <TableCell className="py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.billAmount)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.totalAmount)}</TableCell>
                                 <TableCell className="text-right font-semibold text-green-500 py-2">{formatToRupiah(report.netProfit)}</TableCell>
@@ -327,13 +328,13 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                     </TableBody>
                     <TableFooter>
                         <TableRow className="font-bold bg-muted/50">
-                            <TableCell colSpan={3} className="sticky left-0 bg-muted/50 z-10">Total</TableCell>
+                            <TableCell colSpan={4} className="sticky left-0 bg-muted/50 z-10">Total</TableCell>
                             <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.costPrice + ppobBillTotals.costPrice)}</TableCell>
                             <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.sellingPrice + ppobBillTotals.sellingPrice)}</TableCell>
                             <TableCell className="text-right py-2">{formatToRupiah(totalPpobProfit)}</TableCell>
                         </TableRow>
                         <TableRow className="font-bold text-lg bg-muted">
-                            <TableCell colSpan={5} className="sticky left-0 bg-muted z-10">Total Laba PPOB</TableCell>
+                            <TableCell colSpan={6} className="sticky left-0 bg-muted z-10">Total Laba PPOB</TableCell>
                             <TableCell className="text-right text-green-600 py-2">{formatToRupiah(totalPpobProfit)}</TableCell>
                         </TableRow>
                     </TableFooter>
@@ -354,3 +355,5 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
     </div>
   );
 }
+
+    
