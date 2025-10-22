@@ -45,7 +45,7 @@ export const ppobServices: QuickService[] = [
     { icon: Wifi, label: 'Data', color: 'bg-sky-500' },
     { icon: Lightbulb, label: 'Token Listrik', color: 'bg-yellow-500' },
     { icon: Zap, label: 'PLN', color: 'bg-amber-500' },
-    // { icon: Droplets, label: 'PDAM', color: 'bg-cyan-500' },
+    { icon: Droplets, label: 'PDAM', color: 'bg-cyan-500' },
     { icon: HeartPulse, label: 'BPJS', color: 'bg-teal-500' },
 ];
 
