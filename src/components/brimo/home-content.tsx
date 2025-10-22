@@ -324,7 +324,6 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         "settlements",
         "ppobTransactions",
         "ppobPlnPostpaid",
-        "ppobPdam"
     ];
 
     try {
