@@ -122,7 +122,7 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
                                         type="text"
                                         value={formatToRupiah((prices as any).costPrice)}
                                         onChange={(e) => handleInputChange(serviceName as keyof typeof pricing, '', denom, 'costPrice', e.target.value)}
-                                        className="h-9 text-right"
+                                        className="h-9 text-right text-xs"
                                     />
                                     </TableCell>
                                     <TableCell>
@@ -130,7 +130,7 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
                                         type="text"
                                         value={formatToRupiah((prices as any).sellingPrice)}
                                         onChange={(e) => handleInputChange(serviceName as keyof typeof pricing, '', denom, 'sellingPrice', e.target.value)}
-                                        className="h-9 text-right"
+                                        className="h-9 text-right text-xs"
                                     />
                                     </TableCell>
                                 </TableRow>
@@ -154,13 +154,13 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
                                         <TableBody>
                                             {Object.entries(providerData as any).map(([denom, prices]) => (
                                             <TableRow key={denom}>
-                                                <TableCell className="font-medium">{denom}</TableCell>
+                                                <TableCell className="font-medium text-xs truncate">{denom}</TableCell>
                                                 <TableCell>
                                                 <Input
                                                     type="text"
                                                     value={formatToRupiah((prices as any).costPrice)}
                                                     onChange={(e) => handleInputChange(serviceName as keyof typeof pricing, providerName, denom, 'costPrice', e.target.value)}
-                                                    className="h-9 text-right"
+                                                    className="h-9 text-right text-xs"
                                                 />
                                                 </TableCell>
                                                 <TableCell>
@@ -168,7 +168,7 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
                                                     type="text"
                                                     value={formatToRupiah((prices as any).sellingPrice)}
                                                     onChange={(e) => handleInputChange(serviceName as keyof typeof pricing, providerName, denom, 'sellingPrice', e.target.value)}
-                                                    className="h-9 text-right"
+                                                    className="h-9 text-right text-xs"
                                                 />
                                                 </TableCell>
                                             </TableRow>
