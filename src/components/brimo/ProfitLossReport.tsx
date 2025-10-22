@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
-import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal, PPOBTransaction, PPOBPlnPostpaid } from '@/lib/types';
+import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal, PPOBTransaction, PPOBPlnPostpaid, PPOBPdam } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,9 @@ type BrilinkReportItem =
     | (EDCService & { id: string; transactionType: 'Layanan EDC' })
     | (CustomerKJPWithdrawal & { id: string; transactionType: 'Tarik Tunai KJP'});
 
-type PpobBillReportItem = (PPOBPlnPostpaid & { id: string; serviceName: 'PLN Pascabayar' });
+type PpobBillReportItem = 
+    | (PPOBPlnPostpaid & { id: string; serviceName: 'PLN Pascabayar' })
+    | (PPOBPdam & { id: string; serviceName: 'PDAM' });
 
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
@@ -75,6 +77,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
 
             const ppobQuery = getDocs(query(collection(firestore, 'ppobTransactions'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
             const ppobPlnPostpaidQuery = getDocs(query(collection(firestore, 'ppobPlnPostpaid'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
+            const ppobPdamQuery = getDocs(query(collection(firestore, 'ppobPdam'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
             
             const [
                 transfersSnapshot, 
@@ -86,7 +89,8 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                 kjpWithdrawalsSnapshot,
                 ppobSnapshot,
                 ppobPlnPostpaidSnapshot,
-            ] = await Promise.all([...brilinkQueries, ppobQuery, ppobPlnPostpaidQuery]);
+                ppobPdamSnapshot,
+            ] = await Promise.all([...brilinkQueries, ppobQuery, ppobPlnPostpaidQuery, ppobPdamQuery]);
 
             const combinedBrilinkReports: BrilinkReportItem[] = [];
 
@@ -103,6 +107,8 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
             const fetchedPpobReports = ppobSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PPOBTransaction & {id: string}));
             const fetchedPpobBillReports: PpobBillReportItem[] = [];
             ppobPlnPostpaidSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBPlnPostpaid), serviceName: 'PLN Pascabayar' }));
+            ppobPdamSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBPdam), serviceName: 'PDAM' }));
+            fetchedPpobBillReports.sort((a, b) => (b.date as any).toDate().getTime() - (a.date as any).toDate().getTime());
 
             setBrilinkReports(combinedBrilinkReports);
             setPpobReports(fetchedPpobReports);
@@ -355,5 +361,3 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
     </div>
   );
 }
-
-    
