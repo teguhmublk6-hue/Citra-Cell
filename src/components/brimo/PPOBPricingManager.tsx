@@ -65,7 +65,7 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
     setPricing(prev => {
         const newPricing = JSON.parse(JSON.stringify(prev)); // Deep copy
         if (service === 'Token Listrik') {
-            (newPricing[service] as any)[provider][field] = numericValue;
+            (newPricing[service] as any)[denom][field] = numericValue;
         } else {
             (newPricing[service] as any)[provider][denom][field] = numericValue;
         }
@@ -104,47 +104,82 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
                 <AccordionItem value={serviceName} key={serviceName}>
                     <AccordionTrigger>{serviceName}</AccordionTrigger>
                     <AccordionContent>
-                      <Accordion type="multiple" className="w-full pl-4" defaultValue={Object.keys(serviceData as object)[0]}>
-                         {Object.entries(serviceData as any).map(([providerName, providerData]) => (
-                           <AccordionItem value={`${serviceName}-${providerName}`} key={`${serviceName}-${providerName}`}>
-                              <AccordionTrigger>{providerName}</AccordionTrigger>
-                              <AccordionContent>
-                                  <Table>
-                                      <TableHeader>
-                                          <TableRow>
+                      {serviceName === 'Token Listrik' ? (
+                         <Table>
+                            <TableHeader>
+                                <TableRow>
+                                <TableHead className="w-[30%]">Denom</TableHead>
+                                <TableHead className="text-right w-[35%]">Harga Modal</TableHead>
+                                <TableHead className="text-right w-[35%]">Harga Jual</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {Object.entries(serviceData as any).map(([denom, prices]) => (
+                                <TableRow key={denom}>
+                                    <TableCell className="font-medium">{denom}</TableCell>
+                                    <TableCell>
+                                    <Input
+                                        type="text"
+                                        value={formatToRupiah((prices as any).costPrice)}
+                                        onChange={(e) => handleInputChange(serviceName as keyof typeof pricing, '', denom, 'costPrice', e.target.value)}
+                                        className="h-9 text-right"
+                                    />
+                                    </TableCell>
+                                    <TableCell>
+                                    <Input
+                                        type="text"
+                                        value={formatToRupiah((prices as any).sellingPrice)}
+                                        onChange={(e) => handleInputChange(serviceName as keyof typeof pricing, '', denom, 'sellingPrice', e.target.value)}
+                                        className="h-9 text-right"
+                                    />
+                                    </TableCell>
+                                </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                      ) : (
+                        <Accordion type="multiple" className="w-full pl-4" defaultValue={Object.keys(serviceData as object)[0]}>
+                            {Object.entries(serviceData as any).map(([providerName, providerData]) => (
+                            <AccordionItem value={`${serviceName}-${providerName}`} key={`${serviceName}-${providerName}`}>
+                                <AccordionTrigger>{providerName}</AccordionTrigger>
+                                <AccordionContent>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
                                             <TableHead className="w-[30%]">Denom/Paket</TableHead>
-                                            <TableHead className="text-right">Harga Modal</TableHead>
-                                            <TableHead className="text-right">Harga Jual</TableHead>
-                                          </TableRow>
-                                      </TableHeader>
-                                      <TableBody>
-                                          {Object.entries(providerData as any).map(([denom, prices]) => (
-                                          <TableRow key={denom}>
-                                              <TableCell className="font-medium">{denom}</TableCell>
-                                              <TableCell>
-                                              <Input
-                                                  type="text"
-                                                  value={formatToRupiah((prices as any).costPrice)}
-                                                  onChange={(e) => handleInputChange(serviceName as keyof typeof pricing, providerName, denom, 'costPrice', e.target.value)}
-                                                  className="h-9 text-right"
-                                              />
-                                              </TableCell>
-                                              <TableCell>
-                                              <Input
-                                                  type="text"
-                                                  value={formatToRupiah((prices as any).sellingPrice)}
-                                                  onChange={(e) => handleInputChange(serviceName as keyof typeof pricing, providerName, denom, 'sellingPrice', e.target.value)}
-                                                  className="h-9 text-right"
-                                              />
-                                              </TableCell>
-                                          </TableRow>
-                                          ))}
-                                      </TableBody>
-                                  </Table>
-                              </AccordionContent>
-                          </AccordionItem>
-                         ))}
-                      </Accordion>
+                                            <TableHead className="text-right w-[35%]">Harga Modal</TableHead>
+                                            <TableHead className="text-right w-[35%]">Harga Jual</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {Object.entries(providerData as any).map(([denom, prices]) => (
+                                            <TableRow key={denom}>
+                                                <TableCell className="font-medium">{denom}</TableCell>
+                                                <TableCell>
+                                                <Input
+                                                    type="text"
+                                                    value={formatToRupiah((prices as any).costPrice)}
+                                                    onChange={(e) => handleInputChange(serviceName as keyof typeof pricing, providerName, denom, 'costPrice', e.target.value)}
+                                                    className="h-9 text-right"
+                                                />
+                                                </TableCell>
+                                                <TableCell>
+                                                <Input
+                                                    type="text"
+                                                    value={formatToRupiah((prices as any).sellingPrice)}
+                                                    onChange={(e) => handleInputChange(serviceName as keyof typeof pricing, providerName, denom, 'sellingPrice', e.target.value)}
+                                                    className="h-9 text-right"
+                                                />
+                                                </TableCell>
+                                            </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </AccordionContent>
+                            </AccordionItem>
+                            ))}
+                        </Accordion>
+                      )}
                     </AccordionContent>
                 </AccordionItem>
               ))}
