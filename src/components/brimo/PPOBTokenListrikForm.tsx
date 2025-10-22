@@ -80,7 +80,7 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
   const selectedPPOBAccount = useMemo(() => kasAccounts?.find(acc => acc.id === sourcePPOBAccountId), [kasAccounts, sourcePPOBAccountId]);
 
   const availableDenominations = useMemo(() => {
-    const tokenPricing = (ppobPricing as any)["Token Listrik"];
+    const tokenPricing = (ppobPricing["Token Listrik"] as any);
     if (tokenPricing) {
       return Object.keys(tokenPricing).map(d => parseInt(d, 10)).sort((a,b) => a - b).map(String);
     }
@@ -89,7 +89,7 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
 
   useEffect(() => {
     if (denomination) {
-      const pricing = (ppobPricing as any)["Token Listrik"];
+      const pricing = (ppobPricing["Token Listrik"] as any);
       const denomKey = denomination.replace(/\./g, '');
       const denomPrice = pricing ? pricing[denomKey] : null;
 
@@ -294,5 +294,3 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
     </Form>
   );
 }
-
-    

@@ -1,7 +1,7 @@
 
 {
-    "Telkomsel": {
-        "Pulsa": {
+    "Pulsa": {
+        "Telkomsel": {
             "5000": { "costPrice": 5350, "sellingPrice": 7000 },
             "10000": { "costPrice": 10350, "sellingPrice": 12000 },
             "15000": { "costPrice": 15000, "sellingPrice": 17000 },
@@ -21,14 +21,7 @@
             "150000": { "costPrice": 147500, "sellingPrice": 150000 },
             "200000": { "costPrice": 196500, "sellingPrice": 200000 }
         },
-        "Data": {
-            "Hot Promo 4.5GB/5 Hari": { "costPrice": 15000, "sellingPrice": 17000 },
-            "OMG! Nonton 15GB/30 Hari": { "costPrice": 52000, "sellingPrice": 55000 },
-            "Paket Belajar 30GB/30 Hari": { "costPrice": 75000, "sellingPrice": 78000 }
-        }
-    },
-    "Indosat": {
-        "Pulsa": {
+        "Indosat": {
             "5000": { "costPrice": 5825, "sellingPrice": 7000 },
             "10000": { "costPrice": 10825, "sellingPrice": 12000 },
             "20000": { "costPrice": 20725, "sellingPrice": 22000 },
@@ -43,13 +36,7 @@
             "90000": { "costPrice": 90500, "sellingPrice": 92000 },
             "100000": { "costPrice": 99725, "sellingPrice": 100000 }
         },
-        "Data": {
-            "Freedom Internet 3GB/30 Hari": { "costPrice": 18000, "sellingPrice": 20000 },
-            "Freedom Internet 10GB/30 Hari": { "costPrice": 38000, "sellingPrice": 40000 }
-        }
-    },
-    "XL": {
-        "Pulsa": {
+        "XL": {
             "5000": { "costPrice": 5850, "sellingPrice": 7000 },
             "10000": { "costPrice": 10850, "sellingPrice": 12000 },
             "15000": { "costPrice": 15850, "sellingPrice": 17000 },
@@ -64,10 +51,7 @@
             "90000": { "costPrice": 90500, "sellingPrice": 92000 },
             "100000": { "costPrice": 99750, "sellingPrice": 100000 }
         },
-        "Data": {}
-    },
-    "Axis": {
-        "Pulsa": {
+        "Axis": {
             "5000": { "costPrice": 5850, "sellingPrice": 7000 },
             "10000": { "costPrice": 10850, "sellingPrice": 12000 },
             "15000": { "costPrice": 15850, "sellingPrice": 17000 },
@@ -82,10 +66,7 @@
             "90000": { "costPrice": 90500, "sellingPrice": 92000 },
             "100000": { "costPrice": 99750, "sellingPrice": 100000 }
         },
-        "Data": {}
-    },
-    "Tri": {
-        "Pulsa": {
+        "Tri": {
             "5000": { "costPrice": 5400, "sellingPrice": 7000 },
             "10000": { "costPrice": 10300, "sellingPrice": 12000 },
             "20000": { "costPrice": 19900, "sellingPrice": 22000 },
@@ -100,10 +81,7 @@
             "90000": { "costPrice": 89400, "sellingPrice": 92000 },
             "100000": { "costPrice": 98500, "sellingPrice": 100000 }
         },
-        "Data": {}
-    },
-    "Smartfren": {
-        "Pulsa": {
+        "Smartfren": {
             "5000": { "costPrice": 5150, "sellingPrice": 7000 },
             "10000": { "costPrice": 10150, "sellingPrice": 12000 },
             "20000": { "costPrice": 19800, "sellingPrice": 22000 },
@@ -115,8 +93,18 @@
             "80000": { "costPrice": 79500, "sellingPrice": 82000 },
             "90000": { "costPrice": 89500, "sellingPrice": 92000 },
             "100000": { "costPrice": 99000, "sellingPrice": 100000 }
+        }
+    },
+    "Paket Data": {
+        "Telkomsel": {
+            "Hot Promo 4.5GB/5 Hari": { "costPrice": 15000, "sellingPrice": 17000 },
+            "OMG! Nonton 15GB/30 Hari": { "costPrice": 52000, "sellingPrice": 55000 },
+            "Paket Belajar 30GB/30 Hari": { "costPrice": 75000, "sellingPrice": 78000 }
         },
-        "Data": {}
+        "Indosat": {
+            "Freedom Internet 3GB/30 Hari": { "costPrice": 18000, "sellingPrice": 20000 },
+            "Freedom Internet 10GB/30 Hari": { "costPrice": 38000, "sellingPrice": 40000 }
+        }
     },
     "Token Listrik": {
         "20000": { "costPrice": 20000, "sellingPrice": 22500 },

@@ -91,13 +91,14 @@ export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFor
     const prefix = phoneNumber.substring(0, 4);
     const foundProvider = providers.find(p => p.prefixes.includes(prefix));
     setDetectedProvider(foundProvider ? foundProvider.name : null);
-  }, [phoneNumber]);
+    form.setValue('packageName', ''); // Reset package when number changes
+  }, [phoneNumber, form]);
 
   const selectedPPOBAccount = useMemo(() => kasAccounts?.find(acc => acc.id === sourcePPOBAccountId), [kasAccounts, sourcePPOBAccountId]);
 
   const availablePackages = useMemo(() => {
     if (detectedProvider) {
-      const providerPackages = (ppobPricing as any)[detectedProvider]?.Data;
+      const providerPackages = (ppobPricing['Paket Data'] as any)[detectedProvider];
       if (providerPackages) {
         return Object.keys(providerPackages);
       }
@@ -107,7 +108,7 @@ export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFor
 
   useEffect(() => {
     if (detectedProvider && packageName) {
-      const packages = (ppobPricing as any)[detectedProvider]?.Data;
+      const packages = (ppobPricing['Paket Data'] as any)[detectedProvider];
       const packagePrice = packages ? packages[packageName] : null;
 
       if (packagePrice) {
@@ -281,5 +282,3 @@ export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFor
     </Form>
   );
 }
-
-    

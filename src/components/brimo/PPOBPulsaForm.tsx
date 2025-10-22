@@ -94,13 +94,14 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
     const prefix = phoneNumber.substring(0, 4);
     const foundProvider = providers.find(p => p.prefixes.includes(prefix));
     setDetectedProvider(foundProvider ? foundProvider.name : null);
-  }, [phoneNumber]);
+    form.setValue('denomination', ''); // Reset denomination when number changes
+  }, [phoneNumber, form]);
 
   const selectedPPOBAccount = useMemo(() => kasAccounts?.find(acc => acc.id === sourcePPOBAccountId), [kasAccounts, sourcePPOBAccountId]);
 
   const availableDenominations = useMemo(() => {
     if (detectedProvider) {
-      const providerPricing = (ppobPricing as any)[detectedProvider]?.Pulsa;
+      const providerPricing = (ppobPricing.Pulsa as any)[detectedProvider];
       if (providerPricing) {
         return Object.keys(providerPricing).map(d => parseInt(d, 10)).sort((a,b) => a - b).map(String);
       }
@@ -110,7 +111,7 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
 
   useEffect(() => {
     if (detectedProvider && denomination) {
-      const pricing = (ppobPricing as any)[detectedProvider]?.Pulsa;
+      const pricing = (ppobPricing.Pulsa as any)[detectedProvider];
       const denomKey = denomination.replace(/\./g, '');
       const denomPrice = pricing ? pricing[denomKey] : null;
 

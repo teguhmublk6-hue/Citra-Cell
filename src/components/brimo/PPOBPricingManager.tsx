@@ -54,18 +54,23 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
-  const handleInputChange = (provider: string, denomination: string, field: 'costPrice' | 'sellingPrice', value: string) => {
-    const numericValue = parseRupiah(value);
-    setPricing(prev => ({
-      ...prev,
-      [provider]: {
-        ...prev[provider as keyof typeof prev],
-        [denomination]: {
-          ...prev[provider as keyof typeof prev][denomination],
-          [field]: numericValue
+  const handleInputChange = (
+    service: keyof typeof pricing,
+    providerOrDenom: string, 
+    denomOrField: string, 
+    fieldOrValue: 'costPrice' | 'sellingPrice' | string,
+    value?: string
+  ) => {
+    const numericValue = parseRupiah(value !== undefined ? value : String(fieldOrValue));
+    setPricing(prev => {
+        const newPricing = JSON.parse(JSON.stringify(prev)); // Deep copy
+        if (service === 'Token Listrik') {
+            newPricing[service][providerOrDenom][denomOrField] = numericValue;
+        } else {
+            (newPricing[service] as any)[providerOrDenom][denomOrField][fieldOrValue] = numericValue;
         }
-      }
-    }));
+        return newPricing;
+    });
   };
 
   const handleSaveChanges = async () => {
@@ -92,15 +97,16 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
       <ScrollArea className="flex-1 -mx-6 px-6">
         <div className="space-y-4 pt-4 pb-6">
             <p className="text-sm text-muted-foreground">
-                Atur harga modal dan harga jual untuk setiap denominasi pulsa. Perubahan di sini akan memengaruhi pengisian otomatis pada form transaksi pulsa untuk semua akun PPOB.
+                Atur harga modal dan harga jual untuk setiap produk PPOB. Perubahan akan langsung memengaruhi form transaksi.
             </p>
-            <Accordion type="multiple" className="w-full">
-            {Object.entries(pricing).map(([provider, denominations]) => (
-                <AccordionItem value={provider} key={provider}>
-                    <AccordionTrigger>{provider}</AccordionTrigger>
+            <Accordion type="multiple" className="w-full" defaultValue={['Pulsa']}>
+              {Object.entries(pricing).map(([serviceName, serviceData]) => (
+                <AccordionItem value={serviceName} key={serviceName}>
+                    <AccordionTrigger>{serviceName}</AccordionTrigger>
                     <AccordionContent>
+                      {serviceName === "Token Listrik" ? (
                         <Table>
-                            <TableHeader>
+                           <TableHeader>
                                 <TableRow>
                                 <TableHead>Denom</TableHead>
                                 <TableHead>Harga Modal</TableHead>
@@ -108,22 +114,22 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {Object.entries(denominations).map(([denom, prices]) => (
+                                {Object.entries(serviceData as any).map(([denom, prices]) => (
                                 <TableRow key={denom}>
                                     <TableCell className="font-medium">{parseInt(denom, 10).toLocaleString('id-ID')}</TableCell>
                                     <TableCell>
                                     <Input
                                         type="text"
-                                        value={formatToRupiah(prices.costPrice)}
-                                        onChange={(e) => handleInputChange(provider, denom, 'costPrice', e.target.value)}
+                                        value={formatToRupiah((prices as any).costPrice)}
+                                        onChange={(e) => handleInputChange('Token Listrik', denom, 'costPrice', e.target.value)}
                                         className="h-8"
                                     />
                                     </TableCell>
                                     <TableCell>
                                     <Input
                                         type="text"
-                                        value={formatToRupiah(prices.sellingPrice)}
-                                        onChange={(e) => handleInputChange(provider, denom, 'sellingPrice', e.target.value)}
+                                        value={formatToRupiah((prices as any).sellingPrice)}
+                                        onChange={(e) => handleInputChange('Token Listrik', denom, 'sellingPrice', e.target.value)}
                                         className="h-8"
                                     />
                                     </TableCell>
@@ -131,9 +137,52 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
                                 ))}
                             </TableBody>
                         </Table>
+                      ) : (
+                        <Accordion type="multiple" className="w-full pl-4">
+                           {Object.entries(serviceData as any).map(([providerName, providerData]) => (
+                             <AccordionItem value={`${serviceName}-${providerName}`} key={`${serviceName}-${providerName}`}>
+                                <AccordionTrigger>{providerName}</AccordionTrigger>
+                                <AccordionContent>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                            <TableHead>Denom/Paket</TableHead>
+                                            <TableHead>Harga Modal</TableHead>
+                                            <TableHead>Harga Jual</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {Object.entries(providerData as any).map(([denom, prices]) => (
+                                            <TableRow key={denom}>
+                                                <TableCell className="font-medium">{denom}</TableCell>
+                                                <TableCell>
+                                                <Input
+                                                    type="text"
+                                                    value={formatToRupiah((prices as any).costPrice)}
+                                                    onChange={(e) => handleInputChange(serviceName as keyof typeof pricing, providerName, denom, 'costPrice', e.target.value)}
+                                                    className="h-8"
+                                                />
+                                                </TableCell>
+                                                <TableCell>
+                                                <Input
+                                                    type="text"
+                                                    value={formatToRupiah((prices as any).sellingPrice)}
+                                                    onChange={(e) => handleInputChange(serviceName as keyof typeof pricing, providerName, denom, 'sellingPrice', e.target.value)}
+                                                    className="h-8"
+                                                />
+                                                </TableCell>
+                                            </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </AccordionContent>
+                            </AccordionItem>
+                           ))}
+                        </Accordion>
+                      )}
                     </AccordionContent>
                 </AccordionItem>
-            ))}
+              ))}
             </Accordion>
         </div>
       </ScrollArea>
