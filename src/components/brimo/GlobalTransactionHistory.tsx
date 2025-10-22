@@ -107,7 +107,7 @@ export default function GlobalTransactionHistory() {
   const handleDeleteTransaction = async () => {
     if (!transactionToDelete || !firestore || !kasAccounts) return;
 
-    toast({ title: "Memproses...", description: "Menghapus transaksi dan mengembalikan saldo." });
+    toast({ title: "Memproses...", description: "Mencari & menghapus transaksi terkait." });
 
     try {
         const batch = writeBatch(firestore);
@@ -126,29 +126,28 @@ export default function GlobalTransactionHistory() {
             querySnapshot.forEach(docSnap => {
                 allRelatedTrxRefs.push(docSnap.ref);
                 const trxData = docSnap.data() as Transaction;
+                // Calculate the change needed to revert the balance
+                // If credit, we need to subtract. If debit, we need to add.
+                const changeToRevert = trxData.type === 'credit' ? -trxData.amount : trxData.amount;
+                
                 const currentChange = balanceChanges.get(account.id) || 0;
-                const change = trxData.type === 'credit' ? -trxData.amount : trxData.amount;
-                balanceChanges.set(account.id, currentChange + change);
+                balanceChanges.set(account.id, currentChange + changeToRevert);
             });
         }
         
         if (allRelatedTrxRefs.length === 0) {
-            // Handle case where only a single transaction is found (e.g. old ones)
+            // This is a fallback for a single, unrelated transaction
              const { kasAccountId, type, amount } = transactionToDelete;
-             const primaryAccount = kasAccounts.find(acc => acc.id === kasAccountId);
-             if(!primaryAccount) throw new Error("Akun utama tidak ditemukan untuk transaksi tunggal.");
-             
              const trxRef = doc(firestore, 'kasAccounts', kasAccountId, 'transactions', transactionToDelete.id);
-             batch.delete(trxRef);
-
-             const change = type === 'credit' ? -amount : amount;
-             balanceChanges.set(kasAccountId, change);
-        } else {
-             // Delete all found related transactions
-            allRelatedTrxRefs.forEach(ref => batch.delete(ref));
+             allRelatedTrxRefs.push(trxRef);
+             const changeToRevert = type === 'credit' ? -amount : amount;
+             balanceChanges.set(kasAccountId, changeToRevert);
         }
-
-        // --- Revert balances for all affected accounts ---
+        
+        // Delete all found related transactions
+        allRelatedTrxRefs.forEach(ref => batch.delete(ref));
+        
+        // Revert balances for all affected accounts
         for (const [accountId, change] of balanceChanges.entries()) {
             const accountData = kasAccounts.find(acc => acc.id === accountId);
             if (accountData) {
