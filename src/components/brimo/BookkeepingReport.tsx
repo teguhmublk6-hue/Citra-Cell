@@ -132,7 +132,7 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
     if (report.transactionType === 'Transfer') {
         return sum + report.netProfit;
     }
-    if (report.transactionType === 'Tarik Tunai' || report.transactionType === 'Top Up') {
+    if (report.transactionType === 'Tarik Tunai' || report.transactionType === 'Top Up' || report.transactionType === 'Tarik Tunai KJP') {
         return sum + report.serviceFee;
     }
     return sum;
@@ -204,9 +204,9 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                 <Table className="text-[11px] whitespace-nowrap">
                     <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
-                            <TableHead className="sticky left-0 bg-background z-20 w-[50px] py-2">No</TableHead>
-                            <TableHead className="sticky left-[50px] bg-background z-20 py-2">Deskripsi</TableHead>
-                            <TableHead className="sticky left-[150px] bg-background z-20 py-2">Akun Kas</TableHead>
+                            <TableHead className="sticky left-0 bg-background z-20 w-[40px] py-2">No</TableHead>
+                            <TableHead className="sticky left-[40px] bg-background z-20 py-2">Deskripsi</TableHead>
+                            <TableHead className="py-2">Akun Kas</TableHead>
                             <TableHead className="py-2">Bank/Tujuan</TableHead>
                             <TableHead className="py-2">Nama</TableHead>
                             <TableHead className="text-right py-2">Nominal</TableHead>
@@ -219,8 +219,8 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                                 <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
                                 {report.transactionType === 'Transfer' ? (
                                     <>
-                                        <TableCell className="sticky left-[50px] bg-background z-10 py-2">Transfer</TableCell>
-                                        <TableCell className="sticky left-[150px] bg-background z-10 py-2">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                                        <TableCell className="sticky left-[40px] bg-background z-10 py-2">{report.transactionType}</TableCell>
+                                        <TableCell className="py-2">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
                                         <TableCell className="py-2">{report.destinationBankName}</TableCell>
                                         <TableCell className="py-2">{report.destinationAccountName}</TableCell>
                                         <TableCell className="text-right py-2">{formatToRupiah(report.transferAmount)}</TableCell>
@@ -228,8 +228,8 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                                     </>
                                 ) : report.transactionType === 'Tarik Tunai' ? (
                                     <>
-                                        <TableCell className="sticky left-[50px] bg-background z-10 py-2">Tarik Tunai</TableCell>
-                                        <TableCell className="sticky left-[150px] bg-background z-10 py-2">{getAccountLabel(report.destinationKasAccountId)}</TableCell>
+                                        <TableCell className="sticky left-[40px] bg-background z-10 py-2">{report.transactionType}</TableCell>
+                                        <TableCell className="py-2">{getAccountLabel(report.destinationKasAccountId)}</TableCell>
                                         <TableCell className="py-2">{report.customerBankSource}</TableCell>
                                         <TableCell className="py-2">{report.customerName}</TableCell>
                                         <TableCell className="text-right py-2">{formatToRupiah(report.withdrawalAmount)}</TableCell>
@@ -237,8 +237,8 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                                     </>
                                 ) : report.transactionType === 'Top Up' ? (
                                     <>
-                                        <TableCell className="sticky left-[50px] bg-background z-10 py-2">Top Up</TableCell>
-                                        <TableCell className="sticky left-[150px] bg-background z-10 py-2">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
+                                        <TableCell className="sticky left-[40px] bg-background z-10 py-2">{report.transactionType}</TableCell>
+                                        <TableCell className="py-2">{getAccountLabel(report.sourceKasAccountId)}</TableCell>
                                         <TableCell className="py-2">{report.destinationEwallet}</TableCell>
                                         <TableCell className="py-2">{report.customerName}</TableCell>
                                         <TableCell className="text-right py-2">{formatToRupiah(report.topUpAmount)}</TableCell>
@@ -246,8 +246,8 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                                     </>
                                ) : report.transactionType === 'Tarik Tunai KJP' ? (
                                     <>
-                                       <TableCell className="sticky left-[50px] bg-background z-10 py-2">Tarik KJP</TableCell>
-                                       <TableCell className="sticky left-[150px] bg-background z-10 py-2">{getAccountLabel(report.destinationMerchantAccountId)}</TableCell>
+                                       <TableCell className="sticky left-[40px] bg-background z-10 py-2">{report.transactionType}</TableCell>
+                                       <TableCell className="py-2">{getAccountLabel(report.destinationMerchantAccountId)}</TableCell>
                                        <TableCell className="py-2">Bank DKI</TableCell>
                                        <TableCell className="py-2">{report.customerName}</TableCell>
                                        <TableCell className="text-right py-2">{formatToRupiah(report.withdrawalAmount)}</TableCell>
