@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
-import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal, PPOBTransaction } from '@/lib/types';
+import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal, PPOBTransaction, PPOBPlnPostpaid } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,8 @@ type BrilinkReportItem =
     | (EDCService & { id: string; transactionType: 'Layanan EDC' })
     | (CustomerKJPWithdrawal & { id: string; transactionType: 'Tarik Tunai KJP'});
 
+type PpobBillReportItem = (PPOBPlnPostpaid & { id: string; serviceName: 'PLN Pascabayar' });
+
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
     if (value === null || value === undefined || value === '') return 'Rp 0';
@@ -42,6 +44,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
   const firestore = useFirestore();
   const [brilinkReports, setBrilinkReports] = useState<BrilinkReportItem[]>([]);
   const [ppobReports, setPpobReports] = useState<(PPOBTransaction & {id: string})[]>([]);
+  const [ppobBillReports, setPpobBillReports] = useState<PpobBillReportItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
 
@@ -71,6 +74,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
             ];
 
             const ppobQuery = getDocs(query(collection(firestore, 'ppobTransactions'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
+            const ppobPlnPostpaidQuery = getDocs(query(collection(firestore, 'ppobPlnPostpaid'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
             
             const [
                 transfersSnapshot, 
@@ -80,8 +84,9 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                 vaPaymentsSnapshot, 
                 edcServicesSnapshot, 
                 kjpWithdrawalsSnapshot,
-                ppobSnapshot
-            ] = await Promise.all([...brilinkQueries, ppobQuery]);
+                ppobSnapshot,
+                ppobPlnPostpaidSnapshot,
+            ] = await Promise.all([...brilinkQueries, ppobQuery, ppobPlnPostpaidQuery]);
 
             const combinedBrilinkReports: BrilinkReportItem[] = [];
 
@@ -96,9 +101,12 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
             combinedBrilinkReports.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             
             const fetchedPpobReports = ppobSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PPOBTransaction & {id: string}));
+            const fetchedPpobBillReports: PpobBillReportItem[] = [];
+            ppobPlnPostpaidSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBPlnPostpaid), serviceName: 'PLN Pascabayar' }));
 
             setBrilinkReports(combinedBrilinkReports);
             setPpobReports(fetchedPpobReports);
+            setPpobBillReports(fetchedPpobBillReports);
 
         } catch (error) {
             console.error("Error fetching profit/loss reports: ", error);
@@ -141,8 +149,17 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
     acc.profit += report.profit;
     return acc;
   }, { costPrice: 0, sellingPrice: 0, profit: 0 });
+  
+  const ppobBillTotals = ppobBillReports.reduce((acc, report) => {
+    acc.costPrice += report.billAmount;
+    acc.sellingPrice += report.totalAmount;
+    acc.profit += report.netProfit;
+    return acc;
+  }, { costPrice: 0, sellingPrice: 0, profit: 0 });
+  
+  const totalPpobProfit = ppobTotals.profit + ppobBillTotals.profit;
 
-  const totalNetProfit = brilinkTotals.labaRugi + ppobTotals.profit;
+  const totalNetProfit = brilinkTotals.labaRugi + totalPpobProfit;
   
   const getBrilinkBankInfo = (report: BrilinkReportItem) => {
     switch (report.transactionType) {
@@ -270,7 +287,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                 <h2 className="text-lg font-semibold mb-2">B. PPOB</h2>
                  {isLoading ? (
                     <div className="space-y-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-12 w-full" /></div>
-                ) : ppobReports.length === 0 ? (
+                ) : (ppobReports.length === 0 && ppobBillReports.length === 0) ? (
                     <Card><CardContent className="pt-6 text-center text-muted-foreground">Tidak ada transaksi PPOB untuk tanggal ini.</CardContent></Card>
                 ) : (
                 <Table className="text-[11px] whitespace-nowrap">
@@ -297,17 +314,27 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                 <TableCell className="text-right font-semibold text-green-500 py-2">{formatToRupiah(report.profit)}</TableCell>
                             </TableRow>
                         ))}
+                        {ppobBillReports.map((report, index) => (
+                           <TableRow key={report.id}>
+                                <TableCell className="sticky left-0 bg-background z-10 py-2">{ppobReports.length + index + 1}</TableCell>
+                                <TableCell className="sticky left-[40px] bg-background z-10 py-2">{report.serviceName}</TableCell>
+                                <TableCell className="py-2">{report.customerName}</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(report.billAmount)}</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(report.totalAmount)}</TableCell>
+                                <TableCell className="text-right font-semibold text-green-500 py-2">{formatToRupiah(report.netProfit)}</TableCell>
+                            </TableRow>
+                        ))}
                     </TableBody>
                     <TableFooter>
                         <TableRow className="font-bold bg-muted/50">
                             <TableCell colSpan={3} className="sticky left-0 bg-muted/50 z-10">Total</TableCell>
-                            <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.costPrice)}</TableCell>
-                            <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.sellingPrice)}</TableCell>
-                            <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.profit)}</TableCell>
+                            <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.costPrice + ppobBillTotals.costPrice)}</TableCell>
+                            <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.sellingPrice + ppobBillTotals.sellingPrice)}</TableCell>
+                            <TableCell className="text-right py-2">{formatToRupiah(totalPpobProfit)}</TableCell>
                         </TableRow>
                         <TableRow className="font-bold text-lg bg-muted">
                             <TableCell colSpan={5} className="sticky left-0 bg-muted z-10">Total Laba PPOB</TableCell>
-                            <TableCell className="text-right text-green-600 py-2">{formatToRupiah(ppobTotals.profit)}</TableCell>
+                            <TableCell className="text-right text-green-600 py-2">{formatToRupiah(totalPpobProfit)}</TableCell>
                         </TableRow>
                     </TableFooter>
                 </Table>
@@ -319,7 +346,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                 </CardHeader>
                 <CardContent>
                     <p className="text-3xl font-bold text-green-500">{formatToRupiah(totalNetProfit)}</p>
-                    <p className="text-sm text-muted-foreground">({formatToRupiah(brilinkTotals.labaRugi)} dari BRILink + {formatToRupiah(ppobTotals.profit)} dari PPOB)</p>
+                    <p className="text-sm text-muted-foreground">({formatToRupiah(brilinkTotals.labaRugi)} dari BRILink + {formatToRupiah(totalPpobProfit)} dari PPOB)</p>
                 </CardContent>
             </Card>
           </div>
