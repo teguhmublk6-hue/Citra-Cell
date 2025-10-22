@@ -52,6 +52,7 @@ import CustomerKJPWithdrawalReview from './CustomerKJPWithdrawalReview';
 import MotivationCard from './MotivationCard';
 import SetMotivationForm from './SetMotivationForm';
 import KasManagement from './KasManagement';
+import DeleteAllKasAccountsDialog from './DeleteAllKasAccountsDialog';
 import DeleteAllReportsDialog from './DeleteAllReportsDialog';
 import { useToast } from '@/hooks/use-toast';
 import PPOBPulsaForm from './PPOBPulsaForm';
@@ -81,7 +82,7 @@ export const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'laporan' | 'mutasi' | 'accounts' | 'admin';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview' | 'ppobPaketData' | 'ppobPaketDataReview' | 'ppobPlnPostpaid' | 'ppobPlnPostpaidReview' | 'operationalCostReport' | 'settings';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview' | 'ppobPaketData' | 'ppobPaketDataReview' | 'ppobPlnPostpaid' | 'ppobPlnPostpaidReview' | 'operationalCostReport' | 'settings' | 'deleteAllKasAccounts';
 type FormSheet = 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'ppobPulsa' | 'ppobTokenListrik' | 'ppobPaketData' | 'ppobPlnPostpaid';
 
 
@@ -105,6 +106,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const [isProfitLossReportVisible, setIsProfitLossReportVisible] = useState(false);
   const [isOperationalCostReportVisible, setIsOperationalCostReportVisible] = useState(false);
   const [isDeleteReportsDialogOpen, setIsDeleteReportsDialogOpen] = useState(false);
+  const [isDeleteAllAccountsDialogOpen, setIsDeleteAllAccountsDialogOpen] = useState(false);
   const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
@@ -299,6 +301,10 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const handleResetReportsClick = () => {
     setIsDeleteReportsDialogOpen(true);
   };
+  
+  const handleResetAllAccountsClick = () => {
+    setActiveSheet('deleteAllKasAccounts');
+  }
 
   const confirmResetReports = async () => {
     if (!firestore) {
@@ -317,7 +323,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         "customerKJPWithdrawals",
         "settlements",
         "ppobTransactions",
-        "ppobPlnPostpaid"
+        "ppobPlnPostpaid",
     ];
 
     try {
@@ -372,6 +378,19 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     if (isOperationalCostReportVisible) {
         return <OperationalCostReport onDone={() => setIsOperationalCostReportVisible(false)} />;
     }
+    
+    if (isDeleteAllAccountsDialogOpen) {
+        return <DeleteAllKasAccountsDialog 
+            isOpen={isDeleteAllAccountsDialogOpen} 
+            onClose={() => setIsDeleteAllAccountsDialogOpen(false)} 
+            onConfirm={() => {
+                // Placeholder for actual deletion logic
+                console.log("Deleting all accounts...");
+                setIsDeleteAllAccountsDialogOpen(false);
+            }} 
+        />;
+    }
+
 
   const isKJPReview = activeSheet === 'customerKJPReview' && reviewData && 'withdrawalAmount' in reviewData && !('customerBankSource' in reviewData);
   const isTokenReview = activeSheet === 'ppobTokenListrikReview' && reviewData && 'costPrice' in reviewData && 'customerName' in reviewData && !('phoneNumber' in reviewData);
@@ -497,6 +516,16 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         onClose={() => setIsDeleteReportsDialogOpen(false)}
         onConfirm={confirmResetReports}
       />
+      
+      <DeleteAllKasAccountsDialog 
+        isOpen={activeSheet === 'deleteAllKasAccounts'} 
+        onClose={closeAllSheets} 
+        onConfirm={() => {
+            console.log("Confirming deletion of all accounts");
+            closeAllSheets();
+        }} 
+       />
+
 
       <Sheet open={!!activeSheet} onOpenChange={(isOpen) => !isOpen && closeAllSheets()}>
         <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
@@ -523,7 +552,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                   {activeSheet === 'settlementReview' && 'Review Settlement'}
                   {activeSheet === 'setMotivation' && 'Atur Motivasi Harian'}
                   {activeSheet === 'manageKasAccounts' && 'Manajemen Akun Kas'}
-                  {activeSheet === 'managePPOBPricing' && 'Kelola Harga Pulsa'}
+                  {activeSheet === 'managePPOBPricing' && 'Kelola Harga PPOB'}
                   {activeSheet === 'ppobPulsa' && 'Transaksi Pulsa'}
                   {activeSheet === 'ppobPulsaReview' && 'Review Transaksi Pulsa'}
                   {activeSheet === 'ppobTokenListrik' && 'Transaksi Token Listrik'}
@@ -534,6 +563,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                   {activeSheet === 'ppobPlnPostpaidReview' && 'Review Tagihan PLN'}
                   {activeSheet === 'operationalCostReport' && 'Laporan Biaya Operasional'}
                   {activeSheet === 'settings' && 'Pengaturan'}
+                  {activeSheet === 'deleteAllKasAccounts' && 'Reset Semua Akun Kas'}
                 </SheetTitle>
             </SheetHeader>
             {activeSheet === 'history' && selectedAccount && <TransactionHistory account={selectedAccount} onDone={() => setActiveSheet(null)} />}
@@ -579,7 +609,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             
             {activeSheet === 'ppobPlnPostpaid' && <PPOBPlnPostpaidForm onReview={handleReview} onDone={closeAllSheets} />}
             {isPlnPostpaidReview && <PPOBPlnPostpaidReview formData={reviewData as PPOBPlnPostpaidFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('ppobPlnPostpaid')} />}
-
+            
             {activeSheet === 'operationalCostReport' && <OperationalCostReport onDone={closeAllSheets} />}
             {activeSheet === 'settings' && <SettingsContent />}
         </SheetContent>
@@ -624,3 +654,5 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     </>
   );
 }
+
+    

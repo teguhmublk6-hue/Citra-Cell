@@ -10,19 +10,22 @@ import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2, ShieldAlert } from 'lucide-react';
 import KasAccountForm from './KasAccountForm';
 import DeleteKasAccountDialog from './DeleteKasAccountDialog';
-import DeleteAllKasAccountsDialog from './DeleteAllKasAccountsDialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import DeleteAllKasAccountsDialog from './DeleteAllKasAccountsDialog';
 
-export default function KasManagement() {
+interface KasManagementProps {
+  onResetAll: () => void;
+}
+
+export default function KasManagement({ onResetAll }: KasManagementProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<KasAccount | null>(null);
   const [accountToDelete, setAccountToDelete] = useState<KasAccount | null>(null);
 
@@ -55,60 +58,6 @@ export default function KasManagement() {
     setIsDeleteDialogOpen(false);
     setAccountToDelete(null);
   };
-
-  const confirmResetAll = async () => {
-    if (!firestore || !kasAccounts || kasAccounts.length === 0) {
-        toast({
-            variant: "destructive",
-            title: "Tidak Ada Akun",
-            description: "Tidak ada akun kas untuk direset.",
-        });
-        setIsDeleteAllDialogOpen(false);
-        return;
-    }
-
-    toast({
-        title: "Memproses...",
-        description: "Mereset saldo dan riwayat transaksi semua akun.",
-    });
-
-    try {
-        for (const account of kasAccounts) {
-            const accountRef = doc(firestore, 'kasAccounts', account.id);
-            const transactionsRef = collection(accountRef, 'transactions');
-            
-            // Get all transactions to delete them in a batch
-            const transactionsSnapshot = await getDocs(transactionsRef);
-            
-            const batch = writeBatch(firestore);
-
-            // Reset account balance
-            batch.update(accountRef, { balance: 0 });
-
-            // Delete all transactions in the subcollection
-            transactionsSnapshot.forEach(transactionDoc => {
-                batch.delete(transactionDoc.ref);
-            });
-
-            await batch.commit();
-        }
-        
-        toast({
-            title: "Berhasil",
-            description: "Semua saldo akun telah direset dan riwayat transaksi dihapus.",
-        });
-
-    } catch (e) {
-        console.error("Error resetting all accounts: ", e);
-        toast({
-            variant: "destructive",
-            title: "Gagal Mereset",
-            description: "Terjadi kesalahan saat mereset semua akun.",
-        });
-    } finally {
-        setIsDeleteAllDialogOpen(false);
-    }
-  };
   
   if (isFormOpen) {
     return <KasAccountForm account={selectedAccount} onDone={() => setIsFormOpen(false)} />;
@@ -121,7 +70,7 @@ export default function KasManagement() {
                 <Plus size={16} className="mr-2" />
                 Tambah Akun Kas
             </Button>
-             <Button variant="destructive" onClick={() => setIsDeleteAllDialogOpen(true)} className="w-full">
+             <Button variant="destructive" onClick={onResetAll} className="w-full">
                 <ShieldAlert size={16} className="mr-2" />
                 Reset Semua Akun
             </Button>
@@ -172,11 +121,6 @@ export default function KasManagement() {
             onClose={() => setIsDeleteDialogOpen(false)}
             onConfirm={confirmDelete}
             accountName={accountToDelete?.label}
-        />
-        <DeleteAllKasAccountsDialog
-            isOpen={isDeleteAllDialogOpen}
-            onClose={() => setIsDeleteAllDialogOpen(false)}
-            onConfirm={confirmResetAll}
         />
     </div>
   );

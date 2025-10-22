@@ -12,9 +12,10 @@ interface AdminContentProps {
   onManageKasAccountsClick: () => void;
   onManagePPOBPricingClick: () => void;
   onResetReportsClick: () => void;
+  onResetAllAccountsClick: () => void;
 }
 
-export default function AdminContent({ onProfitLossReportClick, onOperationalCostReportClick, onSetMotivationClick, onManageKasAccountsClick, onManagePPOBPricingClick, onResetReportsClick }: AdminContentProps) {
+export default function AdminContent({ onProfitLossReportClick, onOperationalCostReportClick, onSetMotivationClick, onManageKasAccountsClick, onManagePPOBPricingClick, onResetReportsClick, onResetAllAccountsClick }: AdminContentProps) {
   return (
     <div className="px-4 py-4">
       <div className="space-y-2">
@@ -78,7 +79,19 @@ export default function AdminContent({ onProfitLossReportClick, onOperationalCos
               </div>
               <ChevronRight size={20} />
           </button>
+           <button 
+              onClick={onResetAllAccountsClick}
+              className="flex items-center justify-between p-4 bg-destructive/10 text-destructive rounded-xl w-full hover:bg-destructive/20 transition-colors"
+          >
+              <div className="flex items-center gap-4">
+                <Trash2 size={20} />
+                <span className="font-medium">Reset Semua Akun Kas</span>
+              </div>
+              <ChevronRight size={20} />
+          </button>
       </div>
     </div>
   );
 }
+
+    
