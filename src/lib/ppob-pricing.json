@@ -95,17 +95,6 @@
             "100000": { "costPrice": 99000, "sellingPrice": 100000 }
         }
     },
-    "Paket Data": {
-        "Telkomsel": {
-            "Hot Promo 4.5GB/5 Hari": { "costPrice": 15000, "sellingPrice": 17000 },
-            "OMG! Nonton 15GB/30 Hari": { "costPrice": 52000, "sellingPrice": 55000 },
-            "Paket Belajar 30GB/30 Hari": { "costPrice": 75000, "sellingPrice": 78000 }
-        },
-        "Indosat": {
-            "Freedom Internet 3GB/30 Hari": { "costPrice": 18000, "sellingPrice": 20000 },
-            "Freedom Internet 10GB/30 Hari": { "costPrice": 38000, "sellingPrice": 40000 }
-        }
-    },
     "Token Listrik": {
         "20000": { "costPrice": 20000, "sellingPrice": 22500 },
         "50000": { "costPrice": 50000, "sellingPrice": 52500 },

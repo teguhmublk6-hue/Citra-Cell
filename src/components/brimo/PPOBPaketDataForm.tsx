@@ -12,12 +12,11 @@ import { collection } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import type { PPOBPaketDataFormValues } from '@/lib/types';
 import { PPOBPaketDataFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
 import Image from 'next/image';
-import ppobPricing from '@/lib/ppob-pricing.json';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 interface PPOBPaketDataFormProps {
@@ -49,7 +48,6 @@ const providers = [
 export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFormProps) {
   const firestore = useFirestore();
   const [currentStep, setCurrentStep] = useState(1);
-  const [detectedProvider, setDetectedProvider] = useState<string | null>(null);
   
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -83,43 +81,9 @@ export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFor
   });
 
   const paymentMethod = form.watch('paymentMethod');
-  const phoneNumber = form.watch('phoneNumber');
-  const packageName = form.watch('packageName');
   const sourcePPOBAccountId = form.watch('sourcePPOBAccountId');
 
-  useEffect(() => {
-    const prefix = phoneNumber.substring(0, 4);
-    const foundProvider = providers.find(p => p.prefixes.includes(prefix));
-    setDetectedProvider(foundProvider ? foundProvider.name : null);
-    form.setValue('packageName', ''); // Reset package when number changes
-  }, [phoneNumber, form]);
-
   const selectedPPOBAccount = useMemo(() => kasAccounts?.find(acc => acc.id === sourcePPOBAccountId), [kasAccounts, sourcePPOBAccountId]);
-
-  const availablePackages = useMemo(() => {
-    if (detectedProvider) {
-      const providerPackages = (ppobPricing['Paket Data'] as any)[detectedProvider];
-      if (providerPackages) {
-        return Object.keys(providerPackages);
-      }
-    }
-    return [];
-  }, [detectedProvider]);
-
-  useEffect(() => {
-    if (detectedProvider && packageName) {
-      const packages = (ppobPricing['Paket Data'] as any)[detectedProvider];
-      const packagePrice = packages ? packages[packageName] : null;
-
-      if (packagePrice) {
-        form.setValue('costPrice', packagePrice.costPrice);
-        form.setValue('sellingPrice', packagePrice.sellingPrice);
-      } else {
-        form.setValue('costPrice', undefined);
-        form.setValue('sellingPrice', undefined);
-      }
-    }
-  }, [detectedProvider, packageName, form]);
 
   const ppobAccounts = useMemo(() => kasAccounts?.filter(acc => acc.type === 'PPOB'), [kasAccounts]);
 
@@ -176,7 +140,6 @@ export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFor
                     <FormItem>
                         <FormLabel>Nomor HP Pelanggan</FormLabel>
                         <FormControl><Input placeholder="08..." {...field} type="tel" /></FormControl>
-                        {detectedProvider && <p className="text-xs text-muted-foreground pt-1">Provider terdeteksi: <strong>{detectedProvider}</strong></p>}
                         <FormMessage />
                     </FormItem>
                 )}/>
@@ -186,19 +149,8 @@ export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFor
                   name="packageName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Pilih Paket Data</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={availablePackages.length === 0}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={availablePackages.length > 0 ? "Pilih paket data yang tersedia" : "Tidak ada paket untuk provider ini"} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {availablePackages.map(pkg => (
-                            <SelectItem key={pkg} value={pkg}>{pkg}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Nama Paket Data</FormLabel>
+                       <FormControl><Input placeholder="cth: OMG! Nonton 15GB" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
