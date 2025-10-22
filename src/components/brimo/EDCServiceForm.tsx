@@ -74,6 +74,16 @@ export default function EDCServiceForm({ onDone }: EDCServiceFormProps) {
     const deviceName = localStorage.getItem("brimoDeviceName") || "Unknown Device";
 
     try {
+      const auditDocRef = await addDoc(collection(firestore, "edcServices"), {
+        date: now,
+        customerName: values.customerName,
+        machineUsed: values.machineUsed,
+        serviceFee: values.serviceFee,
+        paymentToKasTunaiAccountId: laciAccount.id,
+        deviceName,
+      });
+      const auditId = auditDocRef.id;
+
       await runTransaction(firestore, async (transaction) => {
         const laciAccountRef = doc(firestore, 'kasAccounts', laciAccount.id);
         const laciAccountDoc = await transaction.get(laciAccountRef);
@@ -85,33 +95,12 @@ export default function EDCServiceForm({ onDone }: EDCServiceFormProps) {
         const currentLaciBalance = laciAccountDoc.data().balance;
         const newLaciBalance = currentLaciBalance + values.serviceFee;
 
-        // 1. Update Laci's balance
         transaction.update(laciAccountRef, { balance: newLaciBalance });
 
-        // 2. Create credit transaction in Laci
         const creditTrxRef = doc(collection(laciAccountRef, 'transactions'));
         transaction.set(creditTrxRef, {
-          kasAccountId: laciAccount.id,
-          type: 'credit',
-          name: `Jasa EDC a/n ${values.customerName}`,
-          account: 'Pelanggan',
-          date: nowISO,
-          amount: values.serviceFee,
-          balanceBefore: currentLaciBalance,
-          balanceAfter: newLaciBalance,
-          category: 'edc_service',
-          deviceName,
+          kasAccountId: laciAccount.id, type: 'credit', name: `Jasa EDC a/n ${values.customerName}`, account: 'Pelanggan', date: nowISO, amount: values.serviceFee, balanceBefore: currentLaciBalance, balanceAfter: newLaciBalance, category: 'edc_service', deviceName, auditId
         });
-      });
-
-      // --- AUDIT LOG ---
-      await addDoc(collection(firestore, "edcServices"), {
-        date: now,
-        customerName: values.customerName,
-        machineUsed: values.machineUsed,
-        serviceFee: values.serviceFee,
-        paymentToKasTunaiAccountId: laciAccount.id,
-        deviceName,
       });
 
       toast({ title: "Sukses", description: "Layanan EDC berhasil dicatat." });
@@ -204,3 +193,5 @@ export default function EDCServiceForm({ onDone }: EDCServiceFormProps) {
     </Form>
   );
 }
+
+    

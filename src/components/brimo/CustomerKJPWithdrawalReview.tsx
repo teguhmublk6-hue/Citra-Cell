@@ -75,6 +75,18 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
         const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
 
         try {
+            const auditDocRef = await addDoc(collection(firestore, 'customerKJPWithdrawals'), {
+                date: now,
+                customerName: formData.customerName,
+                withdrawalAmount: formData.withdrawalAmount,
+                serviceFee: formData.serviceFee,
+                feePaymentMethod: formData.feePaymentMethod,
+                destinationMerchantAccountId: agenDKIAccount.id,
+                sourceKasTunaiAccountId: laciAccount.id,
+                deviceName: deviceName
+            });
+            const auditId = auditDocRef.id;
+
             await runTransaction(firestore, async (transaction) => {
                 
                 const laciAccountRef = doc(firestore, 'kasAccounts', laciAccount.id);
@@ -100,21 +112,11 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
                 transaction.update(agenDKIAccountRef, { balance: newAgenDKIBalance });
                 const creditTrxRef = doc(collection(agenDKIAccountRef, 'transactions'));
                 transaction.set(creditTrxRef, {
-                    kasAccountId: agenDKIAccount.id,
-                    type: 'credit',
-                    name: `Penerimaan KJP a/n ${formData.customerName}`,
-                    account: 'Pelanggan KJP',
-                    date: nowISO,
-                    amount: totalReceivedByMerchant,
-                    balanceBefore: currentAgenDKIBalance,
-                    balanceAfter: newAgenDKIBalance,
-                    category: 'customer_kjp_withdrawal_credit',
-                    deviceName
+                    kasAccountId: agenDKIAccount.id, type: 'credit', name: `Penerimaan KJP a/n ${formData.customerName}`, account: 'Pelanggan KJP', date: nowISO, amount: totalReceivedByMerchant, balanceBefore: currentAgenDKIBalance, balanceAfter: newAgenDKIBalance, category: 'customer_kjp_withdrawal_credit', deviceName, auditId
                 });
 
                 // 2. Handle Laci (Cash) Account
                 if (feePaymentMethod === 'Tunai') {
-                    // Two separate transactions for clarity
                     const balanceAfterDebit = currentLaciBalance - withdrawalAmount;
                     const finalLaciBalance = balanceAfterDebit + serviceFee;
 
@@ -122,12 +124,12 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
                     
                     const debitTrxRef = doc(collection(laciAccountRef, 'transactions'));
                     transaction.set(debitTrxRef, {
-                        kasAccountId: laciAccount.id, type: 'debit', name: `Tarik Tunai KJP a/n ${formData.customerName}`, account: 'Pelanggan KJP', date: nowISO, amount: withdrawalAmount, balanceBefore: currentLaciBalance, balanceAfter: balanceAfterDebit, category: 'customer_kjp_withdrawal_debit', deviceName
+                        kasAccountId: laciAccount.id, type: 'debit', name: `Tarik Tunai KJP a/n ${formData.customerName}`, account: 'Pelanggan KJP', date: nowISO, amount: withdrawalAmount, balanceBefore: currentLaciBalance, balanceAfter: balanceAfterDebit, category: 'customer_kjp_withdrawal_debit', deviceName, auditId
                     });
 
                     const feeTrxRef = doc(collection(laciAccountRef, 'transactions'));
                     transaction.set(feeTrxRef, {
-                        kasAccountId: laciAccount.id, type: 'credit', name: `Biaya Jasa KJP a/n ${formData.customerName}`, account: 'Pendapatan Jasa', date: nowISO, amount: serviceFee, balanceBefore: balanceAfterDebit, balanceAfter: finalLaciBalance, category: 'service_fee_income', deviceName
+                        kasAccountId: laciAccount.id, type: 'credit', name: `Biaya Jasa KJP a/n ${formData.customerName}`, account: 'Pendapatan Jasa', date: nowISO, amount: serviceFee, balanceBefore: balanceAfterDebit, balanceAfter: finalLaciBalance, category: 'service_fee_income', deviceName, auditId
                     });
 
                 } else { // 'Dipotong'
@@ -136,21 +138,9 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
 
                     const debitTrxRef = doc(collection(laciAccountRef, 'transactions'));
                     transaction.set(debitTrxRef, {
-                        kasAccountId: laciAccount.id, type: 'debit', name: `Tarik Tunai KJP a/n ${formData.customerName} (Fee Dipotong)`, account: 'Pelanggan KJP', date: nowISO, amount: cashGivenToCustomer, balanceBefore: currentLaciBalance, balanceAfter: newLaciBalance, category: 'customer_kjp_withdrawal_debit', deviceName
+                        kasAccountId: laciAccount.id, type: 'debit', name: `Tarik Tunai KJP a/n ${formData.customerName} (Fee Dipotong)`, account: 'Pelanggan KJP', date: nowISO, amount: cashGivenToCustomer, balanceBefore: currentLaciBalance, balanceAfter: newLaciBalance, category: 'customer_kjp_withdrawal_debit', deviceName, auditId
                     });
                 }
-            });
-
-            // --- AUDIT LOG ---
-            await addDoc(collection(firestore, 'customerKJPWithdrawals'), {
-                date: now,
-                customerName: formData.customerName,
-                withdrawalAmount: formData.withdrawalAmount,
-                serviceFee: formData.serviceFee,
-                feePaymentMethod: formData.feePaymentMethod,
-                destinationMerchantAccountId: agenDKIAccount.id,
-                sourceKasTunaiAccountId: laciAccount.id,
-                deviceName: deviceName
             });
 
             toast({ title: "Sukses", description: "Transaksi tarik tunai KJP berhasil disimpan." });
@@ -235,3 +225,5 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
         </div>
     );
 }
+
+    

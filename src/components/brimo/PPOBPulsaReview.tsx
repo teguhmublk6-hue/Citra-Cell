@@ -3,7 +3,7 @@
 
 import type { PPOBPulsaFormValues } from "@/lib/types";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, doc, runTransaction, addDoc, query, where, getDocs, type DocumentReference } from "firebase/firestore";
+import { collection, doc, runTransaction, addDoc } from "firebase/firestore";
 import type { KasAccount } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -36,6 +36,7 @@ export default function PPOBPulsaReview({ formData, onConfirm, onBack }: PPOBPul
 
     const sourcePPOBAccount = kasAccounts?.find(acc => acc.id === formData.sourcePPOBAccountId);
     const paymentTransferAccount = kasAccounts?.find(acc => acc.id === formData.paymentToKasTransferAccountId);
+    const laciAccount = kasAccounts?.find(acc => acc.label === "Laci");
 
     const {
         costPrice,
@@ -53,6 +54,11 @@ export default function PPOBPulsaReview({ formData, onConfirm, onBack }: PPOBPul
             return;
         }
 
+        if (!laciAccount && (paymentMethod === 'Tunai' || paymentMethod === 'Split')) {
+            toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
+            return;
+        }
+
         if (sourcePPOBAccount.balance < costPrice) {
             toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${sourcePPOBAccount.label} tidak mencukupi.` });
             return;
@@ -66,106 +72,7 @@ export default function PPOBPulsaReview({ formData, onConfirm, onBack }: PPOBPul
         const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
         
         try {
-            await runTransaction(firestore, async (transaction) => {
-                const laciAccountName = 'Laci';
-                
-                // --- Get all refs ---
-                const sourcePPOBAccountRef = doc(firestore, 'kasAccounts', sourcePPOBAccount.id);
-                
-                let laciAccountRef: DocumentReference | null = null;
-                const laciQuery = query(collection(firestore, 'kasAccounts'), where("label", "==", laciAccountName));
-                const laciSnapshot = await getDocs(laciQuery);
-                if (!laciSnapshot.empty) {
-                    laciAccountRef = laciSnapshot.docs[0].ref;
-                }
-
-                let paymentAccRef: DocumentReference | null = null;
-                if ((paymentMethod === 'Transfer' || paymentMethod === 'Split') && paymentTransferAccount) {
-                    paymentAccRef = doc(firestore, 'kasAccounts', paymentTransferAccount.id);
-                }
-
-                // --- Read all docs in transaction ---
-                const docsToRead = [sourcePPOBAccountRef];
-                if (laciAccountRef) docsToRead.push(laciAccountRef);
-                if (paymentAccRef) docsToRead.push(paymentAccRef);
-                
-                const allDocs = await Promise.all(docsToRead.map(ref => transaction.get(ref)));
-                
-                const sourcePPOBAccountDoc = allDocs.find(d => d.ref.path === sourcePPOBAccountRef.path);
-                const laciAccountDoc = laciAccountRef ? allDocs.find(d => d.ref.path === laciAccountRef!.path) : undefined;
-                const paymentAccDoc = paymentAccRef ? allDocs.find(d => d.ref.path === paymentAccRef!.path) : undefined;
-
-                if (!sourcePPOBAccountDoc || !sourcePPOBAccountDoc.exists()) throw new Error("Akun sumber PPOB tidak ditemukan.");
-                
-                const currentSourcePPOBBalance = sourcePPOBAccountDoc.data().balance;
-                if (currentSourcePPOBBalance < costPrice) throw new Error(`Saldo ${sourcePPOBAccount.label} tidak mencukupi.`);
-                
-                let currentLaciBalance = 0;
-                let finalLaciAccountRef: DocumentReference;
-
-                if (laciAccountDoc && laciAccountDoc.exists()) {
-                    currentLaciBalance = laciAccountDoc.data()?.balance || 0;
-                    finalLaciAccountRef = laciAccountDoc.ref;
-                } else {
-                    finalLaciAccountRef = doc(collection(firestore, 'kasAccounts'));
-                }
-                const laciAccountId = finalLaciAccountRef.id;
-
-                let currentPaymentAccBalance = 0;
-                if ((paymentMethod === 'Transfer' || paymentMethod === 'Split')) {
-                    if(!paymentAccDoc || !paymentAccDoc.exists()) throw new Error("Akun penerima pembayaran transfer tidak ditemukan.");
-                    currentPaymentAccBalance = paymentAccDoc.data().balance;
-                }
-                
-                // --- Write all changes ---
-
-                if (!laciAccountDoc || !laciAccountDoc.exists()) {
-                    transaction.set(finalLaciAccountRef, { label: laciAccountName, type: 'Tunai', balance: 0, minimumBalance: 0, color: 'bg-green-500' });
-                }
-
-                // 1. Debit Source PPOB Account
-                transaction.update(sourcePPOBAccountRef, { balance: currentSourcePPOBBalance - costPrice });
-                const debitTxRef = doc(collection(sourcePPOBAccountRef, 'transactions'));
-                transaction.set(debitTxRef, {
-                    kasAccountId: sourcePPOBAccount.id, type: 'debit', name: `Beli Pulsa ${formData.denomination}`, account: formData.phoneNumber, date: nowISO, amount: costPrice, balanceBefore: currentSourcePPOBBalance, balanceAfter: currentSourcePPOBBalance - costPrice, category: 'ppob_purchase', deviceName
-                });
-                
-                // 2. Handle Customer Payment
-                switch (paymentMethod) {
-                    case 'Tunai':
-                        transaction.update(finalLaciAccountRef, { balance: currentLaciBalance + sellingPrice });
-                        const creditTunaiRef = doc(collection(finalLaciAccountRef, 'transactions'));
-                        transaction.set(creditTunaiRef, {
-                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Pulsa ${formData.denomination}`, account: formData.phoneNumber, date: nowISO, amount: sellingPrice, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + sellingPrice, category: 'customer_payment_ppob', deviceName
-                        });
-                        break;
-                    case 'Transfer':
-                        if (!paymentAccRef) throw new Error("Referensi akun pembayaran tidak valid.");
-                        transaction.update(paymentAccRef, { balance: currentPaymentAccBalance + sellingPrice });
-                        const creditTransferRef = doc(collection(paymentAccRef, 'transactions'));
-                        transaction.set(creditTransferRef, {
-                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Pulsa ${formData.denomination}`, account: formData.phoneNumber, date: nowISO, amount: sellingPrice, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + sellingPrice, category: 'customer_payment_ppob', deviceName
-                        });
-                        break;
-                    case 'Split':
-                        if (!splitTunaiAmount || !paymentAccRef) throw new Error("Data pembayaran split tidak lengkap");
-                        transaction.update(finalLaciAccountRef, { balance: currentLaciBalance + splitTunaiAmount });
-                        const creditSplitTunaiRef = doc(collection(finalLaciAccountRef, 'transactions'));
-                        transaction.set(creditSplitTunaiRef, {
-                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Tunai Pulsa`, account: formData.phoneNumber, date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + splitTunaiAmount, category: 'customer_payment_ppob', deviceName
-                        });
-
-                        transaction.update(paymentAccRef, { balance: currentPaymentAccBalance + splitTransferAmount });
-                        const creditSplitTransferRef = doc(collection(paymentAccRef, 'transactions'));
-                        transaction.set(creditSplitTransferRef, {
-                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Pulsa`, account: formData.phoneNumber, date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + splitTransferAmount, category: 'customer_payment_ppob', deviceName
-                        });
-                        break;
-                }
-            });
-
-            // --- AUDIT LOG ---
-            await addDoc(collection(firestore, 'ppobTransactions'), {
+            const auditDocRef = await addDoc(collection(firestore, 'ppobTransactions'), {
                 date: now,
                 serviceName: 'Pulsa',
                 destination: formData.phoneNumber,
@@ -179,6 +86,70 @@ export default function PPOBPulsaReview({ formData, onConfirm, onBack }: PPOBPul
                 paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? formData.paymentToKasTransferAccountId : null,
                 paymentToKasTransferAmount: paymentMethod === 'Transfer' ? sellingPrice : (paymentMethod === 'Split' ? splitTransferAmount : 0),
                 deviceName
+            });
+            const auditId = auditDocRef.id;
+
+            await runTransaction(firestore, async (transaction) => {
+                const sourcePPOBAccountRef = doc(firestore, 'kasAccounts', sourcePPOBAccount.id);
+                const laciAccountRef = laciAccount ? doc(firestore, 'kasAccounts', laciAccount.id) : null;
+                const paymentAccRef = paymentTransferAccount ? doc(firestore, 'kasAccounts', paymentTransferAccount.id) : null;
+
+                const [sourceDoc, laciDoc, paymentDoc] = await Promise.all([
+                    transaction.get(sourcePPOBAccountRef),
+                    laciAccountRef ? transaction.get(laciAccountRef) : Promise.resolve(null),
+                    paymentAccRef ? transaction.get(paymentAccRef) : Promise.resolve(null),
+                ]);
+
+                if (!sourceDoc.exists()) throw new Error("Akun sumber PPOB tidak ditemukan.");
+                
+                const currentSourcePPOBBalance = sourceDoc.data().balance;
+                if (currentSourcePPOBBalance < costPrice) throw new Error(`Saldo ${sourcePPOBAccount.label} tidak mencukupi.`);
+                
+                transaction.update(sourcePPOBAccountRef, { balance: currentSourcePPOBBalance - costPrice });
+                const debitTxRef = doc(collection(sourcePPOBAccountRef, 'transactions'));
+                transaction.set(debitTxRef, {
+                    kasAccountId: sourcePPOBAccount.id, type: 'debit', name: `Beli Pulsa ${formData.denomination}`, account: formData.phoneNumber, date: nowISO, amount: costPrice, balanceBefore: currentSourcePPOBBalance, balanceAfter: currentSourcePPOBBalance - costPrice, category: 'ppob_purchase', deviceName, auditId
+                });
+                
+                switch (paymentMethod) {
+                    case 'Tunai':
+                        if (!laciAccountRef || !laciDoc || !laciDoc.exists()) throw new Error("Akun Laci tidak ditemukan.");
+                        const currentLaciBalance = laciDoc.data().balance;
+                        transaction.update(laciAccountRef, { balance: currentLaciBalance + sellingPrice });
+                        const creditTunaiRef = doc(collection(laciAccountRef, 'transactions'));
+                        transaction.set(creditTunaiRef, {
+                             kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Pulsa ${formData.denomination}`, account: formData.phoneNumber, date: nowISO, amount: sellingPrice, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + sellingPrice, category: 'customer_payment_ppob', deviceName, auditId
+                        });
+                        break;
+                    case 'Transfer':
+                        if (!paymentAccRef || !paymentDoc || !paymentDoc.exists()) throw new Error("Akun penerima pembayaran tidak valid.");
+                        const currentPaymentBalance = paymentDoc.data().balance;
+                        transaction.update(paymentAccRef, { balance: currentPaymentBalance + sellingPrice });
+                        const creditTransferRef = doc(collection(paymentAccRef, 'transactions'));
+                        transaction.set(creditTransferRef, {
+                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Pulsa ${formData.denomination}`, account: formData.phoneNumber, date: nowISO, amount: sellingPrice, balanceBefore: currentPaymentBalance, balanceAfter: currentPaymentBalance + sellingPrice, category: 'customer_payment_ppob', deviceName, auditId
+                        });
+                        break;
+                    case 'Split':
+                        if (!laciAccountRef || !laciDoc || !laciDoc.exists()) throw new Error("Akun Laci tidak ditemukan.");
+                        if (!paymentAccRef || !paymentDoc || !paymentDoc.exists()) throw new Error("Akun penerima pembayaran split tidak valid.");
+                        if (!splitTunaiAmount) throw new Error("Jumlah tunai split tidak valid.");
+
+                        const currentLaciSplitBalance = laciDoc.data().balance;
+                        transaction.update(laciAccountRef, { balance: currentLaciSplitBalance + splitTunaiAmount });
+                        const creditSplitTunaiRef = doc(collection(laciAccountRef, 'transactions'));
+                        transaction.set(creditSplitTunaiRef, {
+                             kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Tunai Pulsa`, account: formData.phoneNumber, date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciSplitBalance, balanceAfter: currentLaciSplitBalance + splitTunaiAmount, category: 'customer_payment_ppob', deviceName, auditId
+                        });
+
+                        const currentPaymentSplitBalance = paymentDoc.data().balance;
+                        transaction.update(paymentAccRef, { balance: currentPaymentSplitBalance + splitTransferAmount });
+                        const creditSplitTransferRef = doc(collection(paymentAccRef, 'transactions'));
+                        transaction.set(creditSplitTransferRef, {
+                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Pulsa`, account: formData.phoneNumber, date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentSplitBalance, balanceAfter: currentPaymentSplitBalance + splitTransferAmount, category: 'customer_payment_ppob', deviceName, auditId
+                        });
+                        break;
+                }
             });
 
             toast({ title: "Sukses", description: "Transaksi Pulsa berhasil disimpan." });
@@ -262,3 +233,5 @@ export default function PPOBPulsaReview({ formData, onConfirm, onBack }: PPOBPul
         </div>
     );
 }
+
+    

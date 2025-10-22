@@ -62,6 +62,17 @@ export default function SettlementReview({ formData, onConfirm, onBack }: Settle
         const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
         
         try {
+            const auditDocRef = await addDoc(collection(firestore, 'settlements'), {
+                date: now,
+                sourceMerchantAccountId: sourceAccount.id,
+                destinationAccountId: destinationAccount.id,
+                grossAmount,
+                mdrFee,
+                netAmount,
+                deviceName
+            });
+            const auditId = auditDocRef.id;
+
             await runTransaction(firestore, async (transaction) => {
                 const sourceAccountRef = doc(firestore, 'kasAccounts', sourceAccount.id);
                 const destAccountRef = doc(firestore, 'kasAccounts', destinationAccount.id);
@@ -78,34 +89,18 @@ export default function SettlementReview({ formData, onConfirm, onBack }: Settle
                 const currentSourceBalance = sourceDoc.data().balance;
                 const currentDestBalance = destDoc.data().balance;
 
-                // --- WRITES ---
-                // 1. Reset source merchant account balance
                 transaction.update(sourceAccountRef, { balance: 0 });
-
-                // 2. Add net amount to destination account
                 transaction.update(destAccountRef, { balance: currentDestBalance + netAmount });
 
-                // 3. Create debit transaction for gross amount from merchant
                 const debitTrxRef = doc(collection(sourceAccountRef, 'transactions'));
                 transaction.set(debitTrxRef, {
-                    kasAccountId: sourceAccount.id, type: 'debit', name: `Settlement ke ${destinationAccount.label}`, account: 'Internal', date: nowISO, amount: grossAmount, balanceBefore: currentSourceBalance, balanceAfter: 0, category: 'settlement_debit', deviceName
+                    kasAccountId: sourceAccount.id, type: 'debit', name: `Settlement ke ${destinationAccount.label}`, account: 'Internal', date: nowISO, amount: grossAmount, balanceBefore: currentSourceBalance, balanceAfter: 0, category: 'settlement_debit', deviceName, auditId
                 });
                 
-                // 4. Create credit transaction for net amount to destination
                 const creditTrxRef = doc(collection(destAccountRef, 'transactions'));
                 transaction.set(creditTrxRef, {
-                    kasAccountId: destinationAccount.id, type: 'credit', name: `Settlement dari ${sourceAccount.label}`, account: 'Internal', date: nowISO, amount: netAmount, balanceBefore: currentDestBalance, balanceAfter: currentDestBalance + netAmount, category: 'settlement_credit', deviceName
+                    kasAccountId: destinationAccount.id, type: 'credit', name: `Settlement dari ${sourceAccount.label}`, account: 'Internal', date: nowISO, amount: netAmount, balanceBefore: currentDestBalance, balanceAfter: currentDestBalance + netAmount, category: 'settlement_credit', deviceName, auditId
                 });
-            });
-
-            await addDoc(collection(firestore, 'settlements'), {
-                date: now,
-                sourceMerchantAccountId: sourceAccount.id,
-                destinationAccountId: destinationAccount.id,
-                grossAmount,
-                mdrFee,
-                netAmount,
-                deviceName
             });
 
             toast({ title: "Sukses", description: "Settlement berhasil diproses." });
@@ -164,3 +159,5 @@ export default function SettlementReview({ formData, onConfirm, onBack }: Settle
         </div>
     );
 }
+
+    

@@ -128,6 +128,10 @@
         "category": {
           "type": "string",
           "description": "A category to group transactions, e.g., 'transfer', 'operational', 'capital', 'customer_transfer_debit', 'customer_payment'."
+        },
+        "auditId": {
+            "type": "string",
+            "description": "The ID of the corresponding audit log document in a root collection (e.g., customerTransfers)."
         }
       },
       "required": [
@@ -605,3 +609,5 @@
     }
   }
 }
+
+    

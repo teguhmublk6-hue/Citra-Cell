@@ -3,7 +3,7 @@
 
 import type { CustomerWithdrawalFormValues } from "@/lib/types";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, doc, runTransaction, addDoc, query, where, getDocs, type DocumentReference } from "firebase/firestore";
+import { collection, doc, runTransaction, addDoc } from "firebase/firestore";
 import type { KasAccount } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -70,6 +70,19 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
         const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
 
         try {
+            const auditDocRef = await addDoc(collection(firestore, 'customerWithdrawals'), {
+                date: now,
+                customerName: formData.customerName,
+                customerBankSource: formData.customerBankSource,
+                withdrawalAmount: formData.withdrawalAmount,
+                serviceFee: formData.serviceFee,
+                feePaymentMethod: formData.feePaymentMethod,
+                destinationKasAccountId: formData.destinationAccountId,
+                sourceKasTunaiAccountId: laciAccount!.id,
+                deviceName: deviceName
+            });
+            const auditId = auditDocRef.id;
+            
             await runTransaction(firestore, async (transaction) => {
                 
                 const destAccountRef = doc(firestore, 'kasAccounts', destinationAccount.id);
@@ -95,54 +108,24 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
                 transaction.update(destAccountRef, { balance: newDestBalance });
                 const creditTrxRef = doc(collection(destAccountRef, 'transactions'));
                 transaction.set(creditTrxRef, {
-                    kasAccountId: destinationAccount.id,
-                    type: 'credit',
-                    name: `Trf Masuk Tarik Tunai a/n ${formData.customerName}`,
-                    account: formData.customerBankSource,
-                    date: nowISO,
-                    amount: totalTransferFromCustomer,
-                    balanceBefore: currentDestBalance,
-                    balanceAfter: newDestBalance,
-                    category: 'customer_withdrawal_credit',
-                    deviceName
+                    kasAccountId: destinationAccount.id, type: 'credit', name: `Trf Masuk Tarik Tunai a/n ${formData.customerName}`, account: formData.customerBankSource, date: nowISO, amount: totalTransferFromCustomer, balanceBefore: currentDestBalance, balanceAfter: newDestBalance, category: 'customer_withdrawal_credit', deviceName, auditId
                 });
-
 
                 // 2. Handle Laci (Cash) Account based on fee payment method
                 if (feePaymentMethod === 'Tunai') {
-                    // Two separate transactions for clarity
                     const balanceAfterDebit = currentLaciBalance - withdrawalAmount;
                     const finalLaciBalance = balanceAfterDebit + serviceFee;
 
-                    // Debit for cash given to customer
                     transaction.update(laciAccountRef, { balance: finalLaciBalance });
+                    
                     const debitTrxRef = doc(collection(laciAccountRef, 'transactions'));
                     transaction.set(debitTrxRef, {
-                        kasAccountId: laciAccount.id,
-                        type: 'debit',
-                        name: `Tarik Tunai a/n ${formData.customerName}`,
-                        account: 'Pelanggan',
-                        date: nowISO,
-                        amount: withdrawalAmount,
-                        balanceBefore: currentLaciBalance,
-                        balanceAfter: balanceAfterDebit,
-                        category: 'customer_withdrawal_debit',
-                        deviceName
+                        kasAccountId: laciAccount.id, type: 'debit', name: `Tarik Tunai a/n ${formData.customerName}`, account: 'Pelanggan', date: nowISO, amount: withdrawalAmount, balanceBefore: currentLaciBalance, balanceAfter: balanceAfterDebit, category: 'customer_withdrawal_debit', deviceName, auditId
                     });
 
-                    // Credit for cash fee received
                     const feeTrxRef = doc(collection(laciAccountRef, 'transactions'));
                      transaction.set(feeTrxRef, {
-                        kasAccountId: laciAccount.id,
-                        type: 'credit',
-                        name: `Biaya Jasa Tarik Tunai`,
-                        account: 'Pendapatan Jasa',
-                        date: nowISO,
-                        amount: serviceFee,
-                        balanceBefore: balanceAfterDebit,
-                        balanceAfter: finalLaciBalance,
-                        category: 'service_fee_income',
-                        deviceName
+                        kasAccountId: laciAccount.id, type: 'credit', name: `Biaya Jasa Tarik Tunai`, account: 'Pendapatan Jasa', date: nowISO, amount: serviceFee, balanceBefore: balanceAfterDebit, balanceAfter: finalLaciBalance, category: 'service_fee_income', deviceName, auditId
                     });
 
                 } else { // 'Dipotong'
@@ -151,31 +134,9 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
 
                     const debitTrxRef = doc(collection(laciAccountRef, 'transactions'));
                     transaction.set(debitTrxRef, {
-                        kasAccountId: laciAccount.id,
-                        type: 'debit',
-                        name: `Tarik Tunai a/n ${formData.customerName} (Fee Dipotong)`,
-                        account: 'Pelanggan',
-                        date: nowISO,
-                        amount: cashGivenToCustomer,
-                        balanceBefore: currentLaciBalance,
-                        balanceAfter: newLaciBalance,
-                        category: 'customer_withdrawal_debit',
-                        deviceName
+                        kasAccountId: laciAccount.id, type: 'debit', name: `Tarik Tunai a/n ${formData.customerName} (Fee Dipotong)`, account: 'Pelanggan', date: nowISO, amount: cashGivenToCustomer, balanceBefore: currentLaciBalance, balanceAfter: newLaciBalance, category: 'customer_withdrawal_debit', deviceName, auditId
                     });
                 }
-            });
-
-            // --- AUDIT LOG (after transaction) ---
-            await addDoc(collection(firestore, 'customerWithdrawals'), {
-                date: now,
-                customerName: formData.customerName,
-                customerBankSource: formData.customerBankSource,
-                withdrawalAmount: formData.withdrawalAmount,
-                serviceFee: formData.serviceFee,
-                feePaymentMethod: formData.feePaymentMethod,
-                destinationKasAccountId: formData.destinationAccountId,
-                sourceKasTunaiAccountId: laciAccount!.id,
-                deviceName: deviceName
             });
 
             toast({ title: "Sukses", description: "Transaksi tarik tunai berhasil disimpan." });
@@ -264,3 +225,5 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
         </div>
     );
 }
+
+    
