@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
-import type { PPOBTransaction, PPOBPlnPostpaid } from '@/lib/types';
+import type { PPOBTransaction, PPOBPlnPostpaid, PPOBPdam } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -65,9 +65,10 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
             const queries = [
                 getDocs(query(collection(firestore, 'ppobTransactions'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
                 getDocs(query(collection(firestore, 'ppobPlnPostpaid'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+                getDocs(query(collection(firestore, 'ppobPdam'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
             ];
             
-            const [ppobSnapshot, plnPostpaidSnapshot] = await Promise.all(queries);
+            const [ppobSnapshot, plnPostpaidSnapshot, pdamSnapshot] = await Promise.all(queries);
 
             const fetchedReports: MergedPPOBReportItem[] = [];
 
@@ -86,6 +87,22 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                     id: doc.id,
                     date: (data.date as any).toDate(),
                     serviceName: 'PLN Pascabayar',
+                    destination: data.customerName,
+                    description: `Tagihan an. ${data.customerName}`,
+                    costPrice: data.billAmount,
+                    sellingPrice: data.totalAmount,
+                    profit: data.netProfit,
+                    sourcePPOBAccountId: data.sourcePPOBAccountId,
+                    deviceName: data.deviceName
+                });
+            });
+
+            pdamSnapshot.forEach(doc => {
+                const data = doc.data() as PPOBPdam;
+                fetchedReports.push({
+                    id: doc.id,
+                    date: (data.date as any).toDate(),
+                    serviceName: 'PDAM',
                     destination: data.customerName,
                     description: `Tagihan an. ${data.customerName}`,
                     costPrice: data.billAmount,
@@ -194,7 +211,7 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                     <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
                             <TableHead className="sticky left-0 bg-background z-20 w-[50px] py-2">No</TableHead>
-                            <TableHead className="sticky left-[50px] bg-background z-20 py-2">Deskripsi</TableHead>
+                            <TableHead className="sticky left-[50px] bg-background z-20 py-2">Layanan</TableHead>
                             <TableHead className="py-2">Akun PPOB</TableHead>
                             <TableHead className="py-2">Tujuan</TableHead>
                             <TableHead className="text-right py-2">Harga Modal</TableHead>
@@ -206,7 +223,7 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                         {reports.map((report, index) => (
                             <TableRow key={report.id}>
                                 <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
-                                <TableCell className="sticky left-[50px] bg-background z-10 py-2">{report.description}</TableCell>
+                                <TableCell className="sticky left-[50px] bg-background z-10 py-2">{report.serviceName}</TableCell>
                                 <TableCell className="py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
                                 <TableCell className="py-2">{report.destination}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
