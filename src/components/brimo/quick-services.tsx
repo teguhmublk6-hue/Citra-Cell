@@ -45,38 +45,27 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
   const handleServiceClick = (label: string) => {
     if (label === 'Transfer') {
         onServiceClick('customerTransfer');
-    }
-    if (label === 'Tarik Tunai') {
+    } else if (label === 'Tarik Tunai') {
         onServiceClick('withdraw');
-    }
-    if (label === 'Top Up') {
+    } else if (label === 'Top Up') {
         onServiceClick('topUp');
-    }
-    if (label === 'VA Payment') {
+    } else if (label === 'VA Payment') {
         onServiceClick('customerVAPayment');
-    }
-    if (label === 'Layanan EDC') {
+    } else if (label === 'Layanan EDC') {
         onServiceClick('EDCService');
-    }
-    if (label === 'Emoney') {
+    } else if (label === 'Emoney') {
         onServiceClick('Emoney');
-    }
-    if (label === 'KJP') {
+    } else if (label === 'KJP') {
         onServiceClick('KJP');
-    }
-    if (label === 'Pulsa') {
+    } else if (label === 'Pulsa') {
         onServiceClick('Pulsa');
-    }
-    if (label === 'Token Listrik') {
+    } else if (label === 'Token Listrik') {
         onServiceClick('Token Listrik');
-    }
-    if (label === 'Data') {
+    } else if (label === 'Data') {
         onServiceClick('Data');
-    }
-    if (label === 'PLN') {
+    } else if (label === 'PLN') {
         onServiceClick('PLN');
-    }
-    if (label === 'PDAM') {
+    } else if (label === 'PDAM') {
         onServiceClick('PDAM');
     }
   }
@@ -134,6 +123,3 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
     </Card>
   );
 }
-
-    
-
