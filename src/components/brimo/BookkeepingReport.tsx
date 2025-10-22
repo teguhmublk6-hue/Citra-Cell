@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
-import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal, PPOBPlnPostpaid } from '@/lib/types';
+import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -29,8 +29,7 @@ type ReportItem =
     | (CustomerEmoneyTopUp & { id: string; transactionType: 'Top Up E-Money' })
     | (CustomerVAPayment & { id: string; transactionType: 'VA Payment' })
     | (EDCService & { id: string; transactionType: 'Layanan EDC' })
-    | (CustomerKJPWithdrawal & { id: string; transactionType: 'Tarik Tunai KJP' })
-    | (PPOBPlnPostpaid & { id: string; transactionType: 'PLN Pascabayar' });
+    | (CustomerKJPWithdrawal & { id: string; transactionType: 'Tarik Tunai KJP' });
 
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
@@ -69,10 +68,9 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                 getDocs(query(collection(firestore, 'customerVAPayments'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
                 getDocs(query(collection(firestore, 'edcServices'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
                 getDocs(query(collection(firestore, 'customerKJPWithdrawals'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
-                getDocs(query(collection(firestore, 'ppobPlnPostpaid'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : [])))
             ];
 
-            const [transfersSnapshot, withdrawalsSnapshot, topUpsSnapshot, emoneyTopUpsSnapshot, vaPaymentsSnapshot, edcServicesSnapshot, kjpWithdrawalsSnapshot, plnPostpaidSnapshot] = await Promise.all(queries);
+            const [transfersSnapshot, withdrawalsSnapshot, topUpsSnapshot, emoneyTopUpsSnapshot, vaPaymentsSnapshot, edcServicesSnapshot, kjpWithdrawalsSnapshot] = await Promise.all(queries);
 
             const combinedReports: ReportItem[] = [];
 
@@ -145,16 +143,6 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                     transactionType: 'Tarik Tunai KJP'
                 } as any);
             });
-            
-            plnPostpaidSnapshot.forEach((doc) => {
-                const data = doc.data();
-                combinedReports.push({
-                    id: doc.id,
-                    ...data,
-                    date: (data.date as Timestamp).toDate(),
-                    transactionType: 'PLN Pascabayar'
-                } as any);
-            });
 
             combinedReports.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             
@@ -182,9 +170,6 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
     }
     if (report.transactionType === 'Tarik Tunai' || report.transactionType === 'Top Up' || report.transactionType === 'Top Up E-Money' || report.transactionType === 'Layanan EDC') {
         return sum + report.serviceFee;
-    }
-    if (report.transactionType === 'PLN Pascabayar') {
-        return sum + report.netProfit;
     }
     return sum;
   }, 0);
@@ -331,15 +316,6 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                                        <TableCell className="text-right py-2">{formatToRupiah(report.withdrawalAmount)}</TableCell>
                                        <TableCell className="py-2">{report.deviceName}</TableCell>
                                    </>
-                               ) : report.transactionType === 'PLN Pascabayar' ? (
-                                    <>
-                                       <TableCell className="sticky left-[50px] bg-background z-10 py-2">PLN Pascabayar</TableCell>
-                                       <TableCell className="sticky left-[150px] bg-background z-10 py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
-                                       <TableCell className="py-2">PLN</TableCell>
-                                       <TableCell className="py-2">{report.customerName}</TableCell>
-                                       <TableCell className="text-right py-2">{formatToRupiah(report.billAmount)}</TableCell>
-                                       <TableCell className="py-2">{report.deviceName}</TableCell>
-                                   </>
                                ) : null}
                             </TableRow>
                         ))}
@@ -350,12 +326,5 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
     </div>
   );
 }
-
-    
-
-    
-
-
-
 
     
