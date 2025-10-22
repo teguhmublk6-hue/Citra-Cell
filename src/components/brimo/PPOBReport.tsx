@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
-import type { PPOBTransaction } from '@/lib/types';
+import type { PPOBTransaction, PPOBPlnPostpaid } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,19 @@ interface PPOBReportProps {
   onDone: () => void;
 }
 
+type MergedPPOBReportItem = {
+    id: string;
+    date: Date;
+    serviceName: string;
+    destination: string;
+    description: string;
+    costPrice: number;
+    sellingPrice: number;
+    profit: number;
+    sourcePPOBAccountId?: string;
+    deviceName: string;
+}
+
 const formatToRupiah = (value: number | string | undefined | null): string => {
     if (value === null || value === undefined || value === '') return 'Rp 0';
     const num = Number(String(value).replace(/[^0-9]/g, ''));
@@ -30,7 +43,7 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 
 export default function PPOBReport({ onDone }: PPOBReportProps) {
   const firestore = useFirestore();
-  const [reports, setReports] = useState<PPOBTransaction[]>([]);
+  const [reports, setReports] = useState<MergedPPOBReportItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
 
@@ -49,15 +62,41 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
             const dateFrom = dateRange?.from ? Timestamp.fromDate(startOfDay(dateRange.from)) : null;
             const dateTo = dateRange?.to ? Timestamp.fromDate(endOfDay(dateRange.to)) : null;
 
-            const q = query(
-                collection(firestore, 'ppobTransactions'),
-                ...(dateFrom ? [where('date', '>=', dateFrom)] : []),
-                ...(dateTo ? [where('date', '<=', dateTo)] : []),
-                orderBy('date', 'desc')
-            );
+            const queries = [
+                getDocs(query(collection(firestore, 'ppobTransactions'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+                getDocs(query(collection(firestore, 'ppobPlnPostpaid'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+            ];
             
-            const snapshot = await getDocs(q);
-            const fetchedReports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PPOBTransaction));
+            const [ppobSnapshot, plnPostpaidSnapshot] = await Promise.all(queries);
+
+            const fetchedReports: MergedPPOBReportItem[] = [];
+
+            ppobSnapshot.forEach(doc => {
+                const data = doc.data() as PPOBTransaction;
+                fetchedReports.push({ 
+                    id: doc.id, 
+                    ...data,
+                    date: (data.date as any).toDate()
+                });
+            });
+
+            plnPostpaidSnapshot.forEach(doc => {
+                const data = doc.data() as PPOBPlnPostpaid;
+                fetchedReports.push({
+                    id: doc.id,
+                    date: (data.date as any).toDate(),
+                    serviceName: 'PLN Pascabayar',
+                    destination: data.customerName,
+                    description: `Tagihan an. ${data.customerName}`,
+                    costPrice: data.billAmount,
+                    sellingPrice: data.totalAmount,
+                    profit: data.netProfit,
+                    sourcePPOBAccountId: data.sourcePPOBAccountId,
+                    deviceName: data.deviceName
+                });
+            });
+            
+            fetchedReports.sort((a, b) => b.date.getTime() - a.date.getTime());
             
             setReports(fetchedReports);
 
@@ -158,7 +197,6 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                             <TableHead className="sticky left-[50px] bg-background z-20 py-2">Deskripsi</TableHead>
                             <TableHead className="py-2">Akun PPOB</TableHead>
                             <TableHead className="py-2">Tujuan</TableHead>
-                            <TableHead className="py-2">Deskripsi</TableHead>
                             <TableHead className="text-right py-2">Harga Modal</TableHead>
                             <TableHead className="text-right py-2">Harga Jual</TableHead>
                             <TableHead className="py-2">Oleh</TableHead>
@@ -168,12 +206,9 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                         {reports.map((report, index) => (
                             <TableRow key={report.id}>
                                 <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
-                                <TableCell className="sticky left-[50px] bg-background z-10 py-2">{report.serviceName}</TableCell>
+                                <TableCell className="sticky left-[50px] bg-background z-10 py-2">{report.description}</TableCell>
                                 <TableCell className="py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
                                 <TableCell className="py-2">{report.destination}</TableCell>
-                                <TableCell className="py-2">
-                                    {report.serviceName === 'Token Listrik' ? parseDenomination(report.description) : report.description}
-                                </TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.sellingPrice)}</TableCell>
                                 <TableCell className="py-2">{report.deviceName}</TableCell>
@@ -182,7 +217,7 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                     </TableBody>
                     <TableFooter>
                         <TableRow className="font-bold bg-muted/50">
-                            <TableCell colSpan={5}>Total</TableCell>
+                            <TableCell colSpan={4}>Total</TableCell>
                             <TableCell className="text-right py-2">{formatToRupiah(totals.costPrice)}</TableCell>
                             <TableCell className="text-right py-2">{formatToRupiah(totals.sellingPrice)}</TableCell>
                             <TableCell></TableCell>
