@@ -31,6 +31,46 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
     return `Rp ${num.toLocaleString('id-ID')}`;
 };
 
+const categoryToCollectionMap: Record<string, string> = {
+    'customer_transfer': 'customerTransfers',
+    'customer_withdrawal': 'customerWithdrawals',
+    'customer_topup': 'customerTopUps',
+    'customer_emoney_topup': 'customerEmoneyTopUps',
+    'customer_va_payment': 'customerVAPayments',
+    'edc_service': 'edcServices',
+    'settlement': 'settlements',
+    'customer_kjp_withdrawal': 'customerKJPWithdrawals',
+    'ppob_purchase': 'ppobTransactions',
+    'ppob_cashback': 'ppobTransactions',
+    'customer_payment_ppob': 'ppobTransactions',
+    'ppob_pln_postpaid': 'ppobPlnPostpaid'
+};
+
+const getCollectionNameFromCategory = (category?: string): string | null => {
+    if (!category) return null;
+    const baseCategory = category.split('_')[0] + (category.includes('ppob') ? '' : (category.split('_')[1] || ''));
+    for (const key in categoryToCollectionMap) {
+        if (key.startsWith(baseCategory)) {
+            return categoryToCollectionMap[key];
+        }
+    }
+     // Fallback for more complex categories
+    if (category.includes('transfer')) return 'customerTransfers';
+    if (category.includes('withdrawal')) return 'customerWithdrawals';
+    if (category.includes('topup')) return 'customerTopUps';
+    if (category.includes('emoney')) return 'customerEmoneyTopUps';
+    if (category.includes('va')) return 'customerVAPayments';
+    if (category.includes('edc')) return 'edcServices';
+    if (category.includes('kjp')) return 'customerKJPWithdrawals';
+    if (category.includes('settlement')) return 'settlements';
+    if (category.includes('pln')) return 'ppobPlnPostpaid';
+    if (category.includes('ppob')) return 'ppobTransactions';
+
+
+    return null;
+}
+
+
 export default function GlobalTransactionHistory() {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -111,9 +151,29 @@ export default function GlobalTransactionHistory() {
 
     try {
         const batch = writeBatch(firestore);
-        const { date } = transactionToDelete;
+        const { date, category } = transactionToDelete;
+        const transactionTimestamp = new Date(date);
 
-        // --- Find all related transactions based on the exact same timestamp ---
+        // --- 1. Find and delete the audit log entry ---
+        const auditCollectionName = getCollectionNameFromCategory(category);
+        if (auditCollectionName) {
+            const auditQuery = query(
+                collection(firestore, auditCollectionName),
+                where('date', '==', Timestamp.fromDate(transactionTimestamp))
+            );
+            const auditSnapshot = await getDocs(auditQuery);
+            if (!auditSnapshot.empty) {
+                // Assuming the first match is the correct one
+                const auditDocRef = auditSnapshot.docs[0].ref;
+                batch.delete(auditDocRef);
+            } else {
+                 console.warn(`Audit log for category '${category}' at timestamp '${date}' not found in collection '${auditCollectionName}'.`);
+            }
+        } else {
+            console.warn(`No audit collection mapping found for category: ${category}`);
+        }
+
+        // --- 2. Find and delete all related kas transactions ---
         let allRelatedTrxRefs = [];
         let balanceChanges = new Map<string, number>(); // kasAccountId -> total change
         
@@ -126,8 +186,6 @@ export default function GlobalTransactionHistory() {
             querySnapshot.forEach(docSnap => {
                 allRelatedTrxRefs.push(docSnap.ref);
                 const trxData = docSnap.data() as Transaction;
-                // Calculate the change needed to revert the balance
-                // If credit, we need to subtract. If debit, we need to add.
                 const changeToRevert = trxData.type === 'credit' ? -trxData.amount : trxData.amount;
                 
                 const currentChange = balanceChanges.get(account.id) || 0;
@@ -136,7 +194,7 @@ export default function GlobalTransactionHistory() {
         }
         
         if (allRelatedTrxRefs.length === 0) {
-            // This is a fallback for a single, unrelated transaction
+             // Fallback for a single, unrelated transaction
              const { kasAccountId, type, amount } = transactionToDelete;
              const trxRef = doc(firestore, 'kasAccounts', kasAccountId, 'transactions', transactionToDelete.id);
              allRelatedTrxRefs.push(trxRef);
@@ -144,10 +202,9 @@ export default function GlobalTransactionHistory() {
              balanceChanges.set(kasAccountId, changeToRevert);
         }
         
-        // Delete all found related transactions
         allRelatedTrxRefs.forEach(ref => batch.delete(ref));
         
-        // Revert balances for all affected accounts
+        // --- 3. Revert balances for all affected accounts ---
         for (const [accountId, change] of balanceChanges.entries()) {
             const accountData = kasAccounts.find(acc => acc.id === accountId);
             if (accountData) {
@@ -159,7 +216,7 @@ export default function GlobalTransactionHistory() {
         
         await batch.commit();
 
-        toast({ title: "Berhasil", description: "Transaksi telah dihapus dan saldo dikembalikan." });
+        toast({ title: "Berhasil", description: "Transaksi telah dihapus dari riwayat dan laporan." });
         fetchTransactions(); // Re-fetch to update the UI
     } catch (error: any) {
         console.error("Error deleting transaction: ", error);
