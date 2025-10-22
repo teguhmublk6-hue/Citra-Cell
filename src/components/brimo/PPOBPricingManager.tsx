@@ -9,6 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
+import { Plus } from 'lucide-react';
+
+type ServiceType = keyof typeof ppobPricingData;
 
 // This is a stand-in for a proper backend call.
 // In a real app, this would be an API call to a server-side function.
@@ -51,11 +54,12 @@ const parseRupiah = (value: string | undefined | null): number => {
 
 export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
   const [pricing, setPricing] = useState(ppobPricingData);
+  const [newRows, setNewRows] = useState<Record<string, { denom: string; costPrice: number; sellingPrice: number }>>({});
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
   const handleInputChange = (
-    service: keyof typeof pricing,
+    service: ServiceType,
     provider: string, 
     denom: string, 
     field: 'costPrice' | 'sellingPrice',
@@ -73,14 +77,50 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
     });
   };
 
+  const handleNewRowChange = (key: string, field: keyof typeof newRows[string], value: string) => {
+    setNewRows(prev => ({
+        ...prev,
+        [key]: {
+            ...prev[key],
+            [field]: (field === 'denom') ? value : parseRupiah(value)
+        }
+    }));
+  };
+
+  const handleAddRow = (service: ServiceType, provider?: string) => {
+    const key = provider ? `${service}-${provider}` : service;
+    setNewRows(prev => ({
+        ...prev,
+        [key]: { denom: '', costPrice: 0, sellingPrice: 0 }
+    }));
+  };
+
   const handleSaveChanges = async () => {
     setIsSaving(true);
     toast({ title: 'Menyimpan...', description: 'Perubahan Anda sedang diproses.' });
+
+    let updatedPricing = JSON.parse(JSON.stringify(pricing));
+
+    for (const key in newRows) {
+        const { denom, costPrice, sellingPrice } = newRows[key];
+        if (denom && (costPrice > 0 || sellingPrice > 0)) {
+            const parts = key.split('-');
+            const service = parts[0] as ServiceType;
+
+            if (service === 'Token Listrik') {
+                if (!updatedPricing[service]) updatedPricing[service] = {};
+                (updatedPricing[service] as any)[denom] = { costPrice, sellingPrice };
+            } else {
+                const provider = parts[1];
+                if (!updatedPricing[service]) updatedPricing[service] = {};
+                if (!(updatedPricing[service] as any)[provider]) (updatedPricing[service] as any)[provider] = {};
+                (updatedPricing[service] as any)[provider][denom] = { costPrice, sellingPrice };
+            }
+        }
+    }
     
-    // In a real application, you would make an API call here to a server-side
-    // function that has permission to write to the filesystem.
-    // For this example, we will just log a message.
-    console.log("Perubahan ini perlu disimpan ke `src/lib/ppob-pricing.json`. Karena keterbatasan lingkungan, saya tidak bisa menulis file secara langsung. Terapkan perubahan ini secara manual atau buat endpoint API untuk menanganinya.");
+    // In a real application, you would make an API call here.
+    console.log("Perubahan ini perlu disimpan ke `src/lib/ppob-pricing.json`. Karena keterbatasan lingkungan, saya tidak bisa menulis file secara langsung. Terapkan perubahan ini secara manual atau buat endpoint API untuk menanganinya.", updatedPricing);
     
     toast({
         title: 'Simulasi Berhasil',
@@ -89,7 +129,7 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
     });
 
     setIsSaving(false);
-    onDone(); // Close the sheet after "saving"
+    onDone();
   };
 
   return (
@@ -100,46 +140,60 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
                 Atur harga modal dan harga jual untuk setiap produk PPOB. Perubahan akan langsung memengaruhi form transaksi.
             </p>
             <Accordion type="multiple" className="w-full" defaultValue={['Pulsa', 'Token Listrik', 'Paket Data']}>
-              {Object.entries(pricing).map(([serviceName, serviceData]) => (
+              {(Object.keys(pricing) as ServiceType[]).map((serviceName) => (
                 <AccordionItem value={serviceName} key={serviceName}>
                     <AccordionTrigger>{serviceName}</AccordionTrigger>
                     <AccordionContent>
                       {serviceName === 'Token Listrik' ? (
+                        <>
                          <Table>
                             <TableHeader>
                                 <TableRow>
-                                <TableHead className="w-[30%]">Denom</TableHead>
+                                <TableHead className="text-right w-[30%]">Denom</TableHead>
                                 <TableHead className="text-right w-[35%]">Harga Modal</TableHead>
                                 <TableHead className="text-right w-[35%]">Harga Jual</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {Object.entries(serviceData as any).map(([denom, prices]) => (
+                                {Object.entries(pricing[serviceName] as any).map(([denom, prices]) => (
                                 <TableRow key={denom}>
-                                    <TableCell className="font-medium">{denom}</TableCell>
+                                    <TableCell className="font-medium text-right">{denom}</TableCell>
                                     <TableCell>
                                     <Input
                                         type="text"
                                         value={formatToRupiah((prices as any).costPrice)}
-                                        onChange={(e) => handleInputChange(serviceName as keyof typeof pricing, '', denom, 'costPrice', e.target.value)}
-                                        className="h-9 text-right text-xs"
+                                        onChange={(e) => handleInputChange(serviceName, '', denom, 'costPrice', e.target.value)}
+                                        className="h-9 text-xs text-right"
                                     />
                                     </TableCell>
                                     <TableCell>
                                     <Input
                                         type="text"
                                         value={formatToRupiah((prices as any).sellingPrice)}
-                                        onChange={(e) => handleInputChange(serviceName as keyof typeof pricing, '', denom, 'sellingPrice', e.target.value)}
-                                        className="h-9 text-right text-xs"
+                                        onChange={(e) => handleInputChange(serviceName, '', denom, 'sellingPrice', e.target.value)}
+                                        className="h-9 text-xs text-right"
                                     />
                                     </TableCell>
                                 </TableRow>
                                 ))}
+                                {newRows[serviceName] && (
+                                    <TableRow>
+                                        <TableCell><Input placeholder="20000" className="h-9 text-xs text-right" value={newRows[serviceName].denom} onChange={(e) => handleNewRowChange(serviceName, 'denom', e.target.value)} /></TableCell>
+                                        <TableCell><Input placeholder="0" className="h-9 text-xs text-right" value={formatToRupiah(newRows[serviceName].costPrice)} onChange={(e) => handleNewRowChange(serviceName, 'costPrice', e.target.value)} /></TableCell>
+                                        <TableCell><Input placeholder="0" className="h-9 text-xs text-right" value={formatToRupiah(newRows[serviceName].sellingPrice)} onChange={(e) => handleNewRowChange(serviceName, 'sellingPrice', e.target.value)} /></TableCell>
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
+                        <div className="mt-2">
+                            <Button variant="outline" size="sm" onClick={() => handleAddRow(serviceName)} disabled={!!newRows[serviceName]}>
+                                <Plus className="mr-2 h-4 w-4" /> Tambah Denom
+                            </Button>
+                        </div>
+                        </>
                       ) : (
-                        <Accordion type="multiple" className="w-full pl-4" defaultValue={Object.keys(serviceData as object)[0]}>
-                            {Object.entries(serviceData as any).map(([providerName, providerData]) => (
+                        <Accordion type="multiple" className="w-full pl-4" defaultValue={Object.keys(pricing[serviceName] as object)[0] ? `${serviceName}-${Object.keys(pricing[serviceName] as object)[0]}` : undefined}>
+                            {Object.entries(pricing[serviceName] as any).map(([providerName, providerData]) => (
                             <AccordionItem value={`${serviceName}-${providerName}`} key={`${serviceName}-${providerName}`}>
                                 <AccordionTrigger>{providerName}</AccordionTrigger>
                                 <AccordionContent>
@@ -159,22 +213,34 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
                                                 <Input
                                                     type="text"
                                                     value={formatToRupiah((prices as any).costPrice)}
-                                                    onChange={(e) => handleInputChange(serviceName as keyof typeof pricing, providerName, denom, 'costPrice', e.target.value)}
-                                                    className="h-9 text-right text-xs"
+                                                    onChange={(e) => handleInputChange(serviceName, providerName, denom, 'costPrice', e.target.value)}
+                                                    className="h-9 text-xs text-right"
                                                 />
                                                 </TableCell>
                                                 <TableCell>
                                                 <Input
                                                     type="text"
                                                     value={formatToRupiah((prices as any).sellingPrice)}
-                                                    onChange={(e) => handleInputChange(serviceName as keyof typeof pricing, providerName, denom, 'sellingPrice', e.target.value)}
-                                                    className="h-9 text-right text-xs"
+                                                    onChange={(e) => handleInputChange(serviceName, providerName, denom, 'sellingPrice', e.target.value)}
+                                                    className="h-9 text-xs text-right"
                                                 />
                                                 </TableCell>
                                             </TableRow>
                                             ))}
+                                            {newRows[`${serviceName}-${providerName}`] && (
+                                                <TableRow>
+                                                    <TableCell><Input placeholder="Nama Paket" className="h-9 text-xs" value={newRows[`${serviceName}-${providerName}`].denom} onChange={(e) => handleNewRowChange(`${serviceName}-${providerName}`, 'denom', e.target.value)} /></TableCell>
+                                                    <TableCell><Input placeholder="0" className="h-9 text-xs text-right" value={formatToRupiah(newRows[`${serviceName}-${providerName}`].costPrice)} onChange={(e) => handleNewRowChange(`${serviceName}-${providerName}`, 'costPrice', e.target.value)} /></TableCell>
+                                                    <TableCell><Input placeholder="0" className="h-9 text-xs text-right" value={formatToRupiah(newRows[`${serviceName}-${providerName}`].sellingPrice)} onChange={(e) => handleNewRowChange(`${serviceName}-${providerName}`, 'sellingPrice', e.target.value)} /></TableCell>
+                                                </TableRow>
+                                            )}
                                         </TableBody>
                                     </Table>
+                                    <div className="mt-2">
+                                        <Button variant="outline" size="sm" onClick={() => handleAddRow(serviceName, providerName)} disabled={!!newRows[`${serviceName}-${providerName}`]}>
+                                            <Plus className="mr-2 h-4 w-4" /> Tambah Paket
+                                        </Button>
+                                    </div>
                                 </AccordionContent>
                             </AccordionItem>
                             ))}
@@ -197,3 +263,5 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
     </div>
   );
 }
+
+    
