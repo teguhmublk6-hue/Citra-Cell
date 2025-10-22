@@ -99,18 +99,18 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
   const selectedPPOBAccount = useMemo(() => kasAccounts?.find(acc => acc.id === sourcePPOBAccountId), [kasAccounts, sourcePPOBAccountId]);
 
   const availableDenominations = useMemo(() => {
-    if (selectedPPOBAccount && detectedProvider) {
-      const providerPricing = (ppobPricing as any)[detectedProvider];
+    if (detectedProvider) {
+      const providerPricing = (ppobPricing as any)[detectedProvider]?.Pulsa;
       if (providerPricing) {
         return Object.keys(providerPricing).map(d => parseInt(d, 10)).sort((a,b) => a - b).map(String);
       }
     }
     return [];
-  }, [selectedPPOBAccount, detectedProvider]);
+  }, [detectedProvider]);
 
   useEffect(() => {
-    if (selectedPPOBAccount && detectedProvider && denomination) {
-      const pricing = (ppobPricing as any)[detectedProvider];
+    if (detectedProvider && denomination) {
+      const pricing = (ppobPricing as any)[detectedProvider]?.Pulsa;
       const denomKey = denomination.replace(/\./g, '');
       const denomPrice = pricing ? pricing[denomKey] : null;
 
@@ -122,7 +122,7 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
         form.setValue('sellingPrice', undefined);
       }
     }
-  }, [selectedPPOBAccount, detectedProvider, denomination, form]);
+  }, [detectedProvider, denomination, form]);
 
 
   const ppobAccounts = useMemo(() => kasAccounts?.filter(acc => acc.type === 'PPOB'), [kasAccounts]);

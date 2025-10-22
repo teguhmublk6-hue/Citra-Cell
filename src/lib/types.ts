@@ -251,6 +251,19 @@ export const PPOBTokenListrikFormSchema = z.object({
 
 export type PPOBTokenListrikFormValues = z.infer<typeof PPOBTokenListrikFormSchema>;
 
+export const PPOBPaketDataFormSchema = z.object({
+  sourcePPOBAccountId: z.string().min(1, 'Akun PPOB sumber harus dipilih'),
+  phoneNumber: z.string().min(10, 'Nomor HP minimal 10 digit').max(15, 'Nomor HP maksimal 15 digit'),
+  packageName: z.string().min(1, 'Paket data harus dipilih'),
+  costPrice: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Harga modal harus angka" }).min(0, 'Harga modal tidak boleh negatif')),
+  sellingPrice: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Harga jual harus angka" }).min(0, 'Harga jual tidak boleh negatif')),
+  paymentMethod: z.enum(['Tunai', 'Transfer', 'Split'], { required_error: 'Metode pembayaran harus dipilih' }),
+  paymentToKasTransferAccountId: z.string().optional(),
+  splitTunaiAmount: z.preprocess(numberPreprocessor, z.number().optional()),
+});
+
+export type PPOBPaketDataFormValues = z.infer<typeof PPOBPaketDataFormSchema>;
+
 
 export type PPOBTransaction = {
     id: string;
