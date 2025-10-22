@@ -1,4 +1,5 @@
 
+
 import * as z from 'zod';
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
@@ -277,6 +278,20 @@ export const PPOBPlnPostpaidFormSchema = z.object({
 
 export type PPOBPlnPostpaidFormValues = z.infer<typeof PPOBPlnPostpaidFormSchema>;
 
+export const PPOBPdamFormSchema = z.object({
+  sourcePPOBAccountId: z.string().min(1, 'Akun PPOB sumber harus dipilih'),
+  customerName: z.string().min(1, 'Nama pelanggan harus diisi.'),
+  billAmount: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Jumlah tagihan harus angka" }).positive('Jumlah tagihan harus lebih dari 0')),
+  totalAmount: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Total tagihan harus angka" }).positive('Total tagihan harus lebih dari 0')),
+  cashback: z.preprocess(numberPreprocessor, z.number().min(0, "Cashback tidak boleh negatif").optional()),
+  paymentMethod: z.enum(['Tunai', 'Transfer', 'Split'], { required_error: 'Metode pembayaran harus dipilih' }),
+  paymentToKasTransferAccountId: z.string().optional(),
+  splitTunaiAmount: z.preprocess(numberPreprocessor, z.number().optional()),
+});
+
+export type PPOBPdamFormValues = z.infer<typeof PPOBPdamFormSchema>;
+
+
 export type PPOBTransaction = {
     id: string;
     date: string;
@@ -325,3 +340,4 @@ export type PPOBPdam = {
     paymentToKasTransferAmount?: number;
     deviceName: string;
 }
+

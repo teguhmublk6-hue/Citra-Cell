@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { quickServices, ppobServices } from '@/lib/data';
@@ -13,7 +14,7 @@ import { cn } from '@/lib/utils';
 import type { CarouselApi } from "@/components/ui/carousel"
 import React from 'react';
 
-type ServiceType = 'customerTransfer' | 'withdraw' | 'topUp' | 'customerVAPayment' | 'EDCService' | 'Emoney' | 'KJP' | 'Pulsa' | 'Token Listrik' | 'Data' | 'PLN';
+type ServiceType = 'customerTransfer' | 'withdraw' | 'topUp' | 'customerVAPayment' | 'EDCService' | 'Emoney' | 'KJP' | 'Pulsa' | 'Token Listrik' | 'Data' | 'PLN' | 'PDAM';
 interface QuickServicesProps {
     onServiceClick: (service: ServiceType) => void;
 }
@@ -75,6 +76,9 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
     if (label === 'PLN') {
         onServiceClick('PLN');
     }
+    if (label === 'PDAM') {
+        onServiceClick('PDAM');
+    }
   }
 
   return (
@@ -132,3 +136,4 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
 }
 
     
+
