@@ -324,6 +324,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         "settlements",
         "ppobTransactions",
         "ppobPlnPostpaid",
+        "ppobPdam"
     ];
 
     try {
@@ -343,6 +344,40 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         setIsDeleteReportsDialogOpen(false);
     }
   };
+  
+  const confirmResetAllAccounts = async () => {
+    if (!firestore || !kasAccounts) {
+        toast({ variant: "destructive", title: "Error", description: "Database atau akun kas tidak tersedia." });
+        return;
+    }
+
+    toast({ title: "Memproses...", description: "Mereset semua akun kas." });
+
+    try {
+        const batch = writeBatch(firestore);
+        for (const account of kasAccounts) {
+            // 1. Reset balance to 0
+            const accountRef = collection(firestore, 'kasAccounts');
+            batch.update(doc(accountRef, account.id), { balance: 0 });
+
+            // 2. Delete all transactions in subcollection
+            const transactionsRef = collection(firestore, 'kasAccounts', account.id, 'transactions');
+            const transactionsSnapshot = await getDocs(transactionsRef);
+            transactionsSnapshot.forEach(transactionDoc => {
+                batch.delete(transactionDoc.ref);
+            });
+        }
+        await batch.commit();
+        toast({ title: "Sukses", description: "Semua akun kas telah direset ke saldo 0 dan riwayatnya dihapus." });
+        revalidateData();
+    } catch (error) {
+        console.error("Error resetting all accounts:", error);
+        toast({ variant: "destructive", title: "Gagal", description: "Terjadi kesalahan saat mereset akun." });
+    } finally {
+        setActiveSheet(null);
+    }
+};
+
 
   const handleAdminClick = () => {
      if (!isAdminAccessGranted) {
@@ -378,19 +413,6 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     if (isOperationalCostReportVisible) {
         return <OperationalCostReport onDone={() => setIsOperationalCostReportVisible(false)} />;
     }
-    
-    if (isDeleteAllAccountsDialogOpen) {
-        return <DeleteAllKasAccountsDialog 
-            isOpen={isDeleteAllAccountsDialogOpen} 
-            onClose={() => setIsDeleteAllAccountsDialogOpen(false)} 
-            onConfirm={() => {
-                // Placeholder for actual deletion logic
-                console.log("Deleting all accounts...");
-                setIsDeleteAllAccountsDialogOpen(false);
-            }} 
-        />;
-    }
-
 
   const isKJPReview = activeSheet === 'customerKJPReview' && reviewData && 'withdrawalAmount' in reviewData && !('customerBankSource' in reviewData);
   const isTokenReview = activeSheet === 'ppobTokenListrikReview' && reviewData && 'costPrice' in reviewData && 'customerName' in reviewData && !('phoneNumber' in reviewData);
@@ -485,6 +507,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
                 onManageKasAccountsClick={handleManageKasAccountsClick} 
                 onManagePPOBPricingClick={handleManagePPOBPricingClick} 
                 onResetReportsClick={handleResetReportsClick}
+                onResetAllAccountsClick={handleResetAllAccountsClick}
               />
             </div>
           </div>
@@ -520,10 +543,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
       <DeleteAllKasAccountsDialog 
         isOpen={activeSheet === 'deleteAllKasAccounts'} 
         onClose={closeAllSheets} 
-        onConfirm={() => {
-            console.log("Confirming deletion of all accounts");
-            closeAllSheets();
-        }} 
+        onConfirm={confirmResetAllAccounts} 
        />
 
 
@@ -595,7 +615,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
             {isKJPReview && <CustomerKJPWithdrawalReview formData={reviewData as CustomerKJPWithdrawalFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('customerKJP')} />}
             
             {activeSheet === 'setMotivation' && <SetMotivationForm onDone={closeAllSheets} />}
-            {activeSheet === 'manageKasAccounts' && <KasManagement />}
+            {activeSheet === 'manageKasAccounts' && <KasManagement onResetAll={handleResetAllAccountsClick} />}
             {activeSheet === 'managePPOBPricing' && <PPOBPricingManager onDone={closeAllSheets} />}
             
             {activeSheet === 'ppobPulsa' && <PPOBPulsaForm onReview={handleReview} onDone={closeAllSheets} />}
@@ -654,5 +674,3 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     </>
   );
 }
-
-    
