@@ -250,7 +250,7 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
                     <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
                             <TableHead className="sticky left-0 bg-background z-20 w-[50px] py-2">No</TableHead>
-                            <TableHead className="sticky left-[50px] bg-background z-20 py-2">Layanan</TableHead>
+                            <TableHead className="sticky left-[50px] bg-background z-20 py-2">Deskripsi</TableHead>
                             <TableHead className="sticky left-[150px] bg-background z-20 py-2">Akun Kas</TableHead>
                             <TableHead className="py-2">Bank/Tujuan</TableHead>
                             <TableHead className="py-2">Nama</TableHead>

@@ -226,7 +226,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                         <TableHeader className="sticky top-0 bg-background z-10">
                             <TableRow>
                                 <TableHead className="py-2">No</TableHead>
-                                <TableHead className="sticky left-0 bg-background z-20 py-2">Layanan</TableHead>
+                                <TableHead className="sticky left-0 bg-background z-20 py-2">Deskripsi</TableHead>
                                 <TableHead className="py-2">Nama</TableHead>
                                 <TableHead className="py-2">Bank/Tujuan</TableHead>
                                 <TableHead className="text-right py-2">Nominal</TableHead>
@@ -277,7 +277,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                     <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
                             <TableHead className="w-[40px] sticky left-0 bg-background z-20 py-2">No.</TableHead>
-                            <TableHead className="sticky left-[40px] bg-background z-20 py-2">Layanan</TableHead>
+                            <TableHead className="sticky left-[40px] bg-background z-20 py-2">Deskripsi</TableHead>
                             <TableHead className="py-2">Tujuan</TableHead>
                             <TableHead className="text-right py-2">Harga Modal</TableHead>
                             <TableHead className="text-right py-2">Harga Jual</TableHead>
