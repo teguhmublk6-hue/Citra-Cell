@@ -192,7 +192,7 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
                         </div>
                         </>
                       ) : (
-                        <Accordion type="multiple" className="w-full pl-4" defaultValue={Object.keys(pricing[serviceName] as object)[0] ? `${serviceName}-${Object.keys(pricing[serviceName] as object)[0]}` : undefined}>
+                        <Accordion type="multiple" className="w-full pl-4" defaultValue={Object.keys(pricing[serviceName] as object)[0] ? [`${serviceName}-${Object.keys(pricing[serviceName] as object)[0]}`] : []}>
                             {Object.entries(pricing[serviceName] as any).map(([providerName, providerData]) => (
                             <AccordionItem value={`${serviceName}-${providerName}`} key={`${serviceName}-${providerName}`}>
                                 <AccordionTrigger>{providerName}</AccordionTrigger>
@@ -263,5 +263,3 @@ export default function PPOBPricingManager({ onDone }: { onDone: () => void }) {
     </div>
   );
 }
-
-    
