@@ -67,6 +67,23 @@ export default function PPOBPlnPostpaidReview({ formData, onConfirm, onBack }: P
         const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
         
         try {
+            // --- AUDIT LOG FIRST ---
+            const auditDocRef = await addDoc(collection(firestore, 'ppobPlnPostpaid'), {
+                date: now,
+                customerName: formData.customerName,
+                billAmount: formData.billAmount,
+                totalAmount: formData.totalAmount,
+                cashback: formData.cashback || 0,
+                netProfit,
+                sourcePPOBAccountId: formData.sourcePPOBAccountId,
+                paymentMethod: formData.paymentMethod,
+                paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? totalAmount : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
+                paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? formData.paymentToKasTransferAccountId : null,
+                paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalAmount : (paymentMethod === 'Split' ? splitTransferAmount : 0),
+                deviceName
+            });
+            const auditId = auditDocRef.id;
+
             await runTransaction(firestore, async (transaction) => {
                 const laciAccountName = 'Laci';
                 
@@ -128,14 +145,14 @@ export default function PPOBPlnPostpaidReview({ formData, onConfirm, onBack }: P
                 // Debit transaction
                 const debitTxRef = doc(collection(sourcePPOBAccountRef, 'transactions'));
                 transaction.set(debitTxRef, {
-                    kasAccountId: sourcePPOBAccount.id, type: 'debit', name: `Bayar Tagihan PLN`, account: formData.customerName, date: nowISO, amount: billAmount, balanceBefore: currentSourcePPOBBalance, balanceAfter: balanceAfterDebit, category: 'ppob_purchase', deviceName
+                    kasAccountId: sourcePPOBAccount.id, type: 'debit', name: `Bayar Tagihan PLN`, account: formData.customerName, date: nowISO, amount: billAmount, balanceBefore: currentSourcePPOBBalance, balanceAfter: balanceAfterDebit, category: 'ppob_pln_postpaid', deviceName, auditId
                 });
 
                 // Cashback transaction
                 if (cashback && cashback > 0) {
                      const cashbackTxRef = doc(collection(sourcePPOBAccountRef, 'transactions'));
                      transaction.set(cashbackTxRef, {
-                        kasAccountId: sourcePPOBAccount.id, type: 'credit', name: `Cashback Tagihan PLN`, account: sourcePPOBAccount.label, date: nowISO, amount: cashback, balanceBefore: balanceAfterDebit, balanceAfter: finalSourceBalance, category: 'ppob_cashback', deviceName
+                        kasAccountId: sourcePPOBAccount.id, type: 'credit', name: `Cashback Tagihan PLN`, account: sourcePPOBAccount.label, date: nowISO, amount: cashback, balanceBefore: balanceAfterDebit, balanceAfter: finalSourceBalance, category: 'ppob_pln_postpaid_cashback', deviceName, auditId
                      });
                 }
                 
@@ -145,7 +162,7 @@ export default function PPOBPlnPostpaidReview({ formData, onConfirm, onBack }: P
                         transaction.update(finalLaciAccountRef, { balance: currentLaciBalance + totalAmount });
                         const creditTunaiRef = doc(collection(finalLaciAccountRef, 'transactions'));
                         transaction.set(creditTunaiRef, {
-                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Tagihan PLN`, account: formData.customerName, date: nowISO, amount: totalAmount, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + totalAmount, category: 'customer_payment_ppob', deviceName
+                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Tagihan PLN`, account: formData.customerName, date: nowISO, amount: totalAmount, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + totalAmount, category: 'ppob_pln_postpaid_payment', deviceName, auditId
                         });
                         break;
                     case 'Transfer':
@@ -153,7 +170,7 @@ export default function PPOBPlnPostpaidReview({ formData, onConfirm, onBack }: P
                         transaction.update(paymentAccRef, { balance: currentPaymentAccBalance + totalAmount });
                         const creditTransferRef = doc(collection(paymentAccRef, 'transactions'));
                         transaction.set(creditTransferRef, {
-                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Tagihan PLN`, account: formData.customerName, date: nowISO, amount: totalAmount, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + totalAmount, category: 'customer_payment_ppob', deviceName
+                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Tagihan PLN`, account: formData.customerName, date: nowISO, amount: totalAmount, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + totalAmount, category: 'ppob_pln_postpaid_payment', deviceName, auditId
                         });
                         break;
                     case 'Split':
@@ -161,31 +178,16 @@ export default function PPOBPlnPostpaidReview({ formData, onConfirm, onBack }: P
                         transaction.update(finalLaciAccountRef, { balance: currentLaciBalance + splitTunaiAmount });
                         const creditSplitTunaiRef = doc(collection(finalLaciAccountRef, 'transactions'));
                         transaction.set(creditSplitTunaiRef, {
-                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Tunai Tagihan PLN`, account: formData.customerName, date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + splitTunaiAmount, category: 'customer_payment_ppob', deviceName
+                             kasAccountId: laciAccountId, type: 'credit', name: `Bayar Tunai Tagihan PLN`, account: formData.customerName, date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + splitTunaiAmount, category: 'ppob_pln_postpaid_payment', deviceName, auditId
                         });
 
                         transaction.update(paymentAccRef, { balance: currentPaymentAccBalance + splitTransferAmount });
                         const creditSplitTransferRef = doc(collection(paymentAccRef, 'transactions'));
                         transaction.set(creditSplitTransferRef, {
-                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Tagihan PLN`, account: formData.customerName, date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + splitTransferAmount, category: 'customer_payment_ppob', deviceName
+                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Tagihan PLN`, account: formData.customerName, date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentAccBalance, balanceAfter: currentPaymentAccBalance + splitTransferAmount, category: 'ppob_pln_postpaid_payment', deviceName, auditId
                         });
                         break;
                 }
-            });
-
-            await addDoc(collection(firestore, 'ppobPlnPostpaid'), {
-                date: now,
-                customerName: formData.customerName,
-                billAmount: formData.billAmount,
-                totalAmount: formData.totalAmount,
-                cashback: formData.cashback || 0,
-                netProfit,
-                sourcePPOBAccountId: formData.sourcePPOBAccountId,
-                paymentMethod: formData.paymentMethod,
-                paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? totalAmount : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
-                paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? formData.paymentToKasTransferAccountId : null,
-                paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalAmount : (paymentMethod === 'Split' ? splitTransferAmount : 0),
-                deviceName
             });
 
             toast({ title: "Sukses", description: "Transaksi PLN Pascabayar berhasil disimpan." });

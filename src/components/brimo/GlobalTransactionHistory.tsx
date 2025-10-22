@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, getDocs, orderBy, where, Timestamp, doc, writeBatch } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, where, Timestamp, doc, writeBatch, deleteDoc } from 'firebase/firestore';
 import type { KasAccount, Transaction } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,42 +31,20 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
     return `Rp ${num.toLocaleString('id-ID')}`;
 };
 
-const categoryToCollectionMap: Record<string, string> = {
-    'customer_transfer': 'customerTransfers',
-    'customer_withdrawal': 'customerWithdrawals',
-    'customer_topup': 'customerTopUps',
-    'customer_emoney_topup': 'customerEmoneyTopUps',
-    'customer_va_payment': 'customerVAPayments',
-    'edc_service': 'edcServices',
-    'settlement': 'settlements',
-    'customer_kjp_withdrawal': 'customerKJPWithdrawals',
-    'ppob_purchase': 'ppobTransactions',
-    'ppob_cashback': 'ppobTransactions',
-    'customer_payment_ppob': 'ppobTransactions',
-    'ppob_pln_postpaid': 'ppobPlnPostpaid'
-};
-
 const getCollectionNameFromCategory = (category?: string): string | null => {
     if (!category) return null;
-    const baseCategory = category.split('_')[0] + (category.includes('ppob') ? '' : (category.split('_')[1] || ''));
-    for (const key in categoryToCollectionMap) {
-        if (key.startsWith(baseCategory)) {
-            return categoryToCollectionMap[key];
-        }
-    }
-     // Fallback for more complex categories
-    if (category.includes('transfer')) return 'customerTransfers';
-    if (category.includes('withdrawal')) return 'customerWithdrawals';
-    if (category.includes('topup')) return 'customerTopUps';
-    if (category.includes('emoney')) return 'customerEmoneyTopUps';
-    if (category.includes('va')) return 'customerVAPayments';
-    if (category.includes('edc')) return 'edcServices';
-    if (category.includes('kjp')) return 'customerKJPWithdrawals';
-    if (category.includes('settlement')) return 'settlements';
-    if (category.includes('pln')) return 'ppobPlnPostpaid';
-    if (category.includes('ppob')) return 'ppobTransactions';
-
-
+    
+    if (category.startsWith('ppob_pln_postpaid')) return 'ppobPlnPostpaid';
+    if (category.startsWith('ppob_')) return 'ppobTransactions';
+    if (category.startsWith('customer_transfer')) return 'customerTransfers';
+    if (category.startsWith('customer_withdrawal')) return 'customerWithdrawals';
+    if (category.startsWith('customer_topup')) return 'customerTopUps';
+    if (category.startsWith('customer_emoney_topup')) return 'customerEmoneyTopUps';
+    if (category.startsWith('customer_va_payment')) return 'customerVAPayments';
+    if (category.startsWith('edc_service')) return 'edcServices';
+    if (category.startsWith('settlement')) return 'settlements';
+    if (category.startsWith('customer_kjp_withdrawal')) return 'customerKJPWithdrawals';
+    
     return null;
 }
 
@@ -149,38 +127,35 @@ export default function GlobalTransactionHistory() {
 
     toast({ title: "Memproses...", description: "Mencari & menghapus transaksi terkait." });
 
+    const { auditId, category } = transactionToDelete;
+
+    if (!auditId) {
+        toast({ variant: "destructive", title: "Gagal", description: "Transaksi ini tidak memiliki ID audit untuk dihapus secara aman." });
+        setIsDeleteOpen(false);
+        setTransactionToDelete(null);
+        return;
+    }
+
     try {
         const batch = writeBatch(firestore);
-        const { date, category } = transactionToDelete;
-        const transactionTimestamp = new Date(date);
 
-        // --- 1. Find and delete the audit log entry ---
+        // --- 1. Delete the main audit log entry ---
         const auditCollectionName = getCollectionNameFromCategory(category);
         if (auditCollectionName) {
-            const auditQuery = query(
-                collection(firestore, auditCollectionName),
-                where('date', '==', Timestamp.fromDate(transactionTimestamp))
-            );
-            const auditSnapshot = await getDocs(auditQuery);
-            if (!auditSnapshot.empty) {
-                // Assuming the first match is the correct one
-                const auditDocRef = auditSnapshot.docs[0].ref;
-                batch.delete(auditDocRef);
-            } else {
-                 console.warn(`Audit log for category '${category}' at timestamp '${date}' not found in collection '${auditCollectionName}'.`);
-            }
+            const auditDocRef = doc(firestore, auditCollectionName, auditId);
+            batch.delete(auditDocRef);
         } else {
             console.warn(`No audit collection mapping found for category: ${category}`);
         }
 
-        // --- 2. Find and delete all related kas transactions ---
+        // --- 2. Find and delete all related kas transactions using auditId ---
         let allRelatedTrxRefs = [];
         let balanceChanges = new Map<string, number>(); // kasAccountId -> total change
         
         for (const account of kasAccounts) {
             const trxQuery = query(
                 collection(firestore, 'kasAccounts', account.id, 'transactions'),
-                where('date', '==', date)
+                where('auditId', '==', auditId)
             );
             const querySnapshot = await getDocs(trxQuery);
             querySnapshot.forEach(docSnap => {
@@ -194,7 +169,8 @@ export default function GlobalTransactionHistory() {
         }
         
         if (allRelatedTrxRefs.length === 0) {
-             // Fallback for a single, unrelated transaction
+             console.warn("Could not find any kas transactions with auditId:", auditId);
+             // Fallback for safety, though it shouldn't be needed with the new logic
              const { kasAccountId, type, amount } = transactionToDelete;
              const trxRef = doc(firestore, 'kasAccounts', kasAccountId, 'transactions', transactionToDelete.id);
              allRelatedTrxRefs.push(trxRef);

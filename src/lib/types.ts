@@ -213,9 +213,9 @@ export type ReportItem =
     | (CustomerTransfer & { id: string; transactionType: 'Transfer' }) 
     | (CustomerWithdrawal & { id: string; transactionType: 'Tarik Tunai' }) 
     | (CustomerTopUp & { id: string; transactionType: 'Top Up' })
-    | (CustomerEmoneyTopUp & { id: string; transactionType: 'Top Up E-Money' })
-    | (CustomerVAPayment & { id: string; transactionType: 'VA Payment' })
-    | (EDCService & { id: string; transactionType: 'Layanan EDC' })
+    // | (CustomerEmoneyTopUp & { id: string; transactionType: 'Top Up E-Money' })
+    // | (CustomerVAPayment & { id: string; transactionType: 'VA Payment' })
+    // | (EDCService & { id: string; transactionType: 'Layanan EDC' })
     | (CustomerKJPWithdrawal & { id: string; transactionType: 'Tarik Tunai KJP' });
 
 export const MotivationFormSchema = z.object({
@@ -277,7 +277,6 @@ export const PPOBPlnPostpaidFormSchema = z.object({
 
 export type PPOBPlnPostpaidFormValues = z.infer<typeof PPOBPlnPostpaidFormSchema>;
 
-
 export type PPOBTransaction = {
     id: string;
     date: string;
@@ -296,6 +295,22 @@ export type PPOBTransaction = {
 }
 
 export type PPOBPlnPostpaid = {
+    id: string;
+    date: string;
+    customerName: string;
+    billAmount: number;
+    totalAmount: number;
+    cashback?: number;
+    netProfit: number;
+    sourcePPOBAccountId: string;
+    paymentMethod: "Tunai" | "Transfer" | "Split";
+    paymentToKasTunaiAmount?: number;
+    paymentToKasTransferAccountId?: string | null;
+    paymentToKasTransferAmount?: number;
+    deviceName: string;
+}
+
+export type PPOBPdam = {
     id: string;
     date: string;
     customerName: string;
