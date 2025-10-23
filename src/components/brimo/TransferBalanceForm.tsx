@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -59,6 +59,11 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
   }, [firestore]);
 
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
+
+  const sortedKasAccounts = useMemo(() => {
+    if (!kasAccounts) return [];
+    return [...kasAccounts].sort((a, b) => b.balance - a.balance);
+  }, [kasAccounts]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -192,7 +197,7 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {kasAccounts?.map(acc => (
+                      {sortedKasAccounts.map(acc => (
                         <SelectItem key={acc.id} value={acc.id}>{acc.label} ({formatToRupiah(acc.balance)})</SelectItem>
                       ))}
                     </SelectContent>
@@ -214,7 +219,7 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {kasAccounts?.map(acc => (
+                      {sortedKasAccounts.map(acc => (
                         <SelectItem key={acc.id} value={acc.id}>{acc.label}</SelectItem>
                       ))}
                     </SelectContent>
@@ -334,5 +339,3 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
     </Form>
   );
 }
-
-    
