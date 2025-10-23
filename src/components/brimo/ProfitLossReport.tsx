@@ -107,7 +107,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
             const fetchedPpobReports = ppobSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PPOBTransaction & {id: string}));
             const fetchedPpobBillReports: PpobBillReportItem[] = [];
             ppobPlnPostpaidSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBPlnPostpaid), serviceName: 'PLN Pascabayar' }));
-            ppobPdamSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBPdam), serviceName: 'PDAM' }));
+            pdamSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBPdam), serviceName: 'PDAM' }));
             fetchedPpobBillReports.sort((a, b) => (b.date as any).toDate().getTime() - (a.date as any).toDate().getTime());
 
             setBrilinkReports(combinedBrilinkReports);
@@ -279,10 +279,6 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                 <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.adminBank)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.jasa)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.labaRugi)}</TableCell>
-                            </TableRow>
-                            <TableRow className="font-bold text-lg bg-muted">
-                                <TableCell colSpan={7} className="sticky left-0 bg-muted z-10">Total Laba BRILink</TableCell>
-                                <TableCell className="text-right text-green-600 py-2">{formatToRupiah(brilinkTotals.labaRugi)}</TableCell>
                             </TableRow>
                         </TableFooter>
                     </Table>
