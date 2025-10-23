@@ -107,7 +107,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
             const fetchedPpobReports = ppobSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PPOBTransaction & {id: string}));
             const fetchedPpobBillReports: PpobBillReportItem[] = [];
             ppobPlnPostpaidSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBPlnPostpaid), serviceName: 'PLN Pascabayar' }));
-            pdamSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBPdam), serviceName: 'PDAM' }));
+            ppobPdamSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBPdam), serviceName: 'PDAM' }));
             fetchedPpobBillReports.sort((a, b) => (b.date as any).toDate().getTime() - (a.date as any).toDate().getTime());
 
             setBrilinkReports(combinedBrilinkReports);
@@ -356,4 +356,3 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
         </div>
     </div>
   );
-}
