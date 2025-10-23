@@ -33,22 +33,63 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 
 const getCollectionNameFromCategory = (category?: string): string | null => {
     if (!category) return null;
-    
-    if (category.startsWith('customer_transfer')) return 'customerTransfers';
-    if (category.startsWith('customer_withdrawal')) return 'customerWithdrawals';
-    if (category.startsWith('customer_topup')) return 'customerTopUps';
-    if (category.startsWith('customer_emoney_topup')) return 'customerEmoneyTopUps';
-    if (category.startsWith('customer_va_payment')) return 'customerVAPayments';
-    if (category.startsWith('edc_service')) return 'edcServices';
-    if (category.startsWith('settlement')) return 'settlements';
-    if (category.startsWith('customer_kjp_withdrawal')) return 'customerKJPWithdrawals';
-    if (category === 'transfer' || category === 'transfer_fee') return 'internalTransfers';
-    if (category === 'ppob_purchase' || category === 'customer_payment_ppob') return 'ppobTransactions';
-    if (category.startsWith('ppob_pln_postpaid')) return 'ppobPlnPostpaid';
-    if (category.startsWith('ppob_pdam')) return 'ppobPdam';
 
-    return null;
-}
+    // Use strict equality checks for precise mapping
+    switch (category) {
+        case 'customer_transfer_debit':
+        case 'customer_transfer_fee':
+        case 'customer_payment': // This can be from transfer, so we check the transfers collection
+            return 'customerTransfers';
+
+        case 'customer_withdrawal_credit':
+        case 'customer_withdrawal_debit':
+        case 'service_fee_income': // Can be from withdrawal
+             return 'customerWithdrawals';
+
+        case 'customer_topup_debit':
+            return 'customerTopUps';
+
+        case 'customer_emoney_topup_debit':
+            return 'customerEmoneyTopUps';
+        
+        case 'customer_va_payment_debit':
+        case 'customer_va_payment_fee':
+            return 'customerVAPayments';
+
+        case 'edc_service':
+            return 'edcServices';
+
+        case 'settlement_debit':
+        case 'settlement_credit':
+            return 'settlements';
+
+        case 'customer_kjp_withdrawal_credit':
+        case 'customer_kjp_withdrawal_debit':
+            return 'customerKJPWithdrawals';
+            
+        case 'transfer':
+        case 'transfer_fee':
+            return 'internalTransfers';
+
+        case 'ppob_purchase':
+        case 'customer_payment_ppob':
+            return 'ppobTransactions';
+
+        case 'ppob_pln_postpaid':
+        case 'ppob_pln_postpaid_cashback':
+        case 'ppob_pln_postpaid_payment':
+            return 'ppobPlnPostpaid';
+        
+        case 'ppob_pdam_payment':
+        case 'ppob_pdam_cashback':
+            return 'ppobPdam';
+
+        default:
+            // Fallback for general customer payments that might not have specific debit types
+            if (category.includes('customer_payment')) return 'customerTransfers'; // A guess, might need refinement
+            return null;
+    }
+};
 
 
 export default function GlobalTransactionHistory() {
@@ -170,7 +211,7 @@ export default function GlobalTransactionHistory() {
             }
         }
         
-        // Fallback for transactions without auditId or if search fails
+        // Fallback for transactions without auditId or if search fails to find related ones
         if (allRelatedTrxRefs.length === 0) {
              const { kasAccountId, type, amount } = transactionToDelete;
              const trxRef = doc(firestore, 'kasAccounts', kasAccountId, 'transactions', transactionToDelete.id);
@@ -349,6 +390,5 @@ export default function GlobalTransactionHistory() {
         </Sheet>
     </div>
   );
-}
 
     
