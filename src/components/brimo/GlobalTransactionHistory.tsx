@@ -350,3 +350,5 @@ export default function GlobalTransactionHistory() {
     </div>
   );
 }
+
+    
