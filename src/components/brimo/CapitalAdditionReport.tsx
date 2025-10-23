@@ -64,7 +64,6 @@ export default function CapitalAdditionReport({ onDone }: CapitalAdditionReportP
                 const transQuery = query(
                     collection(firestore, 'kasAccounts', account.id, 'transactions'),
                     where('category', '==', 'capital'),
-                    where('type', '==', 'credit'),
                     ...(dateFrom ? [where('date', '>=', dateFrom)] : []),
                     ...(dateTo ? [where('date', '<=', dateTo)] : [])
                 );
@@ -72,13 +71,15 @@ export default function CapitalAdditionReport({ onDone }: CapitalAdditionReportP
                 
                 transSnapshot.forEach(docSnap => {
                     const data = docSnap.data() as Transaction;
-                    combinedAdditions.push({
-                        id: `trx-${docSnap.id}`,
-                        date: new Date(data.date),
-                        description: data.name,
-                        amount: data.amount,
-                        destinationAccount: account.label
-                    });
+                    if (data.type === 'credit') {
+                      combinedAdditions.push({
+                          id: `trx-${docSnap.id}`,
+                          date: new Date(data.date),
+                          description: data.name,
+                          amount: data.amount,
+                          destinationAccount: account.label
+                      });
+                    }
                 });
             }
 
@@ -92,7 +93,9 @@ export default function CapitalAdditionReport({ onDone }: CapitalAdditionReportP
         }
     };
     
-    fetchAdditions();
+    if (kasAccounts) {
+      fetchAdditions();
+    }
   }, [firestore, dateRange, kasAccounts]);
   
   const totalAddition = additions.reduce((sum, item) => sum + item.amount, 0);
