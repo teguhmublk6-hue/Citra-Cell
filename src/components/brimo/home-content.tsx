@@ -8,7 +8,7 @@ import AdminContent from './AdminContent';
 import SettingsContent from './settings-content';
 import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw, Banknote, ArrowLeft } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, writeBatch, getDocs, doc } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDocs } from 'firebase/firestore';
 import type { KasAccount as KasAccountType } from '@/lib/data';
 import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight, CreditCard, IdCard, GraduationCap, Lightbulb, BookText, Home, FileText } from 'lucide-react';
 import Header from './header';
@@ -91,9 +91,10 @@ type FormSheet = 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | '
 
 interface HomeContentProps {
   revalidateData: () => void;
+  isSyncing: boolean;
 }
 
-export default function HomeContent({ revalidateData }: HomeContentProps) {
+export default function HomeContent({ revalidateData, isSyncing }: HomeContentProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
   const [isRepeatDialogOpen, setIsRepeatDialogOpen] = useState(false);
@@ -149,7 +150,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     return collection(firestore, 'kasAccounts');
   }, [firestore]);
 
-  const { data: kasAccounts, isLoading: isAccountsLoading } = useCollection<KasAccountType>(kasAccountsCollection);
+  const { data: kasAccounts } = useCollection<KasAccountType>(kasAccountsCollection);
   
   useEffect(() => {
     if (!carouselApi) return;
@@ -455,7 +456,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
           <>
             <Header 
               onSync={revalidateData} 
-              isSyncing={isAccountsLoading} 
+              isSyncing={isSyncing} 
             />
             <div className="px-4 -mt-16">
               <Carousel 
