@@ -144,6 +144,23 @@
         "amount"
       ]
     },
+    "InternalTransfer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "InternalTransfer",
+      "type": "object",
+      "description": "Represents an internal balance transfer between two KasAccounts.",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "sourceAccountId": { "type": "string" },
+        "destinationAccountId": { "type": "string" },
+        "amount": { "type": "number" },
+        "adminFee": { "type": "number" },
+        "description": { "type": "string" },
+        "deviceName": { "type": "string" }
+      },
+      "required": ["date", "sourceAccountId", "destinationAccountId", "amount", "adminFee", "deviceName"]
+    },
     "CustomerTransfer": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "CustomerTransfer",
@@ -569,6 +586,12 @@
       },
       "description": "Stores transaction history for each cash account in a global, public subcollection. All users can read and write transactions for any account."
     },
+    "/internalTransfers/{internalTransferId}": {
+      "schema": {
+        "$ref": "#/entities/InternalTransfer"
+      },
+      "description": "Stores a log of all internal balance transfers between KasAccounts for auditing."
+    },
     "/customerTransfers/{customerTransferId}": {
       "schema": {
         "$ref": "#/entities/CustomerTransfer"
@@ -637,5 +660,3 @@
     }
   }
 }
-
-    

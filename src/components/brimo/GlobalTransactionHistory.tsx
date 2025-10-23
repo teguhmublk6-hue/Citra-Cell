@@ -35,6 +35,7 @@ const getCollectionNameFromCategory = (category?: string): string | null => {
     if (!category) return null;
     
     if (category.startsWith('ppob_pln_postpaid')) return 'ppobPlnPostpaid';
+    if (category.startsWith('ppob_pdam')) return 'ppobPdam';
     if (category.startsWith('ppob_')) return 'ppobTransactions';
     if (category.startsWith('customer_transfer')) return 'customerTransfers';
     if (category.startsWith('customer_withdrawal')) return 'customerWithdrawals';
@@ -44,6 +45,7 @@ const getCollectionNameFromCategory = (category?: string): string | null => {
     if (category.startsWith('edc_service')) return 'edcServices';
     if (category.startsWith('settlement')) return 'settlements';
     if (category.startsWith('customer_kjp_withdrawal')) return 'customerKJPWithdrawals';
+    if (category.startsWith('transfer')) return 'internalTransfers';
     
     return null;
 }

@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, writeBatch, serverTimestamp, addDoc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { useState, useMemo } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -100,10 +100,23 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
     }
     
     try {
-        const batch = writeBatch(firestore);
         const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
+        const now = new Date();
+        const nowISO = now.toISOString();
 
-        const now = new Date().toISOString();
+        const auditDocRef = await addDoc(collection(firestore, "internalTransfers"), {
+            date: now,
+            sourceAccountId: values.sourceAccountId,
+            destinationAccountId: values.destinationAccountId,
+            amount: values.amount,
+            adminFee: fee,
+            description: values.description || '',
+            deviceName: deviceName
+        });
+
+        const auditId = auditDocRef.id;
+        
+        const batch = writeBatch(firestore);
 
         // Source account refs
         const sourceDocRef = doc(firestore, 'kasAccounts', sourceAccount.id);
@@ -122,9 +135,9 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
         batch.set(sourceTransactionRef, {
             kasAccountId: sourceAccount.id,
             type: 'debit',
-            name: `Transfer ke ${destinationAccount.label}`,
+            name: values.description || `Transfer ke ${destinationAccount.label}`,
             account: destinationAccount.label,
-            date: now,
+            date: nowISO,
             amount: values.amount,
             balanceBefore: sourceAccount.balance,
             balanceAfter: sourceAccount.balance - totalDebit,
@@ -132,15 +145,16 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
             destinationKasAccountId: destinationAccount.id,
             category: 'transfer',
             deviceName: deviceName,
+            auditId: auditId
         });
 
         // Create credit transaction for destination
         batch.set(destinationTransactionRef, {
             kasAccountId: destinationAccount.id,
             type: 'credit',
-            name: `Transfer dari ${sourceAccount.label}`,
+            name: values.description || `Transfer dari ${sourceAccount.label}`,
             account: sourceAccount.label,
-            date: now,
+            date: nowISO,
             amount: values.amount,
             balanceBefore: destinationAccount.balance,
             balanceAfter: destinationAccount.balance + values.amount,
@@ -148,6 +162,7 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
             destinationKasAccountId: destinationAccount.id,
             category: 'transfer',
             deviceName: deviceName,
+            auditId: auditId
         });
 
         // Create fee transaction if applicable
@@ -158,14 +173,15 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
                 type: 'debit',
                 name: `Biaya Admin Transfer ke ${destinationAccount.label}`,
                 account: 'Biaya Transaksi',
-                date: now, // IMPORTANT: Use the same timestamp
+                date: nowISO, // IMPORTANT: Use the same timestamp
                 amount: fee,
                 balanceBefore: sourceAccount.balance - values.amount, // Balance after transfer, before fee
                 balanceAfter: sourceAccount.balance - totalDebit, // Final balance
-                category: 'operational',
+                category: 'transfer_fee', // More specific category
                 sourceKasAccountId: sourceAccount.id, // Add for context
                 destinationKasAccountId: destinationAccount.id, // Add for context
                 deviceName: deviceName,
+                auditId: auditId
             });
         }
         
