@@ -81,10 +81,9 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
                 }
             });
 
-            // 2. Fetch 'operational_fee' or 'operational' from transactions
+            // 2. Fetch 'operational' or 'operational_fee' from transactions
             if (kasAccounts) {
                  for (const account of kasAccounts) {
-                    // Query only by date to avoid composite index requirement
                     const transQuery = query(
                         collection(firestore, 'kasAccounts', account.id, 'transactions'),
                          ...(dateFrom ? [where('date', '>=', dateFrom.toDate().toISOString())] : []),
@@ -92,7 +91,6 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
                     );
                     const transSnapshot = await getDocs(transQuery);
                     
-                    // Filter by category on the client side
                     transSnapshot.forEach(docSnap => {
                         const data = docSnap.data() as Transaction;
                         if (data.category === 'operational' || data.category === 'operational_fee') {
@@ -104,7 +102,7 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
                                 source: `Akun ${account.label}`
                             });
                         }
-                    })
+                    });
                  }
             }
 
@@ -185,7 +183,7 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
                     <p className="text-sm text-muted-foreground">Tidak ada biaya operasional untuk rentang tanggal yang dipilih.</p>
                 </div>
             ) : (
-                <Table className="text-[11px] whitespace-nowrap">
+                <Table className="text-sm whitespace-nowrap">
                     <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
                             <TableHead className="w-[40px] sticky left-0 bg-background z-20 py-2">No</TableHead>
