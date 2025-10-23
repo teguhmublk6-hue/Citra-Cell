@@ -109,6 +109,7 @@ const calculateServiceFee = (amount: number): number => {
 export default function CustomerTransferForm({ onReview, onDone }: CustomerTransferFormProps) {
   const firestore = useFirestore();
   const [bankPopoverOpen, setBankPopoverOpen] = useState(false);
+  const [bankSearch, setBankSearch] = useState('');
 
   
   const kasAccountsCollection = useMemoFirebase(() => {
@@ -199,7 +200,7 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
                             )}
                         >
                             {field.value
-                            ? bankData.find((bank) => bank.name === field.value)?.name
+                            ? bankData.find((bank) => bank.name === field.value)?.name || field.value
                             : "Pilih bank"}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
@@ -207,8 +208,24 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
                         <Command>
-                        <CommandInput placeholder="Cari bank..." />
-                        <CommandEmpty>Bank tidak ditemukan.</CommandEmpty>
+                        <CommandInput 
+                            placeholder="Cari bank..." 
+                            value={bankSearch}
+                            onValueChange={setBankSearch}
+                        />
+                        <CommandEmpty>
+                            <button
+                                type="button"
+                                className="w-full text-left p-2 text-sm hover:bg-accent"
+                                onClick={() => {
+                                    form.setValue("destinationBank", bankSearch);
+                                    setBankPopoverOpen(false);
+                                    setBankSearch("");
+                                }}
+                            >
+                                Gunakan "{bankSearch}"
+                            </button>
+                        </CommandEmpty>
                         <CommandGroup>
                             <ScrollArea className="h-72">
                             {bankData.map((bank) => (
@@ -218,6 +235,7 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
                                 onSelect={() => {
                                     form.setValue("destinationBank", bank.name)
                                     setBankPopoverOpen(false)
+                                    setBankSearch("")
                                 }}
                                 >
                                 <Check

@@ -17,7 +17,9 @@
   { "name": "Bank UOB Indonesia", "code": "023" },
   { "name": "Bank BTN", "code": "200" },
   { "name": "Bank DBS Indonesia", "code": "046" },
+  { "name": "Digibank by DBS", "code": "046" },
   { "name": "Bank Jenius (BTPN)", "code": "213" },
+  { "name": "Bank BTPN", "code": "213" },
   { "name": "GoPay (Gojek)", "code": "995" },
   { "name": "OVO", "code": "996" },
   { "name": "DANA", "code": "997" },
@@ -25,6 +27,10 @@
   { "name": "ShopeePay", "code": "998" },
   { "name": "Bank Jago", "code": "542" },
   { "name": "SeaBank", "code": "535" },
+  { "name": "Blu by BCA Digital", "code": "501" },
+  { "name": "Bank Aladin Syariah", "code": "947" },
+  { "name": "Bank Neo Commerce", "code": "490" },
+  { "name": "LINE Bank (Hana Bank)", "code": "485" },
   { "name": "BPD DKI Jakarta", "code": "111" },
   { "name": "BPD Jawa Barat (BJB)", "code": "110" },
   { "name": "BPD Jawa Tengah", "code": "113" },
@@ -52,5 +58,3 @@
   { "name": "BPD Sultra", "code": "135" },
   { "name": "BPD Banten", "code": "137" }
 ]
-
-    
