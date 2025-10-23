@@ -172,7 +172,7 @@ export default function GlobalTransactionHistory() {
         
         if (allRelatedTrxRefs.length === 0) {
              console.warn("Could not find any kas transactions with auditId:", auditId);
-             // Fallback for safety, though it shouldn't be needed with the new logic
+             // Fallback for safety if auditId somehow fails to find related docs
              const { kasAccountId, type, amount } = transactionToDelete;
              const trxRef = doc(firestore, 'kasAccounts', kasAccountId, 'transactions', transactionToDelete.id);
              allRelatedTrxRefs.push(trxRef);
@@ -351,3 +351,5 @@ export default function GlobalTransactionHistory() {
     </div>
   );
 }
+
+    
