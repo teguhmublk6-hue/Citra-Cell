@@ -54,7 +54,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
           const tunaiAccounts = kasAccounts?.filter(acc => acc.type === 'Tunai') || [];
           for (const tunaiAccount of tunaiAccounts) {
             const transactionsRef = collection(firestore, 'kasAccounts', tunaiAccount.id, 'transactions');
-            const constraints = [orderBy('date', 'desc')];
+            const constraints = [];
             if (dateRange?.from) constraints.push(where('date', '>=', startOfDay(dateRange.from).toISOString()));
             if (dateRange?.to) constraints.push(where('date', '<=', endOfDay(dateRange.to).toISOString()));
             
@@ -67,7 +67,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
         } else {
           // Fetch from a single specified account
           const transactionsRef = collection(firestore, 'kasAccounts', account.id, 'transactions');
-          const constraints = [orderBy('date', 'desc')];
+          const constraints = [];
           if (dateRange?.from) constraints.push(where('date', '>=', startOfDay(dateRange.from).toISOString()));
           if (dateRange?.to) constraints.push(where('date', '<=', endOfDay(dateRange.to).toISOString()));
           
