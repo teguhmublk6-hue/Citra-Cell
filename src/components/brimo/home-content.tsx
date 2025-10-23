@@ -72,6 +72,7 @@ import AccountsContent from './AccountsContent';
 import PendingSettlements from './PendingSettlements';
 import OperationalCostReport from './OperationalCostReport';
 import ReportsContent from './ReportsContent';
+import CapitalAdditionReport from './CapitalAdditionReport';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -107,6 +108,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
   const [isPpobReportVisible, setIsPpobReportVisible] = useState(false);
   const [isProfitLossReportVisible, setIsProfitLossReportVisible] = useState(false);
   const [isOperationalCostReportVisible, setIsOperationalCostReportVisible] = useState(false);
+  const [isCapitalAdditionReportVisible, setIsCapitalAdditionReportVisible] = useState(false);
   const [isDeleteReportsDialogOpen, setIsDeleteReportsDialogOpen] = useState(false);
   const [isDeleteAllAccountsDialogOpen, setIsDeleteAllAccountsDialogOpen] = useState(false);
   const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -297,6 +299,10 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
     setIsOperationalCostReportVisible(true);
   }
 
+  const handleCapitalAdditionReportClick = () => {
+    setIsCapitalAdditionReportVisible(true);
+  };
+
   const handleSetMotivationClick = () => {
     setActiveSheet('setMotivation');
   }
@@ -425,6 +431,10 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         return <OperationalCostReport onDone={() => setIsOperationalCostReportVisible(false)} />;
     }
 
+    if (isCapitalAdditionReportVisible) {
+        return <CapitalAdditionReport onDone={() => setIsCapitalAdditionReportVisible(false)} />;
+    }
+
   const isKJPReview = activeSheet === 'customerKJPReview' && reviewData && 'withdrawalAmount' in reviewData && !('customerBankSource' in reviewData);
   const isTokenReview = activeSheet === 'ppobTokenListrikReview' && reviewData && 'costPrice' in reviewData && 'customerName' in reviewData && !('phoneNumber' in reviewData);
   const isPulsaReview = activeSheet === 'ppobPulsaReview' && reviewData && 'phoneNumber' in reviewData && !('packageName' in reviewData);
@@ -515,6 +525,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
               <AdminContent 
                 onProfitLossReportClick={handleProfitLossReportClick} 
                 onOperationalCostReportClick={handleOperationalCostReportClick} 
+                onCapitalAdditionReportClick={handleCapitalAdditionReportClick}
                 onSetMotivationClick={handleSetMotivationClick} 
                 onManageKasAccountsClick={handleManageKasAccountsClick} 
                 onManagePPOBPricingClick={handleManagePPOBPricingClick} 
@@ -652,7 +663,7 @@ export default function HomeContent({ revalidateData }: HomeContentProps) {
         </SheetContent>
       </Sheet>
 
-      {activeTab !== 'admin' && !isProfitLossReportVisible && !isOperationalCostReportVisible && (
+      {activeTab !== 'admin' && !isProfitLossReportVisible && !isOperationalCostReportVisible && !isCapitalAdditionReportVisible && (
         <BottomNav activeTab={activeTab} setActiveTab={setActiveTab}>
           <Sheet>
               <SheetTrigger asChild>

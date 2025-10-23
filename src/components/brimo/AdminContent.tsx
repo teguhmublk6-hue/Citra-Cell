@@ -3,11 +3,12 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, FileText, MessageSquareQuote, DollarSign, Trash2, Tags, Briefcase } from 'lucide-react';
+import { ChevronRight, FileText, MessageSquareQuote, DollarSign, Trash2, Tags, Briefcase, TrendingUp } from 'lucide-react';
 
 interface AdminContentProps {
   onProfitLossReportClick: () => void;
   onOperationalCostReportClick: () => void;
+  onCapitalAdditionReportClick: () => void;
   onSetMotivationClick: () => void;
   onManageKasAccountsClick: () => void;
   onManagePPOBPricingClick: () => void;
@@ -15,7 +16,7 @@ interface AdminContentProps {
   onResetAllAccountsClick: () => void;
 }
 
-export default function AdminContent({ onProfitLossReportClick, onOperationalCostReportClick, onSetMotivationClick, onManageKasAccountsClick, onManagePPOBPricingClick, onResetReportsClick, onResetAllAccountsClick }: AdminContentProps) {
+export default function AdminContent({ onProfitLossReportClick, onOperationalCostReportClick, onCapitalAdditionReportClick, onSetMotivationClick, onManageKasAccountsClick, onManagePPOBPricingClick, onResetReportsClick, onResetAllAccountsClick }: AdminContentProps) {
   return (
     <div className="px-4 py-4">
       <div className="space-y-2">
@@ -36,6 +37,16 @@ export default function AdminContent({ onProfitLossReportClick, onOperationalCos
               <div className="flex items-center gap-4">
                 <Briefcase size={20} className="text-muted-foreground" />
                 <span className="font-medium">Laporan Biaya Operasional</span>
+              </div>
+              <ChevronRight size={20} className="text-muted-foreground" />
+          </button>
+          <button 
+              onClick={onCapitalAdditionReportClick}
+              className="flex items-center justify-between p-4 bg-card-foreground/5 rounded-xl w-full hover:bg-card-foreground/10 transition-colors"
+          >
+              <div className="flex items-center gap-4">
+                <TrendingUp size={20} className="text-muted-foreground" />
+                <span className="font-medium">Laporan Penambahan Saldo</span>
               </div>
               <ChevronRight size={20} className="text-muted-foreground" />
           </button>
@@ -93,5 +104,4 @@ export default function AdminContent({ onProfitLossReportClick, onOperationalCos
     </div>
   );
 }
-
     
