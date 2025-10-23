@@ -81,7 +81,7 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
                 }
             });
 
-            // 2. Fetch 'operational' or 'operational_fee' from transactions
+            // 2. Fetch 'operational', 'operational_fee', and 'transfer_fee' from transactions
             if (kasAccounts) {
                  for (const account of kasAccounts) {
                     const transQuery = query(
@@ -93,7 +93,7 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
                     
                     transSnapshot.forEach(docSnap => {
                         const data = docSnap.data() as Transaction;
-                        if (data.category === 'operational' || data.category === 'operational_fee') {
+                        if (data.category === 'operational' || data.category === 'operational_fee' || data.category === 'transfer_fee') {
                             combinedCosts.push({
                                 id: `trx-${docSnap.id}`,
                                 date: new Date(data.date),
