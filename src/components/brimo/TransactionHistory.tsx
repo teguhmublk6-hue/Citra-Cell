@@ -1,14 +1,14 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, where, getDocs } from 'firebase/firestore';
 import type { KasAccount, Transaction } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, ArrowRight } from 'lucide-react';
+import { Calendar as CalendarIcon, ArrowRight, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -23,6 +23,16 @@ interface TransactionHistoryProps {
 }
 
 type TransactionWithId = Transaction & { id: string };
+
+type GroupedTransaction = {
+    isGroup: true;
+    mainTransaction: TransactionWithId;
+    subTransactions: TransactionWithId[];
+    totalAmount: number;
+    date: string;
+};
+
+type DisplayItem = TransactionWithId | GroupedTransaction;
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
     if (value === null || value === undefined || value === '') return 'Rp 0';
@@ -97,6 +107,46 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     fetchTransactions();
   }, [firestore, account, dateRange, kasAccounts, toast]);
 
+  const displayItems = useMemo((): DisplayItem[] => {
+    const grouped = new Map<string, TransactionWithId[]>();
+    const singles: TransactionWithId[] = [];
+
+    // Group transactions by auditId
+    for (const trx of transactions) {
+        if (trx.auditId) {
+            if (!grouped.has(trx.auditId)) {
+                grouped.set(trx.auditId, []);
+            }
+            grouped.get(trx.auditId)!.push(trx);
+        } else {
+            singles.push(trx);
+        }
+    }
+
+    const processedGroups: GroupedTransaction[] = [];
+    grouped.forEach((trxs) => {
+        // Sort by amount descending to guess the main transaction
+        trxs.sort((a, b) => b.amount - a.amount);
+        const mainTransaction = trxs[0];
+        const subTransactions = trxs.slice(1);
+        const totalAmount = trxs.reduce((sum, t) => sum + t.amount, 0);
+
+        processedGroups.push({
+            isGroup: true,
+            mainTransaction,
+            subTransactions,
+            totalAmount,
+            date: mainTransaction.date,
+        });
+    });
+
+    const allItems: DisplayItem[] = [...singles, ...processedGroups];
+    // Sort all items by date again
+    allItems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return allItems;
+  }, [transactions]);
+
+
   const formatDateTime = (isoString: string) => {
     return new Date(isoString).toLocaleString('id-ID', {
       day: 'numeric',
@@ -108,6 +158,90 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
   };
   
   const getAccountLabel = (id: string) => kasAccounts?.find(acc => acc.id === id)?.label || 'Tidak diketahui';
+
+  const renderTransactionItem = (trx: TransactionWithId) => (
+      <div key={trx.id} className="py-4">
+          <div className="flex justify-between items-start mb-2">
+              <p className="font-semibold text-sm flex-1 pr-4">{trx.name}</p>
+              <p className={cn(
+                  'font-bold text-sm whitespace-nowrap',
+                  trx.type === 'credit' ? 'text-green-500' : 'text-foreground'
+              )}>
+                  {trx.type === 'credit' ? '+' : '-'} {formatToRupiah(trx.amount)}
+              </p>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            {account.id === 'tunai-gabungan' && `(${getAccountLabel(trx.kasAccountId)}) • `}
+            {formatDateTime(trx.date)}
+          </p>
+          
+          {trx.balanceBefore !== undefined && trx.balanceAfter !== undefined && (
+             <div className="flex items-center justify-between text-xs bg-card-foreground/5 p-3 rounded-md">
+                <div className="text-center">
+                    <p className="text-muted-foreground">Saldo Awal</p>
+                    <p className="font-medium">{formatToRupiah(trx.balanceBefore)}</p>
+                </div>
+                <ArrowRight size={16} className="text-muted-foreground" />
+                <div className="text-center">
+                    <p className="text-muted-foreground">Saldo Akhir</p>
+                    <p className="font-medium">{formatToRupiah(trx.balanceAfter)}</p>
+                </div>
+            </div>
+          )}
+           <Separator className="mt-4" />
+        </div>
+  );
+
+  const renderGroupedItem = (group: GroupedTransaction) => {
+      const { mainTransaction, subTransactions, totalAmount } = group;
+      const type = mainTransaction.type;
+      
+      return (
+        <div key={mainTransaction.auditId} className="py-4">
+          <div className="flex justify-between items-start mb-2">
+            <p className="font-semibold text-sm flex-1 pr-4">{mainTransaction.name}</p>
+            <p className={cn(
+                'font-bold text-sm whitespace-nowrap',
+                type === 'credit' ? 'text-green-500' : 'text-foreground'
+            )}>
+              {type === 'credit' ? '+' : '-'} {formatToRupiah(totalAmount)}
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+              {account.id === 'tunai-gabungan' && `(${getAccountLabel(mainTransaction.kasAccountId)}) • `}
+              {formatDateTime(mainTransaction.date)}
+          </p>
+          
+          <div className="bg-card-foreground/5 p-3 rounded-md space-y-2 text-xs">
+              <div className="flex justify-between">
+                  <p>Pokok</p>
+                  <p className="font-medium">{formatToRupiah(mainTransaction.amount)}</p>
+              </div>
+              {subTransactions.map(sub => (
+                   <div key={sub.id} className="flex justify-between">
+                      <p>{sub.name.replace(mainTransaction.name, '').replace('an.', 'a/n').trim() || 'Biaya'}</p>
+                      <p className="font-medium">{formatToRupiah(sub.amount)}</p>
+                  </div>
+              ))}
+          </div>
+
+          {mainTransaction.balanceBefore !== undefined && mainTransaction.balanceAfter !== undefined && (
+             <div className="flex items-center justify-between text-xs bg-card-foreground/5 p-3 rounded-md mt-2">
+                <div className="text-center">
+                    <p className="text-muted-foreground">Saldo Awal</p>
+                    <p className="font-medium">{formatToRupiah(mainTransaction.balanceBefore)}</p>
+                </div>
+                <ArrowRight size={16} className="text-muted-foreground" />
+                <div className="text-center">
+                    <p className="text-muted-foreground">Saldo Akhir</p>
+                    <p className="font-medium">{formatToRupiah(mainTransaction.balanceAfter)}</p>
+                </div>
+            </div>
+          )}
+           <Separator className="mt-4" />
+        </div>
+      );
+  };
 
   return (
     <div className="h-full flex flex-col pt-4">
@@ -158,47 +292,22 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
             <Skeleton className="h-24 w-full" />
           </div>
         )}
-        {!isLoading && (!transactions || transactions.length === 0) && (
+        {!isLoading && (!displayItems || displayItems.length === 0) && (
           <div className="flex flex-col items-center justify-center h-full py-20 text-center">
             <CalendarIcon size={48} strokeWidth={1} className="text-muted-foreground mb-4" />
             <p className="font-semibold">Belum Ada Transaksi</p>
             <p className="text-sm text-muted-foreground">Tidak ada riwayat mutasi untuk rentang tanggal yang dipilih.</p>
           </div>
         )}
-        {!isLoading && transactions && transactions.length > 0 && (
+        {!isLoading && displayItems && displayItems.length > 0 && (
           <div className="flex flex-col">
-            {transactions.map((trx) => (
-              <div key={trx.id} className="py-4">
-                <div className="flex justify-between items-center mb-2">
-                    <p className="font-semibold text-sm">{trx.name}</p>
-                    <p className={cn(
-                        'font-bold text-sm',
-                        trx.type === 'credit' ? 'text-green-500' : 'text-foreground'
-                    )}>
-                        {trx.type === 'credit' ? '+' : '-'} {formatToRupiah(trx.amount)}
-                    </p>
-                </div>
-                <p className="text-xs text-muted-foreground mb-3">
-                  {account.id === 'tunai-gabungan' && `(${getAccountLabel(trx.kasAccountId)}) • `}
-                  {formatDateTime(trx.date)}
-                </p>
-                
-                {trx.balanceBefore !== undefined && trx.balanceAfter !== undefined && (
-                   <div className="flex items-center justify-between text-xs bg-card-foreground/5 p-3 rounded-md">
-                      <div className="text-center">
-                          <p className="text-muted-foreground">Saldo Awal</p>
-                          <p className="font-medium">{formatToRupiah(trx.balanceBefore)}</p>
-                      </div>
-                      <ArrowRight size={16} className="text-muted-foreground" />
-                      <div className="text-center">
-                          <p className="text-muted-foreground">Saldo Akhir</p>
-                          <p className="font-medium">{formatToRupiah(trx.balanceAfter)}</p>
-                      </div>
-                  </div>
-                )}
-                 <Separator className="mt-4" />
-              </div>
-            ))}
+            {displayItems.map((item) => {
+                if ('isGroup' in item) {
+                    return renderGroupedItem(item);
+                } else {
+                    return renderTransactionItem(item);
+                }
+            })}
           </div>
         )}
       </ScrollArea>
