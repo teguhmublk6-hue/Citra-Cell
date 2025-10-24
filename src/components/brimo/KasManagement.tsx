@@ -1,10 +1,9 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, writeBatch, getDocs } from 'firebase/firestore';
-import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2, ShieldAlert } from 'lucide-react';
@@ -22,7 +21,6 @@ interface KasManagementProps {
 
 export default function KasManagement({ onResetAll }: KasManagementProps) {
   const firestore = useFirestore();
-  const { toast } = useToast();
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -34,6 +32,31 @@ export default function KasManagement({ onResetAll }: KasManagementProps) {
   }, [firestore]);
 
   const { data: kasAccounts, isLoading } = useCollection<KasAccount>(kasAccountsCollection);
+
+  const groupedAccounts = useMemo(() => {
+    if (!kasAccounts) return {};
+    
+    const sortedAccounts = [...kasAccounts].sort((a, b) => a.label.localeCompare(b.label));
+
+    return sortedAccounts.reduce((acc, account) => {
+        const type = account.type || 'Lainnya';
+        if (!acc[type]) {
+            acc[type] = [];
+        }
+        acc[type].push(account);
+        return acc;
+    }, {} as Record<string, KasAccount[]>);
+
+  }, [kasAccounts]);
+
+  const accountTypes = useMemo(() => {
+      const order: (keyof typeof groupedAccounts)[] = ['Bank', 'E-Wallet', 'Merchant', 'PPOB', 'Tunai'];
+      const dynamicTypes = Object.keys(groupedAccounts).filter(type => !order.includes(type));
+      
+      const allSortedTypes = order.concat(dynamicTypes.sort()).filter(type => groupedAccounts[type]);
+      
+      return allSortedTypes;
+  }, [groupedAccounts]);
 
   const handleAdd = () => {
     setSelectedAccount(null);
@@ -51,7 +74,7 @@ export default function KasManagement({ onResetAll }: KasManagementProps) {
   };
 
   const confirmDelete = () => {
-    if (accountToDelete) {
+    if (accountToDelete && firestore) {
       const docRef = doc(firestore, 'kasAccounts', accountToDelete.id);
       deleteDocumentNonBlocking(docRef);
     }
@@ -76,7 +99,7 @@ export default function KasManagement({ onResetAll }: KasManagementProps) {
             </Button>
         </div>
         <p className="px-1 text-sm font-semibold mb-2 text-muted-foreground">Daftar Akun</p>
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 -mx-4 px-4">
           {isLoading && (
             <div className="space-y-3 pr-4">
                 <Skeleton className="h-16 w-full" />
@@ -84,31 +107,35 @@ export default function KasManagement({ onResetAll }: KasManagementProps) {
                 <Skeleton className="h-16 w-full" />
             </div>
           )}
-          <div className="space-y-3 pr-4">
-            {kasAccounts?.map((account) => {
-              const isBelowMinimum = account.balance < account.minimumBalance;
-              return (
-                <div key={account.id} className="flex items-center justify-between p-3 bg-card-foreground/5 rounded-lg">
-                  <div>
-                    <div className="flex items-center gap-2">
-                        <p className="font-semibold">{account.label}</p>
-                        {account.type && <p className="text-xs text-muted-foreground">({account.type})</p>}
+          <div className="space-y-6 pr-4">
+            {accountTypes.map((type) => (
+                <div key={type}>
+                    <h2 className="text-base font-semibold text-muted-foreground mb-3">{type}</h2>
+                    <div className="space-y-3">
+                        {groupedAccounts[type]?.map((account) => {
+                            const isBelowMinimum = account.balance < account.minimumBalance;
+                            return (
+                                <div key={account.id} className="flex items-center justify-between p-3 bg-card-foreground/5 rounded-lg">
+                                <div>
+                                    <p className="font-semibold">{account.label}</p>
+                                    <p className={cn("text-sm", isBelowMinimum ? "text-red-500" : "text-muted-foreground")}>
+                                    Rp{account.balance.toLocaleString('id-ID')}
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button variant="ghost" size="icon" onClick={() => handleEdit(account)}>
+                                    <Edit size={18} />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(account)}>
+                                    <Trash2 size={18} />
+                                    </Button>
+                                </div>
+                                </div>
+                            );
+                        })}
                     </div>
-                    <p className={cn("text-sm", isBelowMinimum ? "text-red-500" : "text-muted-foreground")}>
-                      Rp{account.balance.toLocaleString('id-ID')}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(account)}>
-                      <Edit size={18} />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(account)}>
-                      <Trash2 size={18} />
-                    </Button>
-                  </div>
                 </div>
-              );
-            })}
+            ))}
              {!isLoading && kasAccounts && kasAccounts.length === 0 && (
                 <div className="text-center py-10">
                     <p className="text-muted-foreground">Belum ada akun kas.</p>
@@ -125,5 +152,3 @@ export default function KasManagement({ onResetAll }: KasManagementProps) {
     </div>
   );
 }
-
-    
