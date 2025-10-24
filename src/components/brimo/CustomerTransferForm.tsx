@@ -119,7 +119,16 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
   
   const sourceKasAccounts = useMemo(() => {
-      return kasAccounts?.filter(acc => ['Bank', 'E-Wallet'].includes(acc.type));
+    if (!kasAccounts) return [];
+    
+    const filtered = kasAccounts.filter(acc => ['Bank', 'E-Wallet'].includes(acc.type));
+    
+    // Custom sort: 'Bank' first, then 'E-Wallet'
+    return filtered.sort((a, b) => {
+        if (a.type === 'Bank' && b.type !== 'Bank') return -1;
+        if (a.type !== 'Bank' && b.type === 'Bank') return 1;
+        return a.label.localeCompare(b.label); // Optional: sort alphabetically within types
+    });
   }, [kasAccounts]);
 
   const form = useForm<CustomerTransferFormValues>({
