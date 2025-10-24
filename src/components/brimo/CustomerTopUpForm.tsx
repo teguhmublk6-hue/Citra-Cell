@@ -111,7 +111,16 @@ export default function CustomerTopUpForm({ onReview, onDone }: CustomerTopUpFor
   }, [topUpAmount, form]);
 
   const sourceKasAccounts = useMemo(() => {
-      return kasAccounts?.filter(acc => ['Bank', 'E-Wallet'].includes(acc.type));
+    if (!kasAccounts) return [];
+    
+    const filtered = kasAccounts.filter(acc => ['Bank', 'E-Wallet'].includes(acc.type));
+    
+    // Custom sort: 'E-Wallet' first, then 'Bank'
+    return filtered.sort((a, b) => {
+        if (a.type === 'E-Wallet' && b.type !== 'E-Wallet') return -1;
+        if (a.type !== 'E-Wallet' && b.type === 'E-Wallet') return 1;
+        return a.label.localeCompare(b.label); // Optional: sort alphabetically within types
+    });
   }, [kasAccounts]);
 
   const onSubmit = (values: CustomerTopUpFormValues) => {
@@ -331,3 +340,5 @@ export default function CustomerTopUpForm({ onReview, onDone }: CustomerTopUpFor
     </Form>
   );
 }
+
+    
