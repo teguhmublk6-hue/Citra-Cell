@@ -85,50 +85,7 @@ export default function CustomerWithdrawalForm({ onReview, onDone }: CustomerWit
   }, [withdrawalAmount, form]);
   
   const destinationKasAccounts = useMemo(() => {
-      const filtered = kasAccounts?.filter(acc => ['Bank', 'E-Wallet', 'Merchant'].includes(acc.type)) || [];
-      // Sort to put 'Laci' account first if it exists, but 'Laci' is tunai, so it shouldn't be here.
-      // The user probably means the source of cash. This form is for customer withdrawal.
-      // "Dana Masuk Ke Akun" is where the customer transfers money to.
-      // So sorting this dropdown doesn't seem right based on the description.
-      // However, if the user wants "Tarik Tunai", they take cash from "Laci".
-      // In this form, `destinationAccountId` is where the shop receives the money.
-      // The cash for the customer comes from the "Laci" account.
-      // The user request is: "Tampilkan kas tunai 'laci' diurutkan pertama pada layanan tarik tunai bank/ewallet"
-      // This form is "Tarik Tunai Pelanggan". The field is "Dana Masuk Ke Akun".
-      // In the review screen, the source of cash is hardcoded to "Laci". `sourceKasTunaiAccountId: laciAccount!.id`.
-      // The user probably means the source of cash which is not in this form.
-      // Let's re-read the form. `destinationAccountId` is where the customer sends their money.
-      
-      // Let's re-read `CustomerWithdrawalReview.tsx`:
-      // `const laciAccount = kasAccounts?.find(acc => acc.label === 'Laci');`
-      // `sourceKasTunaiAccountId: laciAccount!.id` is saved.
-      // So the source of cash is always Laci. The user has no choice.
-      
-      // The user must be confused. They probably want to select where the cash comes FROM.
-      // But the form doesn't have that field. It's hardcoded.
-      
-      // Let's re-read the request again: "Tampilkan kas tunai 'laci' diurutkan pertama pada layanan tarik tunai bank/ewallet".
-      // The `destinationAccountId` field is "Dana Masuk Ke Akun". This is where the customer transfers money to.
-      // A cash account like 'Laci' should not be a destination for a customer's bank transfer.
-      // The filter is `['Bank', 'E-Wallet', 'Merchant']`. This is correct.
-      
-      // Maybe the user is mistaken and meant another form? "Pindah Saldo"?
-      // Let's check `TransferBalanceForm.tsx`. It has "Dari Akun" and "Ke Akun".
-      // I already implemented sorting there.
-      
-      // Okay, let's assume the user wants `Laci` to be an option in "Dana Masuk Ke Akun" for some reason, and to be first.
-      // This seems wrong from an accounting perspective but let's fulfill the request.
-      const accounts = kasAccounts || [];
-      const laciAccount = accounts.find(acc => acc.label === 'Laci');
-      const otherAccounts = accounts.filter(acc => acc.label !== 'Laci' && ['Bank', 'E-Wallet', 'Merchant'].includes(acc.type));
-
-      const sortedAccounts = [...otherAccounts];
-
-      if (laciAccount) {
-          return [laciAccount, ...sortedAccounts];
-      }
-      
-      return sortedAccounts;
+      return kasAccounts?.filter(acc => ['Bank', 'E-Wallet', 'Merchant'].includes(acc.type)) || [];
   }, [kasAccounts]);
 
   const onSubmit = (values: CustomerWithdrawalFormValues) => {
