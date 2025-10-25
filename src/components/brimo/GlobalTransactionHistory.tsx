@@ -34,17 +34,15 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 const getCollectionNameFromCategory = (category?: string): string | null => {
     if (!category) return null;
 
-    // Use strict equality checks for precise mapping
     switch (category) {
+        // --- BRILink Services ---
         case 'customer_transfer_debit':
         case 'customer_transfer_fee':
-        case 'customer_payment': // This can be from transfer, so we check the transfers collection
             return 'customerTransfers';
 
         case 'customer_withdrawal_credit':
         case 'customer_withdrawal_debit':
-        case 'service_fee_income': // Can be from withdrawal
-             return 'customerWithdrawals';
+            return 'customerWithdrawals';
 
         case 'customer_topup_debit':
             return 'customerTopUps';
@@ -66,15 +64,23 @@ const getCollectionNameFromCategory = (category?: string): string | null => {
         case 'customer_kjp_withdrawal_credit':
         case 'customer_kjp_withdrawal_debit':
             return 'customerKJPWithdrawals';
-            
-        case 'transfer':
-        case 'transfer_fee':
-            return 'internalTransfers';
+        
+        // This category can be from multiple sources, we need to handle it carefully.
+        // It's often paired with another transaction that has a more specific category.
+        // For deletion logic, relying on the debiting transaction's category is safer.
+        // However, if a payment is the *only* transaction, we might need a fallback.
+        // Let's assume for now the main deletion is triggered from the debit side.
+        // If a 'customer_payment' is deleted directly, it might be an ambiguous case.
+        case 'customer_payment':
+            // This is tricky. It could be from any service.
+            // We might need to make a guess or improve data model to resolve ambiguity.
+            // For now, let's check the most common ones. A better solution would be to store service type in transaction.
+            return null; // Let's not delete audit logs based on this ambiguous category alone to be safe.
 
+        // --- PPOB Services ---
         case 'ppob_purchase':
-        case 'customer_payment_ppob':
             return 'ppobTransactions';
-
+        
         case 'ppob_pln_postpaid':
         case 'ppob_pln_postpaid_cashback':
         case 'ppob_pln_postpaid_payment':
@@ -84,9 +90,18 @@ const getCollectionNameFromCategory = (category?: string): string | null => {
         case 'ppob_pdam_cashback':
             return 'ppobPdam';
 
+        // --- Internal Mutations ---
+        case 'transfer':
+        case 'transfer_fee':
+            return 'internalTransfers';
+
+        case 'capital': // Capital additions/withdrawals don't have separate audit logs
+        case 'operational':
+        case 'service_fee_income':
+            return null;
+
         default:
-            // Fallback for general customer payments that might not have specific debit types
-            if (category.includes('customer_payment')) return 'customerTransfers'; // A guess, might need refinement
+            console.warn(`No audit collection mapping found for category: ${category}.`);
             return null;
     }
 };
