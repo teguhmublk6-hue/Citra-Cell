@@ -8,7 +8,7 @@ import type { KasAccount, Transaction } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, ArrowRight, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Calendar as CalendarIcon, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -27,9 +27,11 @@ type TransactionWithId = Transaction & { id: string };
 type GroupedTransaction = {
     isGroup: true;
     mainTransaction: TransactionWithId;
-    subTransactions: TransactionWithId[];
+    feeTransaction: TransactionWithId | null;
     totalAmount: number;
     date: string;
+    type: 'credit' | 'debit';
+    isFeeDeductedFromDestination: boolean;
 };
 
 type DisplayItem = TransactionWithId | GroupedTransaction;
@@ -88,7 +90,6 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
           });
         }
         
-        // Sort all transactions by date after fetching
         fetchedTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setTransactions(fetchedTransactions);
 
@@ -104,44 +105,55 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
       }
     };
 
-    fetchTransactions();
+    if (kasAccounts) {
+        fetchTransactions();
+    }
   }, [firestore, account, dateRange, kasAccounts, toast]);
 
   const displayItems = useMemo((): DisplayItem[] => {
-    const grouped = new Map<string, TransactionWithId[]>();
+    const groupedByAuditId = new Map<string, TransactionWithId[]>();
     const singles: TransactionWithId[] = [];
 
-    // Group transactions by auditId
     for (const trx of transactions) {
-        if (trx.auditId) {
-            if (!grouped.has(trx.auditId)) {
-                grouped.set(trx.auditId, []);
+        if (trx.auditId && (trx.category === 'transfer' || trx.category === 'operational_fee' || trx.category === 'settlement_debit' || trx.category === 'settlement_credit')) {
+            if (!groupedByAuditId.has(trx.auditId)) {
+                groupedByAuditId.set(trx.auditId, []);
             }
-            grouped.get(trx.auditId)!.push(trx);
+            groupedByAuditId.get(trx.auditId)!.push(trx);
         } else {
             singles.push(trx);
         }
     }
 
     const processedGroups: GroupedTransaction[] = [];
-    grouped.forEach((trxs) => {
-        // Sort by amount descending to guess the main transaction
-        trxs.sort((a, b) => b.amount - a.amount);
-        const mainTransaction = trxs[0];
-        const subTransactions = trxs.slice(1);
-        const totalAmount = trxs.reduce((sum, t) => sum + t.amount, 0);
+    groupedByAuditId.forEach((trxsInGroup) => {
+        const transferTrx = trxsInGroup.find(t => t.category === 'transfer' || t.category?.startsWith('settlement'));
+        const feeTrx = trxsInGroup.find(t => t.category === 'operational_fee');
 
-        processedGroups.push({
-            isGroup: true,
-            mainTransaction,
-            subTransactions,
-            totalAmount,
-            date: mainTransaction.date,
-        });
+        if (transferTrx) {
+            // Determine if the fee was deducted from this (the destination) account
+            const isFeeDeductedFromDestination = !!(feeTrx && feeTrx.type === 'debit');
+            
+            let totalAmount;
+            if (isFeeDeductedFromDestination) {
+                totalAmount = transferTrx.amount - (feeTrx?.amount || 0);
+            } else {
+                totalAmount = transferTrx.amount + (feeTrx?.amount || 0);
+            }
+
+            processedGroups.push({
+                isGroup: true,
+                mainTransaction: transferTrx,
+                feeTransaction: feeTrx || null,
+                totalAmount: totalAmount,
+                date: transferTrx.date,
+                type: transferTrx.type,
+                isFeeDeductedFromDestination,
+            });
+        }
     });
 
     const allItems: DisplayItem[] = [...singles, ...processedGroups];
-    // Sort all items by date again
     allItems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return allItems;
   }, [transactions]);
@@ -193,8 +205,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
   );
 
   const renderGroupedItem = (group: GroupedTransaction) => {
-      const { mainTransaction, subTransactions, totalAmount } = group;
-      const type = mainTransaction.type;
+      const { mainTransaction, feeTransaction, totalAmount, isFeeDeductedFromDestination } = group;
       
       return (
         <div key={mainTransaction.auditId} className="py-4">
@@ -202,9 +213,9 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
             <p className="font-semibold text-sm flex-1 pr-4">{mainTransaction.name}</p>
             <p className={cn(
                 'font-bold text-sm whitespace-nowrap',
-                type === 'credit' ? 'text-green-500' : 'text-foreground'
+                mainTransaction.type === 'credit' ? 'text-green-500' : 'text-foreground'
             )}>
-              {type === 'credit' ? '+' : '-'} {formatToRupiah(totalAmount)}
+              {mainTransaction.type === 'credit' ? '+' : '-'} {formatToRupiah(totalAmount)}
             </p>
           </div>
           <p className="text-xs text-muted-foreground mb-3">
@@ -214,15 +225,15 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
           
           <div className="bg-card-foreground/5 p-3 rounded-md space-y-2 text-xs">
               <div className="flex justify-between">
-                  <p>Pokok</p>
+                  <p>{isFeeDeductedFromDestination ? "Pokok Masuk" : "Pokok"}</p>
                   <p className="font-medium">{formatToRupiah(mainTransaction.amount)}</p>
               </div>
-              {subTransactions.map(sub => (
-                   <div key={sub.id} className="flex justify-between">
-                      <p>{sub.name.replace(mainTransaction.name, '').replace('an.', 'a/n').trim() || 'Biaya'}</p>
-                      <p className="font-medium">{formatToRupiah(sub.amount)}</p>
+              {feeTransaction && (
+                   <div className="flex justify-between">
+                      <p>{isFeeDeductedFromDestination ? "Potongan Biaya Admin" : "Biaya Admin"}</p>
+                      <p className="font-medium">{isFeeDeductedFromDestination ? `- ${formatToRupiah(feeTransaction.amount)}` : formatToRupiah(feeTransaction.amount)}</p>
                   </div>
-              ))}
+              )}
           </div>
 
           {mainTransaction.balanceBefore !== undefined && mainTransaction.balanceAfter !== undefined && (
@@ -302,10 +313,10 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
         {!isLoading && displayItems && displayItems.length > 0 && (
           <div className="flex flex-col">
             {displayItems.map((item) => {
-                if ('isGroup' in item) {
+                if ('isGroup' in item && item.isGroup) {
                     return renderGroupedItem(item);
                 } else {
-                    return renderTransactionItem(item);
+                    return renderTransactionItem(item as TransactionWithId);
                 }
             })}
           </div>
@@ -317,3 +328,6 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     </div>
   );
 }
+
+
+    
