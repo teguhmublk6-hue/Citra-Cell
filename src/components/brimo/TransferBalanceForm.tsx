@@ -27,6 +27,7 @@ const formSchema = z.object({
   ),
   adminFee: z.string(), // This is just a string to hold the radio value
   manualAdminFee: z.number({ invalid_type_error: "Nominal harus angka" }).min(0, "Biaya admin tidak boleh negatif").optional(),
+  feeDeductionSource: z.enum(['source', 'destination'], { required_error: 'Pilih sumber pemotongan biaya' }),
   description: z.string().optional(),
 }).refine(data => data.sourceAccountId !== data.destinationAccountId, {
   message: "Akun sumber dan tujuan tidak boleh sama",
@@ -73,6 +74,7 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
       amount: undefined,
       adminFee: "0",
       manualAdminFee: 0,
+      feeDeductionSource: 'source',
       description: '',
     },
   });
@@ -92,11 +94,23 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
     }
 
     const fee = values.adminFee === '-1' ? (values.manualAdminFee || 0) : Number(values.adminFee);
-    const totalDebit = values.amount + fee;
-
-    if (sourceAccount.balance < totalDebit) {
-      form.setError('amount', { type: 'manual', message: 'Saldo tidak mencukupi untuk transfer dan biaya admin.' });
-      return;
+    
+    // --- Validation based on fee source ---
+    if (values.feeDeductionSource === 'source') {
+        const totalDebit = values.amount + fee;
+        if (sourceAccount.balance < totalDebit) {
+            form.setError('amount', { type: 'manual', message: 'Saldo sumber tidak cukup untuk transfer dan biaya.' });
+            return;
+        }
+    } else { // 'destination'
+        if (sourceAccount.balance < values.amount) {
+            form.setError('amount', { type: 'manual', message: 'Saldo sumber tidak cukup untuk jumlah transfer.' });
+            return;
+        }
+        if (values.amount < fee) {
+            form.setError('amount', { type: 'manual', message: 'Jumlah transfer harus lebih besar dari biaya admin.' });
+            return;
+        }
     }
     
     try {
@@ -111,80 +125,60 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
             amount: values.amount,
             adminFee: fee,
             description: values.description || '',
-            deviceName: deviceName
+            deviceName: deviceName,
+            feeDeductionSource: values.feeDeductionSource,
         });
-
         const auditId = auditDocRef.id;
         
         const batch = writeBatch(firestore);
 
-        // Source account refs
         const sourceDocRef = doc(firestore, 'kasAccounts', sourceAccount.id);
-        const sourceTransactionRef = doc(collection(sourceDocRef, 'transactions'));
-        
-        // Destination account refs
         const destinationDocRef = doc(firestore, 'kasAccounts', destinationAccount.id);
-        const destinationTransactionRef = doc(collection(destinationDocRef, 'transactions'));
+        
+        let finalSourceBalanceChange = -values.amount;
+        let finalDestBalanceChange = values.amount;
+        let feeTransactionRef, feeTransactionData;
 
+        if (fee > 0) {
+            if (values.feeDeductionSource === 'source') {
+                finalSourceBalanceChange -= fee;
+                feeTransactionRef = doc(collection(sourceDocRef, 'transactions'));
+                feeTransactionData = {
+                    kasAccountId: sourceAccount.id, type: 'debit', name: `Biaya Admin Trf ke ${destinationAccount.label}`, account: 'Biaya Operasional', date: nowISO, amount: fee,
+                    balanceBefore: sourceAccount.balance - values.amount, balanceAfter: sourceAccount.balance - values.amount - fee, category: 'operational_fee', deviceName, auditId
+                };
+            } else { // 'destination'
+                finalDestBalanceChange -= fee;
+                feeTransactionRef = doc(collection(destinationDocRef, 'transactions'));
+                 feeTransactionData = {
+                    kasAccountId: destinationAccount.id, type: 'debit', name: `Biaya Admin Trf dari ${sourceAccount.label}`, account: 'Biaya Operasional', date: nowISO, amount: fee,
+                    balanceBefore: destinationAccount.balance + values.amount, balanceAfter: destinationAccount.balance + values.amount - fee, category: 'operational_fee', deviceName, auditId
+                };
+            }
+        }
 
         // Update balances
-        batch.update(sourceDocRef, { balance: sourceAccount.balance - totalDebit });
-        batch.update(destinationDocRef, { balance: destinationAccount.balance + values.amount });
-
-        // Create debit transaction for source
-        batch.set(sourceTransactionRef, {
-            kasAccountId: sourceAccount.id,
-            type: 'debit',
-            name: values.description || `Transfer ke ${destinationAccount.label}`,
-            account: destinationAccount.label,
-            date: nowISO,
-            amount: values.amount,
-            balanceBefore: sourceAccount.balance,
-            balanceAfter: sourceAccount.balance - totalDebit,
-            sourceKasAccountId: sourceAccount.id,
-            destinationKasAccountId: destinationAccount.id,
-            category: 'transfer',
-            deviceName: deviceName,
-            auditId: auditId
-        });
-
-        // Create credit transaction for destination
-        batch.set(destinationTransactionRef, {
-            kasAccountId: destinationAccount.id,
-            type: 'credit',
-            name: values.description || `Transfer dari ${sourceAccount.label}`,
-            account: sourceAccount.label,
-            date: nowISO,
-            amount: values.amount,
-            balanceBefore: destinationAccount.balance,
-            balanceAfter: destinationAccount.balance + values.amount,
-            sourceKasAccountId: sourceAccount.id,
-            destinationKasAccountId: destinationAccount.id,
-            category: 'transfer',
-            deviceName: deviceName,
-            auditId: auditId
-        });
-
-        // Create fee transaction if applicable
-        if (fee > 0) {
-            const feeTransactionRef = doc(collection(sourceDocRef, 'transactions'));
-            batch.set(feeTransactionRef, {
-                kasAccountId: sourceAccount.id,
-                type: 'debit',
-                name: `Biaya Admin Transfer ke ${destinationAccount.label}`,
-                account: 'Biaya Transaksi',
-                date: nowISO, // IMPORTANT: Use the same timestamp
-                amount: fee,
-                balanceBefore: sourceAccount.balance - values.amount, // Balance after transfer, before fee
-                balanceAfter: sourceAccount.balance - totalDebit, // Final balance
-                category: 'transfer_fee', // More specific category
-                sourceKasAccountId: sourceAccount.id, // Add for context
-                destinationKasAccountId: destinationAccount.id, // Add for context
-                deviceName: deviceName,
-                auditId: auditId
-            });
-        }
+        batch.update(sourceDocRef, { balance: sourceAccount.balance + finalSourceBalanceChange });
+        batch.update(destinationDocRef, { balance: destinationAccount.balance + finalDestBalanceChange });
         
+        // Debit from source
+        const sourceTransactionRef = doc(collection(sourceDocRef, 'transactions'));
+        batch.set(sourceTransactionRef, {
+            kasAccountId: sourceAccount.id, type: 'debit', name: values.description || `Transfer ke ${destinationAccount.label}`, account: destinationAccount.label, date: nowISO, amount: values.amount,
+            balanceBefore: sourceAccount.balance, balanceAfter: sourceAccount.balance + finalSourceBalanceChange, category: 'transfer', deviceName, auditId
+        });
+
+        // Credit to destination
+        const destinationTransactionRef = doc(collection(destinationDocRef, 'transactions'));
+        batch.set(destinationTransactionRef, {
+            kasAccountId: destinationAccount.id, type: 'credit', name: values.description || `Transfer dari ${sourceAccount.label}`, account: sourceAccount.label, date: nowISO, amount: values.amount,
+            balanceBefore: destinationAccount.balance, balanceAfter: destinationAccount.balance + finalDestBalanceChange, category: 'transfer', deviceName, auditId
+        });
+
+        if (feeTransactionRef && feeTransactionData) {
+            batch.set(feeTransactionRef, feeTransactionData);
+        }
+
         await batch.commit();
 
         toast({ title: "Sukses", description: "Pindah saldo berhasil." });
@@ -308,25 +302,55 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
               )}
             />
 
-            {String(form.watch('adminFee')) === '-1' && (
-                <FormField
-                    control={form.control}
-                    name="manualAdminFee"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Nominal Biaya Admin Manual</FormLabel>
-                        <FormControl>
-                            <Input
-                                type="number"
-                                placeholder="Masukkan nominal"
-                                {...field}
-                                onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
-                            />
-                        </FormControl>
-                        <FormMessage />
+            {String(form.watch('adminFee')) !== '0' && (
+              <div className="space-y-3 rounded-lg border p-4">
+                 <FormField
+                  control={form.control}
+                  name="feeDeductionSource"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <FormLabel>Potong Biaya Dari</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex items-center space-x-4"
+                        >
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl><RadioGroupItem value="source" /></FormControl>
+                            <FormLabel className="font-normal">Akun Sumber</FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl><RadioGroupItem value="destination" /></FormControl>
+                            <FormLabel className="font-normal">Akun Tujuan</FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
                     </FormItem>
-                    )}
+                  )}
                 />
+                {String(form.watch('adminFee')) === '-1' && (
+                    <FormField
+                        control={form.control}
+                        name="manualAdminFee"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Nominal Biaya Admin Manual</FormLabel>
+                            <FormControl>
+                                <Input
+                                    type="text"
+                                    placeholder="Rp 0"
+                                    {...field}
+                                    value={formatToRupiah(field.value)}
+                                    onChange={(e) => field.onChange(parseRupiah(e.target.value))}
+                                />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                )}
+              </div>
             )}
             <FormField
               control={form.control}

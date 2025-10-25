@@ -81,11 +81,13 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
                 }
             });
 
-            // 2. Fetch 'operational', 'operational_fee', and 'transfer_fee' from transactions
+            // 2. Fetch 'operational' and other fee categories from transactions
             if (kasAccounts) {
+                 const feeCategories = ['operational', 'operational_fee', 'transfer_fee'];
                  for (const account of kasAccounts) {
                     const transQuery = query(
                         collection(firestore, 'kasAccounts', account.id, 'transactions'),
+                         where('category', 'in', feeCategories),
                          ...(dateFrom ? [where('date', '>=', dateFrom.toDate().toISOString())] : []),
                          ...(dateTo ? [where('date', '<=', dateTo.toDate().toISOString())] : [])
                     );
@@ -93,15 +95,13 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
                     
                     transSnapshot.forEach(docSnap => {
                         const data = docSnap.data() as Transaction;
-                        if (data.category === 'operational' || data.category === 'operational_fee' || data.category === 'transfer_fee') {
-                            combinedCosts.push({
-                                id: `trx-${docSnap.id}`,
-                                date: new Date(data.date),
-                                description: data.name,
-                                amount: data.amount,
-                                source: `Akun ${account.label}`
-                            });
-                        }
+                        combinedCosts.push({
+                            id: `trx-${docSnap.id}`,
+                            date: new Date(data.date),
+                            description: data.name,
+                            amount: data.amount,
+                            source: `Akun ${account.label}`
+                        });
                     });
                  }
             }
