@@ -13,7 +13,7 @@ import { collection, doc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { PPOBPaketDataFormValues } from '@/lib/types';
 import { PPOBPaketDataFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
@@ -36,9 +36,20 @@ const parseRupiah = (value: string | undefined | null): number => {
     return Number(String(value).replace(/[^0-9]/g, ''));
 }
 
+const providers = [
+    { name: 'Telkomsel', prefixes: ['0811', '0812', '0813', '0821', '0822', '0852', '0853', '0823', '0851'] },
+    { name: 'Indosat', prefixes: ['0814', '0815', '0816', '0855', '0856', '0857', '0858'] },
+    { name: 'XL', prefixes: ['0817', '0818', '0819', '0859', '0877', '0878'] },
+    { name: 'Axis', prefixes: ['0838', '0831', '0832', '0833'] },
+    { name: 'Tri', prefixes: ['0895', '0896', '0897', '0898', '0899'] },
+    { name: 'Smartfren', prefixes: ['0881', '0882', '0883', '0884', '0885', '0886', '0887', '0888', '0889'] },
+];
+
 export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFormProps) {
   const firestore = useFirestore();
   const [currentStep, setCurrentStep] = useState(1);
+  const [detectedProvider, setDetectedProvider] = useState<string | null>(null);
+  const [isManualPackage, setIsManualPackage] = useState(false);
   
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -80,13 +91,63 @@ export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFor
 
   const paymentMethod = form.watch('paymentMethod');
   const sourcePPOBAccountId = form.watch('sourcePPOBAccountId');
+  const phoneNumber = form.watch('phoneNumber');
+  const packageName = form.watch('packageName');
 
   const selectedPPOBAccount = useMemo(() => kasAccounts?.find(acc => acc.id === sourcePPOBAccountId), [kasAccounts, sourcePPOBAccountId]);
+
+  useEffect(() => {
+    const prefix = phoneNumber.substring(0, 4);
+    const foundProvider = providers.find(p => p.prefixes.includes(prefix));
+    setDetectedProvider(foundProvider ? foundProvider.name : null);
+    form.setValue('packageName', ''); // Reset package when number changes
+  }, [phoneNumber, form]);
+
+  const availablePackages = useMemo(() => {
+    if (detectedProvider && ppobPricingData) {
+      const providerPricing = ppobPricingData.data?.['Paket Data']?.[detectedProvider];
+      if (providerPricing) {
+        return Object.keys(providerPricing);
+      }
+    }
+    return [];
+  }, [detectedProvider, ppobPricingData]);
+
+  useEffect(() => {
+    if (detectedProvider && packageName && ppobPricingData && !isManualPackage) {
+      const pricing = ppobPricingData.data?.['Paket Data']?.[detectedProvider];
+      const packagePrice = pricing ? pricing[packageName] : null;
+
+      if (packagePrice) {
+        form.setValue('costPrice', packagePrice.costPrice);
+        form.setValue('sellingPrice', packagePrice.sellingPrice);
+      } else {
+        form.setValue('costPrice', undefined);
+        form.setValue('sellingPrice', undefined);
+      }
+    }
+  }, [detectedProvider, packageName, form, ppobPricingData, isManualPackage]);
 
   const ppobAccounts = useMemo(() => kasAccounts?.filter(acc => acc.type === 'PPOB'), [kasAccounts]);
 
   const onSubmit = (values: PPOBPaketDataFormValues) => { onReview(values); };
   
+  const handlePackageClick = (pkg: string) => {
+    form.setValue('packageName', pkg, { shouldValidate: true });
+    setIsManualPackage(false);
+  }
+  
+  const handleResetPackage = () => {
+    form.setValue('packageName', '', { shouldValidate: true });
+    form.setValue('costPrice', undefined);
+    form.setValue('sellingPrice', undefined);
+  }
+
+  const handleManualClick = () => {
+    handleResetPackage();
+    setIsManualPackage(true);
+  }
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 flex flex-col h-full">
@@ -138,6 +199,7 @@ export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFor
                     <FormItem>
                         <FormLabel>Nomor HP Pelanggan</FormLabel>
                         <FormControl><Input placeholder="08..." {...field} type="tel" /></FormControl>
+                        {detectedProvider && <p className="text-xs text-muted-foreground pt-1">Provider terdeteksi: <strong>{detectedProvider}</strong></p>}
                         <FormMessage />
                     </FormItem>
                 )}/>
@@ -147,8 +209,34 @@ export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFor
                   name="packageName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nama Paket Data</FormLabel>
-                       <FormControl><Input placeholder="cth: OMG! Nonton 15GB" {...field} /></FormControl>
+                      <FormLabel>Pilih Paket Data</FormLabel>
+                       {field.value && !isManualPackage ? (
+                             <div className="flex items-center gap-2">
+                                <Button type="button" className="flex-1 justify-start text-left whitespace-normal h-auto" disabled>{field.value}</Button>
+                                <Button type="button" variant="outline" onClick={handleResetPackage}>Ganti</Button>
+                             </div>
+                        ) : (
+                             <div className="space-y-2">
+                                {availablePackages.map(pkg => (
+                                    <Button key={pkg} type="button" variant='outline' onClick={() => handlePackageClick(pkg)} className="w-full justify-start text-left whitespace-normal h-auto">
+                                        {pkg}
+                                    </Button>
+                                ))}
+                                <Button type="button" variant={isManualPackage ? 'default' : 'outline'} onClick={handleManualClick} className="w-full">
+                                    Manual
+                                </Button>
+                            </div>
+                        )}
+                        {isManualPackage && (
+                             <FormControl className="mt-2">
+                                <Input 
+                                    placeholder="Masukkan nama paket..." 
+                                    onChange={field.onChange}
+                                    type="text"
+                                    autoFocus
+                                />
+                             </FormControl>
+                        )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -232,5 +320,7 @@ export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFor
     </Form>
   );
 }
+
+    
 
     

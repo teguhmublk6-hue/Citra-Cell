@@ -56,7 +56,7 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
         if (!data.splitTunaiAmount || data.splitTunaiAmount <= 0) {
              ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Jumlah tunai harus diisi.', path: ['splitTunaiAmount'] });
         } else if (data.splitTunaiAmount >= totalPayment) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Jumlah tunai harus lebih kecil dari total bayar.', path: ['splitTunaiAmount'] });
+             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Jumlah tunai harus lebih kecil dari total bayar.', path: ['splitTunaiAmount'] });
         }
         if (!data.paymentToKasTransferAccountId) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Akun penerima sisa bayaran harus dipilih.', path: ['paymentToKasTransferAccountId'] });
@@ -298,5 +298,7 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
     </Form>
   );
 }
+
+    
 
     
