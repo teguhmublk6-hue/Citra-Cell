@@ -31,7 +31,6 @@ type GroupedTransaction = {
     totalAmount: number;
     date: string;
     type: 'credit' | 'debit';
-    isFeeDeductedFromDestination: boolean;
 };
 
 type DisplayItem = TransactionWithId | GroupedTransaction;
@@ -115,7 +114,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     const singles: TransactionWithId[] = [];
 
     for (const trx of transactions) {
-        if (trx.auditId && (trx.category === 'transfer' || trx.category === 'operational_fee' || trx.category === 'settlement_debit' || trx.category === 'settlement_credit')) {
+        if (trx.auditId && (trx.category === 'transfer' || trx.category === 'operational_fee' || trx.category?.startsWith('settlement'))) {
             if (!groupedByAuditId.has(trx.auditId)) {
                 groupedByAuditId.set(trx.auditId, []);
             }
@@ -131,24 +130,21 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
         const feeTrx = trxsInGroup.find(t => t.category === 'operational_fee');
 
         if (transferTrx) {
-            // Determine if the fee was deducted from this (the destination) account
-            const isFeeDeductedFromDestination = !!(feeTrx && feeTrx.type === 'debit');
-            
-            let totalAmount;
-            if (isFeeDeductedFromDestination) {
-                totalAmount = transferTrx.amount - (feeTrx?.amount || 0);
-            } else {
-                totalAmount = transferTrx.amount + (feeTrx?.amount || 0);
+            let totalAmount = transferTrx.amount;
+            if (feeTrx) {
+              // This logic calculates the total change for the specific account in the group
+              if (transferTrx.kasAccountId === feeTrx.kasAccountId) {
+                totalAmount = transferTrx.amount + feeTrx.amount;
+              }
             }
 
             processedGroups.push({
                 isGroup: true,
                 mainTransaction: transferTrx,
                 feeTransaction: feeTrx || null,
-                totalAmount: totalAmount,
+                totalAmount: totalAmount, // This might need adjustment based on context
                 date: transferTrx.date,
                 type: transferTrx.type,
-                isFeeDeductedFromDestination,
             });
         }
     });
@@ -205,7 +201,48 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
   );
 
   const renderGroupedItem = (group: GroupedTransaction) => {
-      const { mainTransaction, feeTransaction, totalAmount, isFeeDeductedFromDestination } = group;
+      const { mainTransaction, feeTransaction } = group;
+      const isSourceAccountView = account.id === mainTransaction.kasAccountId;
+
+      let displayAmount = 0;
+      let rincian;
+
+      if (isSourceAccountView) {
+        // --- LOGIC FOR SOURCE ACCOUNT ---
+        displayAmount = mainTransaction.amount + (feeTransaction?.amount || 0);
+        rincian = (
+          <>
+            <div className="flex justify-between">
+              <p>Pokok Transfer</p>
+              <p className="font-medium">{formatToRupiah(mainTransaction.amount)}</p>
+            </div>
+            {feeTransaction && (
+              <div className="flex justify-between">
+                <p>Biaya Admin</p>
+                <p className="font-medium">{formatToRupiah(feeTransaction.amount)}</p>
+              </div>
+            )}
+          </>
+        );
+      } else {
+        // --- LOGIC FOR DESTINATION ACCOUNT ---
+        const isFeeDeductedFromDestination = feeTransaction?.type === 'debit';
+        displayAmount = mainTransaction.amount - (isFeeDeductedFromDestination ? (feeTransaction?.amount || 0) : 0);
+        rincian = (
+          <>
+            <div className="flex justify-between">
+                <p>Pokok Masuk</p>
+                <p className="font-medium">{formatToRupiah(mainTransaction.amount)}</p>
+            </div>
+            {feeTransaction && isFeeDeductedFromDestination && (
+                <div className="flex justify-between text-red-500">
+                    <p>Potongan Biaya Admin</p>
+                    <p className="font-medium">- {formatToRupiah(feeTransaction.amount)}</p>
+                </div>
+            )}
+          </>
+        );
+      }
       
       return (
         <div key={mainTransaction.auditId} className="py-4">
@@ -215,7 +252,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
                 'font-bold text-sm whitespace-nowrap',
                 mainTransaction.type === 'credit' ? 'text-green-500' : 'text-foreground'
             )}>
-              {mainTransaction.type === 'credit' ? '+' : '-'} {formatToRupiah(totalAmount)}
+              {mainTransaction.type === 'credit' ? '+' : '-'} {formatToRupiah(displayAmount)}
             </p>
           </div>
           <p className="text-xs text-muted-foreground mb-3">
@@ -224,16 +261,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
           </p>
           
           <div className="bg-card-foreground/5 p-3 rounded-md space-y-2 text-xs">
-              <div className="flex justify-between">
-                  <p>{isFeeDeductedFromDestination ? "Pokok Masuk" : "Pokok"}</p>
-                  <p className="font-medium">{formatToRupiah(mainTransaction.amount)}</p>
-              </div>
-              {feeTransaction && (
-                   <div className="flex justify-between">
-                      <p>{isFeeDeductedFromDestination ? "Potongan Biaya Admin" : "Biaya Admin"}</p>
-                      <p className="font-medium">{isFeeDeductedFromDestination ? `- ${formatToRupiah(feeTransaction.amount)}` : formatToRupiah(feeTransaction.amount)}</p>
-                  </div>
-              )}
+              {rincian}
           </div>
 
           {mainTransaction.balanceBefore !== undefined && mainTransaction.balanceAfter !== undefined && (
@@ -328,6 +356,3 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     </div>
   );
 }
-
-
-    
