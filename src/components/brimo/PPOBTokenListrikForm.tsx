@@ -7,8 +7,8 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
@@ -17,7 +17,6 @@ import type { PPOBTokenListrikFormValues } from '@/lib/types';
 import { PPOBTokenListrikFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
 import Image from 'next/image';
-import ppobPricing from '@/lib/ppob-pricing.json';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 interface PPOBTokenListrikFormProps {
@@ -44,14 +43,20 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
   
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
+  
+  const pricingDocRef = useMemoFirebase(() => doc(firestore, 'appConfig', 'ppobPricing'), [firestore]);
+  const { data: ppobPricingData } = useDoc<{ data: any }>(pricingDocRef);
 
   const refinedSchema = PPOBTokenListrikFormSchema.superRefine((data, ctx) => {
     if (data.paymentMethod === 'Transfer' && !data.paymentToKasTransferAccountId) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Akun penerima bayaran harus dipilih.', path: ['paymentToKasTransferAccountId'] });
     }
     if (data.paymentMethod === 'Split') {
+        const totalPayment = data.sellingPrice;
         if (!data.splitTunaiAmount || data.splitTunaiAmount <= 0) {
              ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Jumlah tunai harus diisi.', path: ['splitTunaiAmount'] });
+        } else if (data.splitTunaiAmount >= totalPayment) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Jumlah tunai harus lebih kecil dari total bayar.', path: ['splitTunaiAmount'] });
         }
         if (!data.paymentToKasTransferAccountId) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Akun penerima sisa bayaran harus dipilih.', path: ['paymentToKasTransferAccountId'] });
@@ -80,18 +85,17 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
   const selectedPPOBAccount = useMemo(() => kasAccounts?.find(acc => acc.id === sourcePPOBAccountId), [kasAccounts, sourcePPOBAccountId]);
 
   const availableDenominations = useMemo(() => {
-    const tokenPricing = (ppobPricing["Token Listrik"] as any);
+    const tokenPricing = ppobPricingData?.data?.['Token Listrik'];
     if (tokenPricing) {
-      return Object.keys(tokenPricing).map(d => parseInt(d, 10)).sort((a,b) => a - b).map(String);
+      return Object.keys(tokenPricing).sort((a,b) => parseInt(a, 10) - parseInt(b, 10));
     }
     return [];
-  }, []);
+  }, [ppobPricingData]);
 
   useEffect(() => {
-    if (denomination) {
-      const pricing = (ppobPricing["Token Listrik"] as any);
-      const denomKey = denomination.replace(/\./g, '');
-      const denomPrice = pricing ? pricing[denomKey] : null;
+    if (denomination && ppobPricingData && !isManualDenom) {
+      const pricing = ppobPricingData.data?.['Token Listrik'];
+      const denomPrice = pricing ? pricing[denomination] : null;
 
       if (denomPrice) {
         form.setValue('costPrice', denomPrice.costPrice);
@@ -101,7 +105,7 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
         form.setValue('sellingPrice', undefined);
       }
     }
-  }, [denomination, form]);
+  }, [denomination, form, ppobPricingData, isManualDenom]);
 
 
   const ppobAccounts = useMemo(() => {
@@ -206,7 +210,7 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
                              <FormControl className="mt-2">
                                 <Input 
                                     placeholder="Masukkan nominal, cth: 20000" 
-                                    onChange={field.onChange}
+                                    onChange={(e) => field.onChange(e.target.value)}
                                     type="text"
                                     autoFocus
                                 />
@@ -294,3 +298,5 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
     </Form>
   );
 }
+
+    

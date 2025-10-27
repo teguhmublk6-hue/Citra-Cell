@@ -7,8 +7,9 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
@@ -17,7 +18,6 @@ import type { PPOBPaketDataFormValues } from '@/lib/types';
 import { PPOBPaketDataFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
 import Image from 'next/image';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 interface PPOBPaketDataFormProps {
   onReview: (data: PPOBPaketDataFormValues) => void;
@@ -36,29 +36,27 @@ const parseRupiah = (value: string | undefined | null): number => {
     return Number(String(value).replace(/[^0-9]/g, ''));
 }
 
-const providers = [
-    { name: 'Telkomsel', prefixes: ['0811', '0812', '0813', '0821', '0822', '0852', '0853', '0823', '0851'] },
-    { name: 'Indosat', prefixes: ['0814', '0815', '0816', '0855', '0856', '0857', '0858'] },
-    { name: 'XL', prefixes: ['0817', '0818', '0819', '0859', '0877', '0878'] },
-    { name: 'Axis', prefixes: ['0838', '0831', '0832', '0833'] },
-    { name: 'Tri', prefixes: ['0895', '0896', '0897', '0898', '0899'] },
-    { name: 'Smartfren', prefixes: ['0881', '0882', '0883', '0884', '0885', '0886', '0887', '0888', '0889'] },
-];
-
 export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFormProps) {
   const firestore = useFirestore();
   const [currentStep, setCurrentStep] = useState(1);
   
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
+  
+  const pricingDocRef = useMemoFirebase(() => doc(firestore, 'appConfig', 'ppobPricing'), [firestore]);
+  const { data: ppobPricingData } = useDoc<{ data: any }>(pricingDocRef);
+
 
   const refinedSchema = PPOBPaketDataFormSchema.superRefine((data, ctx) => {
     if (data.paymentMethod === 'Transfer' && !data.paymentToKasTransferAccountId) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Akun penerima bayaran harus dipilih.', path: ['paymentToKasTransferAccountId'] });
     }
     if (data.paymentMethod === 'Split') {
+        const totalPayment = data.sellingPrice;
         if (!data.splitTunaiAmount || data.splitTunaiAmount <= 0) {
              ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Jumlah tunai harus diisi.', path: ['splitTunaiAmount'] });
+        } else if (data.splitTunaiAmount >= totalPayment) {
+             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Jumlah tunai harus lebih kecil dari total bayar.', path: ['splitTunaiAmount'] });
         }
         if (!data.paymentToKasTransferAccountId) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Akun penerima sisa bayaran harus dipilih.', path: ['paymentToKasTransferAccountId'] });
@@ -234,3 +232,5 @@ export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFor
     </Form>
   );
 }
+
+    

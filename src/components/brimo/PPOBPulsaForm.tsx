@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +20,6 @@ import { PPOBPulsaFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
-import ppobPricing from '@/lib/ppob-pricing.json';
 
 interface PPOBPulsaFormProps {
   onReview: (data: PPOBPulsaFormValues) => void;
@@ -56,14 +55,20 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
   
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
+  
+  const pricingDocRef = useMemoFirebase(() => doc(firestore, 'appConfig', 'ppobPricing'), [firestore]);
+  const { data: ppobPricingData } = useDoc<{ data: any }>(pricingDocRef);
 
   const refinedSchema = PPOBPulsaFormSchema.superRefine((data, ctx) => {
     if (data.paymentMethod === 'Transfer' && !data.paymentToKasTransferAccountId) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Akun penerima bayaran harus dipilih.', path: ['paymentToKasTransferAccountId'] });
     }
     if (data.paymentMethod === 'Split') {
+        const totalPayment = data.sellingPrice;
         if (!data.splitTunaiAmount || data.splitTunaiAmount <= 0) {
              ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Jumlah tunai harus diisi.', path: ['splitTunaiAmount'] });
+        } else if (data.splitTunaiAmount >= totalPayment) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Jumlah tunai harus lebih kecil dari total bayar.', path: ['splitTunaiAmount'] });
         }
         if (!data.paymentToKasTransferAccountId) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Akun penerima sisa bayaran harus dipilih.', path: ['paymentToKasTransferAccountId'] });
@@ -100,20 +105,19 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
   const selectedPPOBAccount = useMemo(() => kasAccounts?.find(acc => acc.id === sourcePPOBAccountId), [kasAccounts, sourcePPOBAccountId]);
 
   const availableDenominations = useMemo(() => {
-    if (detectedProvider) {
-      const providerPricing = (ppobPricing.Pulsa as any)[detectedProvider];
+    if (detectedProvider && ppobPricingData) {
+      const providerPricing = ppobPricingData.data?.Pulsa?.[detectedProvider];
       if (providerPricing) {
-        return Object.keys(providerPricing).map(d => parseInt(d, 10)).sort((a,b) => a - b).map(String);
+        return Object.keys(providerPricing).sort((a,b) => parseInt(a, 10) - parseInt(b, 10));
       }
     }
     return [];
-  }, [detectedProvider]);
+  }, [detectedProvider, ppobPricingData]);
 
   useEffect(() => {
-    if (detectedProvider && denomination) {
-      const pricing = (ppobPricing.Pulsa as any)[detectedProvider];
-      const denomKey = denomination.replace(/\./g, '');
-      const denomPrice = pricing ? pricing[denomKey] : null;
+    if (detectedProvider && denomination && ppobPricingData && !isManualDenom) {
+      const pricing = ppobPricingData.data?.Pulsa?.[detectedProvider];
+      const denomPrice = pricing ? pricing[denomination] : null;
 
       if (denomPrice) {
         form.setValue('costPrice', denomPrice.costPrice);
@@ -123,7 +127,7 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
         form.setValue('sellingPrice', undefined);
       }
     }
-  }, [detectedProvider, denomination, form]);
+  }, [detectedProvider, denomination, form, ppobPricingData, isManualDenom]);
 
 
   const ppobAccounts = useMemo(() => kasAccounts?.filter(acc => acc.type === 'PPOB'), [kasAccounts]);
@@ -207,14 +211,14 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
                         <FormLabel>Pilih Denominasi Pulsa</FormLabel>
                         {field.value && !isManualDenom ? (
                              <div className="flex items-center gap-2">
-                                <Button type="button" className="flex-1" disabled>{parseInt(field.value, 10).toLocaleString('id-ID')}</Button>
+                                <Button type="button" className="flex-1" disabled>{field.value}</Button>
                                 <Button type="button" variant="outline" onClick={handleResetDenom}>Ganti</Button>
                              </div>
                         ) : (
                             <div className="grid grid-cols-3 gap-2">
                                 {availableDenominations.map(denom => (
                                     <Button key={denom} type="button" variant='outline' onClick={() => handleDenomClick(denom)}>
-                                        {parseInt(denom, 10).toLocaleString('id-ID')}
+                                        {denom}
                                     </Button>
                                 ))}
                                 <Button type="button" variant={isManualDenom ? 'default' : 'outline'} onClick={handleManualClick}>
@@ -226,7 +230,7 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
                         {isManualDenom && (
                              <FormControl className="mt-2">
                                 <Input 
-                                    placeholder="Masukkan nominal, cth: 12000" 
+                                    placeholder="Masukkan nominal, cth: 12rb" 
                                     onChange={field.onChange}
                                     type="text"
                                     autoFocus
@@ -315,3 +319,5 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
     </Form>
   );
 }
+
+    

@@ -1,6 +1,54 @@
 
 {
   "entities": {
+    "PPOBPricing": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PPOBPricing",
+      "type": "object",
+      "description": "Stores the entire PPOB pricing structure in a single document.",
+      "properties": {
+        "data": {
+          "type": "object",
+          "description": "Contains the nested pricing data for all PPOB services.",
+          "properties": {
+            "Pulsa": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/entities/PPOBPricing/definitions/PriceObject"
+                }
+              }
+            },
+            "Paket Data": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/entities/PPOBPricing/definitions/PriceObject"
+                }
+              }
+            },
+            "Token Listrik": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/entities/PPOBPricing/definitions/PriceObject"
+              }
+            }
+          }
+        }
+      },
+      "definitions": {
+        "PriceObject": {
+          "type": "object",
+          "properties": {
+            "costPrice": { "type": "number" },
+            "sellingPrice": { "type": "number" }
+          },
+          "required": ["costPrice", "sellingPrice"]
+        }
+      }
+    },
     "AppConfig": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "AppConfig",
@@ -575,6 +623,12 @@
       },
       "description": "Stores global app settings like the daily motivation quote."
     },
+    "/appConfig/ppobPricing": {
+      "schema": {
+        "$ref": "#/entities/PPOBPricing"
+      },
+      "description": "Stores the entire PPOB pricing structure in a single document."
+    },
     "/kasAccounts/{kasAccountId}": {
       "schema": {
         "$ref": "#/entities/KasAccount"
@@ -661,3 +715,5 @@
     }
   }
 }
+
+    
