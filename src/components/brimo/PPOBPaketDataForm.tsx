@@ -18,6 +18,10 @@ import type { PPOBPaketDataFormValues } from '@/lib/types';
 import { PPOBPaketDataFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
 import Image from 'next/image';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface PPOBPaketDataFormProps {
   onReview: (data: PPOBPaketDataFormValues) => void;
@@ -50,6 +54,7 @@ export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFor
   const [currentStep, setCurrentStep] = useState(1);
   const [detectedProvider, setDetectedProvider] = useState<string | null>(null);
   const [isManualPackage, setIsManualPackage] = useState(false);
+  const [packagePopoverOpen, setPackagePopoverOpen] = useState(false);
   
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -132,9 +137,10 @@ export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFor
 
   const onSubmit = (values: PPOBPaketDataFormValues) => { onReview(values); };
   
-  const handlePackageClick = (pkg: string) => {
+  const handlePackageSelect = (pkg: string) => {
     form.setValue('packageName', pkg, { shouldValidate: true });
     setIsManualPackage(false);
+    setPackagePopoverOpen(false);
   }
   
   const handleResetPackage = () => {
@@ -208,30 +214,58 @@ export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFor
                   control={form.control}
                   name="packageName"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex flex-col">
                       <FormLabel>Pilih Paket Data</FormLabel>
-                       {field.value && !isManualPackage ? (
-                             <div className="flex items-center gap-2">
-                                <Button type="button" className="flex-1 justify-start text-left whitespace-normal h-auto" disabled>{field.value}</Button>
-                                <Button type="button" variant="outline" onClick={handleResetPackage}>Ganti</Button>
-                             </div>
-                        ) : (
-                             <div className="space-y-2">
-                                {availablePackages.map(pkg => (
-                                    <Button key={pkg} type="button" variant='outline' onClick={() => handlePackageClick(pkg)} className="w-full justify-start text-left whitespace-normal h-auto">
-                                        {pkg}
+                        <div className="flex gap-2">
+                            <Popover open={packagePopoverOpen} onOpenChange={setPackagePopoverOpen}>
+                                <PopoverTrigger asChild>
+                                <FormControl>
+                                    <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className={cn(
+                                        "w-full justify-between h-10",
+                                        !field.value && "text-muted-foreground"
+                                    )}
+                                    disabled={isManualPackage}
+                                    >
+                                    {field.value
+                                        ? availablePackages.find((pkg) => pkg === field.value) || "Pilih paket..."
+                                        : "Pilih paket..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>
-                                ))}
-                                <Button type="button" variant={isManualPackage ? 'default' : 'outline'} onClick={handleManualClick} className="w-full">
-                                    Manual
-                                </Button>
-                            </div>
-                        )}
+                                </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
+                                <Command>
+                                    <CommandInput placeholder="Cari nama paket..." />
+                                    <CommandEmpty>Paket tidak ditemukan.</CommandEmpty>
+                                    <CommandGroup>
+                                    <ScrollArea className="h-72">
+                                    {availablePackages.map((pkg) => (
+                                        <CommandItem
+                                            value={pkg}
+                                            key={pkg}
+                                            onSelect={() => handlePackageSelect(pkg)}
+                                        >
+                                            <Check className={cn("mr-2 h-4 w-4", pkg === field.value ? "opacity-100" : "opacity-0")} />
+                                            {pkg}
+                                        </CommandItem>
+                                    ))}
+                                    </ScrollArea>
+                                    </CommandGroup>
+                                </Command>
+                                </PopoverContent>
+                            </Popover>
+                            <Button type="button" variant={isManualPackage ? 'default' : 'outline'} onClick={() => setIsManualPackage(!isManualPackage)}>
+                                Manual
+                            </Button>
+                        </div>
                         {isManualPackage && (
                              <FormControl className="mt-2">
                                 <Input 
                                     placeholder="Masukkan nama paket..." 
-                                    onChange={field.onChange}
+                                    {...field}
                                     type="text"
                                     autoFocus
                                 />
@@ -242,18 +276,19 @@ export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFor
                   )}
                 />
 
+
                 <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="costPrice" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Harga Modal</FormLabel>
-                            <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                            <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} disabled={!isManualPackage} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )}/>
                     <FormField control={form.control} name="sellingPrice" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Harga Jual</FormLabel>
-                            <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                            <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} disabled={!isManualPackage} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )}/>
@@ -320,7 +355,5 @@ export default function PPOBPaketDataForm({ onReview, onDone }: PPOBPaketDataFor
     </Form>
   );
 }
-
-    
 
     
