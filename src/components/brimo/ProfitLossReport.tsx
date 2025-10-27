@@ -335,10 +335,6 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                             <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.sellingPrice + ppobBillTotals.sellingPrice)}</TableCell>
                             <TableCell className="text-right py-2">{formatToRupiah(totalPpobProfit)}</TableCell>
                         </TableRow>
-                        <TableRow className="font-bold text-lg bg-muted">
-                            <TableCell colSpan={6} className="sticky left-0 bg-muted z-10">Total Laba PPOB</TableCell>
-                            <TableCell className="text-right text-green-600 py-2">{formatToRupiah(totalPpobProfit)}</TableCell>
-                        </TableRow>
                     </TableFooter>
                 </Table>
                 )}
