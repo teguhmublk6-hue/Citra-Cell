@@ -58,15 +58,16 @@ export default function ShiftReconciliationForm({ onDone }: { onDone: () => void
       const q = query(
         transactionsRef,
         where('date', '>=', todayStart),
-        where('date', '<=', todayEnd),
-        where('type', '==', 'credit')
+        where('date', '<=', todayEnd)
       );
 
       let totalCashIn = 0;
       const querySnapshot = await getDocs(q);
       querySnapshot.forEach(doc => {
         const trx = doc.data() as Transaction;
-        totalCashIn += trx.amount;
+        if (trx.type === 'credit') {
+            totalCashIn += trx.amount;
+        }
       });
 
       setAppCashIn(totalCashIn);
