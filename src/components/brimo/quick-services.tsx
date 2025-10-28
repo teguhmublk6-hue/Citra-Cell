@@ -43,37 +43,7 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
   }, [api])
 
   const handleServiceClick = (label: string) => {
-    if (label === 'Transfer') {
-        onServiceClick('customerTransfer');
-    } else if (label === 'Tarik Tunai') {
-        onServiceClick('withdraw');
-    } else if (label === 'Top Up') {
-        onServiceClick('topUp');
-    } else if (label === 'VA Payment') {
-        onServiceClick('customerVAPayment');
-    } else if (label === 'Layanan EDC') {
-        onServiceClick('EDCService');
-    } else if (label === 'Emoney') {
-        onServiceClick('Emoney');
-    } else if (label === 'KJP') {
-        onServiceClick('KJP');
-    } else if (label === 'Pulsa') {
-        onServiceClick('Pulsa');
-    } else if (label === 'Token Listrik') {
-        onServiceClick('Token Listrik');
-    } else if (label === 'Data') {
-        onServiceClick('Data');
-    } else if (label === 'PLN') {
-        onServiceClick('PLN');
-    } else if (label === 'PDAM') {
-        onServiceClick('PDAM');
-    } else if (label === 'BPJS') {
-        onServiceClick('BPJS');
-    } else if (label === 'Wifi') {
-        onServiceClick('Wifi');
-    } else if (label === 'Paket Telpon') {
-        onServiceClick('Paket Telpon');
-    }
+    onServiceClick(label as ServiceType);
   }
 
   return (
