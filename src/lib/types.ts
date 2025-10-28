@@ -316,6 +316,18 @@ export const PPOBWifiFormSchema = z.object({
 
 export type PPOBWifiFormValues = z.infer<typeof PPOBWifiFormSchema>;
 
+export const PPOBPaketTelponFormSchema = z.object({
+  sourcePPOBAccountId: z.string().min(1, 'Akun PPOB sumber harus dipilih'),
+  packageName: z.string().min(1, 'Nama paket harus diisi'),
+  costPrice: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Harga modal harus angka" }).min(0, 'Harga modal tidak boleh negatif')),
+  sellingPrice: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Harga jual harus angka" }).min(0, 'Harga jual tidak boleh negatif')),
+  paymentMethod: z.enum(['Tunai', 'Transfer', 'Split'], { required_error: 'Metode pembayaran harus dipilih' }),
+  paymentToKasTransferAccountId: z.string().optional(),
+  splitTunaiAmount: z.preprocess(numberPreprocessor, z.number().optional()),
+});
+
+export type PPOBPaketTelponFormValues = z.infer<typeof PPOBPaketTelponFormSchema>;
+
 
 export type PPOBTransaction = {
     id: string;
@@ -390,6 +402,21 @@ export type PPOBWifi = {
     totalAmount: number;
     cashback?: number;
     netProfit: number;
+    sourcePPOBAccountId: string;
+    paymentMethod: "Tunai" | "Transfer" | "Split";
+    paymentToKasTunaiAmount?: number;
+    paymentToKasTransferAccountId?: string | null;
+    paymentToKasTransferAmount?: number;
+    deviceName: string;
+}
+
+export type PPOBPaketTelpon = {
+    id: string;
+    date: string;
+    packageName: string;
+    costPrice: number;
+    sellingPrice: number;
+    profit: number;
     sourcePPOBAccountId: string;
     paymentMethod: "Tunai" | "Transfer" | "Split";
     paymentToKasTunaiAmount?: number;

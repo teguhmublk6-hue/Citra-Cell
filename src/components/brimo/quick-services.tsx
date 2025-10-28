@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import type { CarouselApi } from "@/components/ui/carousel"
 import React from 'react';
 
-type ServiceType = 'customerTransfer' | 'withdraw' | 'topUp' | 'customerVAPayment' | 'EDCService' | 'Emoney' | 'KJP' | 'Pulsa' | 'Token Listrik' | 'Data' | 'PLN' | 'PDAM' | 'BPJS' | 'Wifi';
+type ServiceType = 'customerTransfer' | 'withdraw' | 'topUp' | 'customerVAPayment' | 'EDCService' | 'Emoney' | 'KJP' | 'Pulsa' | 'Token Listrik' | 'Data' | 'PLN' | 'PDAM' | 'BPJS' | 'Wifi' | 'Paket Telpon';
 interface QuickServicesProps {
     onServiceClick: (service: ServiceType) => void;
 }
@@ -71,6 +71,8 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
         onServiceClick('BPJS');
     } else if (label === 'Wifi') {
         onServiceClick('Wifi');
+    } else if (label === 'Paket Telpon') {
+        onServiceClick('Paket Telpon');
     }
   }
 

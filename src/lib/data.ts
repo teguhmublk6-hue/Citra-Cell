@@ -1,7 +1,7 @@
 
 
 import type { LucideIcon } from 'lucide-react';
-import { Wallet, Building2, Zap, Smartphone, ShoppingBag, Send, CreditCard, Gift, FileText, QrCode, UserCog, Settings, Home, MoreHorizontal, Phone, Wifi, Lightbulb, Droplets, HeartPulse, Plus, Calculator, IdCard, GraduationCap, BookText } from 'lucide-react';
+import { Wallet, Building2, Zap, Smartphone, ShoppingBag, Send, CreditCard, Gift, FileText, QrCode, UserCog, Settings, Home, MoreHorizontal, Phone, Wifi, Lightbulb, Droplets, HeartPulse, Plus, Calculator, IdCard, GraduationCap, BookText, PhoneCall } from 'lucide-react';
 
 export type KasAccount = {
   id: string;
@@ -43,6 +43,7 @@ export const quickServices: QuickService[] = [
 
 export const ppobServices: QuickService[] = [
     { icon: Phone, label: 'Pulsa', color: 'bg-blue-500' },
+    { icon: PhoneCall, label: 'Paket Telpon', color: 'bg-green-500' },
     { icon: Smartphone, label: 'Data', color: 'bg-sky-500' },
     { icon: Lightbulb, label: 'Token Listrik', color: 'bg-yellow-500' },
     { icon: Zap, label: 'PLN', color: 'bg-amber-500' },
