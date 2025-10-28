@@ -227,7 +227,7 @@ export default function PPOBWifiReview({ formData, onConfirm, onBack }: PPOBWifi
                         <div className="flex justify-between items-center"><p>Jumlah Tagihan (Modal)</p><p className="text-red-500">- {formatToRupiah(billAmount)}</p></div>
                         {cashback && cashback > 0 && <div className="flex justify-between items-center"><p>Cashback</p><p className="text-green-500">+ {formatToRupiah(cashback)}</p></div>}
                         <Separator />
-                        <div className="flex justify-between items-center font-bold text-green-500 text-base"><p>Laba</p><p>{formatToRupiah(netProfit)}</p></div>
+                        <div className="flex justify-between items-center font-bold text-base"><p>Total Bayar Pelanggan</p><p>{formatToRupiah(totalAmount)}</p></div>
                     </div>
                      <Separator />
                     <div className="space-y-2">
@@ -267,3 +267,5 @@ export default function PPOBWifiReview({ formData, onConfirm, onBack }: PPOBWifi
         </div>
     );
 }
+
+    

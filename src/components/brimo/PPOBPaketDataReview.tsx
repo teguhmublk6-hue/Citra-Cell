@@ -194,7 +194,7 @@ export default function PPOBPaketDataReview({ formData, onConfirm, onBack }: PPO
                         <div className="flex justify-between items-center"><p>Harga Jual</p><p>{formatToRupiah(sellingPrice)}</p></div>
                         <div className="flex justify-between items-center"><p>Harga Modal</p><p className="text-red-500">- {formatToRupiah(costPrice)}</p></div>
                         <Separator />
-                        <div className="flex justify-between items-center font-bold text-green-500 text-base"><p>Laba</p><p>{formatToRupiah(profit)}</p></div>
+                        <div className="flex justify-between items-center font-bold text-base"><p>Total Bayar Pelanggan</p><p>{formatToRupiah(sellingPrice)}</p></div>
                     </div>
                      <Separator />
                     <div className="space-y-2">
@@ -233,7 +233,5 @@ export default function PPOBPaketDataReview({ formData, onConfirm, onBack }: PPO
         </div>
     );
 }
-
-    
 
     

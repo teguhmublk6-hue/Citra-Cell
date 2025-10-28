@@ -187,7 +187,7 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
                     <div className="space-y-2">
                          <h4 className="font-semibold text-lg">Rincian Finansial</h4>
                         <div className="flex justify-between items-center"><p>Nominal Penarikan</p><p>{formatToRupiah(withdrawalAmount)}</p></div>
-                        <div className="flex justify-between items-center"><p>Biaya Jasa (Laba)</p><p>{formatToRupiah(serviceFee)}</p></div>
+                        <div className="flex justify-between items-center"><p>Biaya Jasa</p><p>{formatToRupiah(serviceFee)}</p></div>
                         <Separator />
                         <div className="flex justify-between items-center font-bold text-base"><p>Total Dana Diterima Merchant</p><p>{formatToRupiah(totalReceivedByMerchant)}</p></div>
                     </div>
