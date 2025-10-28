@@ -10,7 +10,7 @@ import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw, Banknote, ArrowLeft
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, writeBatch, getDocs } from 'firebase/firestore';
 import type { KasAccount as KasAccountType } from '@/lib/data';
-import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight, CreditCard, IdCard, GraduationCap, Lightbulb, BookText, Home, FileText, HeartPulse, Plus, Calculator, Wifi, PhoneCall } from 'lucide-react';
+import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight, CreditCard, IdCard, GraduationCap, Lightbulb, BookText, Home, FileText, HeartPulse, Plus, Calculator, Wifi, Phone, PhoneCall, UserCheck } from 'lucide-react';
 import Header from './header';
 import BalanceCard from './balance-card';
 import {
@@ -31,7 +31,7 @@ import AddCapitalForm from './AddCapitalForm';
 import WithdrawBalanceForm from './WithdrawBalanceForm';
 import CustomerTransferForm from './CustomerTransferForm';
 import CustomerTransferReview from './CustomerTransferReview';
-import type { CustomerEmoneyTopUpFormValues, CustomerKJPWithdrawalFormValues, CustomerTopUpFormValues, CustomerTransferFormValues, CustomerVAPaymentFormValues, CustomerWithdrawalFormValues, EDCServiceFormValues, SettlementFormValues, MotivationFormValues, PPOBPulsaFormValues, PPOBTokenListrikFormValues, PPOBPaketDataFormValues, PPOBPlnPostpaidFormValues, PPOBPdamFormValues, PPOBBpjsFormValues, PPOBWifiFormValues, PPOBPaketTelponFormValues } from '@/lib/types';
+import type { CustomerEmoneyTopUpFormValues, CustomerKJPWithdrawalFormValues, CustomerTopUpFormValues, CustomerTransferFormValues, CustomerVAPaymentFormValues, CustomerWithdrawalFormValues, EDCServiceFormValues, SettlementFormValues, MotivationFormValues, PPOBPulsaFormValues, PPOBTokenListrikFormValues, PPOBPaketDataFormValues, PPOBPlnPostpaidFormValues, PPOBPdamFormValues, PPOBBpjsFormValues, PPOBWifiFormValues, PPOBPaketTelponFormValues, ShiftReconciliationFormValues } from '@/lib/types';
 import BookkeepingReport from './BookkeepingReport';
 import AdminPasscodeDialog from './AdminPasscodeDialog';
 import CustomerWithdrawalForm from './CustomerWithdrawalForm';
@@ -79,6 +79,7 @@ import PPOBWifiForm from './PPOBWifiForm';
 import PPOBWifiReview from './PPOBWifiReview';
 import PPOBPaketTelponForm from './PPOBPaketTelponForm';
 import PPOBPaketTelponReview from './PPOBPaketTelponReview';
+import ShiftReconciliationForm from './ShiftReconciliationForm';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -91,8 +92,8 @@ export const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'laporan' | 'mutasi' | 'accounts' | 'admin';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview' | 'ppobPaketData' | 'ppobPaketDataReview' | 'ppobPlnPostpaid' | 'ppobPlnPostpaidReview' | 'ppobPdam' | 'ppobPdamReview' | 'ppobBpjs' | 'ppobBpjsReview' | 'ppobWifi' | 'ppobWifiReview' | 'operationalCostReport' | 'settings' | 'deleteAllKasAccounts' | 'ppobPaketTelpon' | 'ppobPaketTelponReview';
-type FormSheet = 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'ppobPulsa' | 'ppobTokenListrik' | 'ppobPaketData' | 'ppobPlnPostpaid' | 'ppobPdam' | 'ppobBpjs' | 'ppobWifi' | 'ppobPaketTelpon';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview' | 'ppobPaketData' | 'ppobPaketDataReview' | 'ppobPlnPostpaid' | 'ppobPlnPostpaidReview' | 'ppobPdam' | 'ppobPdamReview' | 'ppobBpjs' | 'ppobBpjsReview' | 'ppobWifi' | 'ppobWifiReview' | 'operationalCostReport' | 'settings' | 'deleteAllKasAccounts' | 'ppobPaketTelpon' | 'ppobPaketTelponReview' | 'shiftReconciliation';
+type FormSheet = 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'ppobPulsa' | 'ppobTokenListrik' | 'ppobPaketData' | 'ppobPlnPostpaid' | 'ppobPdam' | 'ppobBpjs' | 'ppobWifi' | 'ppobPaketTelpon' | 'shiftReconciliation';
 
 
 interface HomeContentProps {
@@ -108,7 +109,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
   const [currentSlide, setCurrentSlide] = useState(0)
-  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | CustomerKJPWithdrawalFormValues | MotivationFormValues | PPOBPulsaFormValues | PPOBTokenListrikFormValues | PPOBPaketDataFormValues | PPOBPlnPostpaidFormValues | PPOBPdamFormValues | PPOBBpjsFormValues | PPOBWifiFormValues | PPOBPaketTelponFormValues | null>(null);
+  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | CustomerKJPWithdrawalFormValues | MotivationFormValues | PPOBPulsaFormValues | PPOBTokenListrikFormValues | PPOBPaketDataFormValues | PPOBPlnPostpaidFormValues | PPOBPdamFormValues | PPOBBpjsFormValues | PPOBWifiFormValues | PPOBPaketTelponFormValues | ShiftReconciliationFormValues | null>(null);
   const [isAdminAccessGranted, setIsAdminAccessGranted] = useState(false);
   const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
   const [isBrilinkReportVisible, setIsBrilinkReportVisible] = useState(false);
@@ -319,6 +320,10 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
 
   const handleCapitalAdditionReportClick = () => {
     setIsCapitalAdditionReportVisible(true);
+  };
+  
+  const handleShiftReconciliationClick = () => {
+    setActiveSheet('shiftReconciliation');
   };
 
   const handleSetMotivationClick = () => {
@@ -550,6 +555,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                 onProfitLossReportClick={handleProfitLossReportClick} 
                 onOperationalCostReportClick={handleOperationalCostReportClick} 
                 onCapitalAdditionReportClick={handleCapitalAdditionReportClick}
+                onShiftReconciliationClick={handleShiftReconciliationClick}
                 onSetMotivationClick={handleSetMotivationClick} 
                 onManageKasAccountsClick={handleManageKasAccountsClick} 
                 onManagePPOBPricingClick={handleManagePPOBPricingClick} 
@@ -639,6 +645,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                   {activeSheet === 'operationalCostReport' && 'Laporan Biaya Operasional'}
                   {activeSheet === 'settings' && 'Pengaturan'}
                   {activeSheet === 'deleteAllKasAccounts' && 'Reset Semua Akun Kas'}
+                  {activeSheet === 'shiftReconciliation' && 'Rekonsiliasi Shift'}
                 </SheetTitle>
             </SheetHeader>
             {activeSheet === 'history' && selectedAccount && <TransactionHistory account={selectedAccount} onDone={() => setActiveSheet(null)} />}
@@ -700,6 +707,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
 
             {activeSheet === 'operationalCostReport' && <OperationalCostReport onDone={closeAllSheets} />}
             {activeSheet === 'settings' && <SettingsContent />}
+            {activeSheet === 'shiftReconciliation' && <ShiftReconciliationForm onDone={closeAllSheets} />}
         </SheetContent>
       </Sheet>
 
@@ -742,5 +750,3 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     </>
   );
 }
-
-    

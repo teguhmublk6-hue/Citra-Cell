@@ -328,6 +328,14 @@ export const PPOBPaketTelponFormSchema = z.object({
 
 export type PPOBPaketTelponFormValues = z.infer<typeof PPOBPaketTelponFormSchema>;
 
+export const ShiftReconciliationFormSchema = z.object({
+  operatorName: z.string().min(1, 'Nama operator harus diisi.'),
+  voucherCashIn: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Jumlah harus angka" }).min(0, 'Jumlah tidak boleh negatif')),
+  actualPhysicalCash: z.preprocess(numberPreprocessor, z.number({ invalid_type_error: "Jumlah harus angka" }).min(0, 'Jumlah tidak boleh negatif')),
+  notes: z.string().optional(),
+});
+
+export type ShiftReconciliationFormValues = z.infer<typeof ShiftReconciliationFormSchema>;
 
 export type PPOBTransaction = {
     id: string;
