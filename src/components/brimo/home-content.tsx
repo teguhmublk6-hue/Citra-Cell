@@ -80,6 +80,7 @@ import PPOBWifiReview from './PPOBWifiReview';
 import PPOBPaketTelponForm from './PPOBPaketTelponForm';
 import PPOBPaketTelponReview from './PPOBPaketTelponReview';
 import ShiftReconciliationForm from './ShiftReconciliationForm';
+import StartShiftScreen from './StartShiftScreen';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -119,8 +120,22 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const [isCapitalAdditionReportVisible, setIsCapitalAdditionReportVisible] = useState(false);
   const [isDeleteReportsDialogOpen, setIsDeleteReportsDialogOpen] = useState(false);
   const [isDeleteAllAccountsDialogOpen, setIsDeleteAllAccountsDialogOpen] = useState(false);
+  const [activeOperator, setActiveOperator] = useState<string | null>(null);
   const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const operator = localStorage.getItem('brimoDeviceName');
+    setActiveOperator(operator);
+
+    const handleStorageChange = () => {
+      const newOperator = localStorage.getItem('brimoDeviceName');
+      setActiveOperator(newOperator);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   useEffect(() => {
     const hasAccess = sessionStorage.getItem('brimoAdminAccess') === 'true';
@@ -441,6 +456,17 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     setIsPasscodeDialogOpen(false);
   };
   
+  const handleEndShift = () => {
+    localStorage.removeItem('brimoDeviceName');
+    setActiveOperator(null);
+    setActiveTab('home');
+    toast({ title: 'Shift Berakhir', description: 'Anda telah mengakhiri shift. Silakan mulai shift baru.' });
+  };
+  
+  if (!activeOperator) {
+      return <StartShiftScreen onShiftStart={(name) => setActiveOperator(name)} />;
+  }
+
     if (isBrilinkReportVisible) {
         return <BookkeepingReport onDone={() => setIsBrilinkReportVisible(false)} />;
     }
@@ -616,9 +642,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                   {activeSheet === 'customerTopUpReview' && 'Review Top Up E-Wallet'}
                   {activeSheet === 'customerEmoneyTopUp' && 'Top Up E-Money'}
                   {activeSheet === 'customerEmoneyTopUpReview' && 'Review Top Up E-Money'}
-                  {activeSheet === 'customerVAPayment' && 'Pembayaran VA Pelanggan'}
-                  {activeSheet === 'customerVAPaymentReview' && 'Review Pembayaran VA'}
-                  {activeSheet === 'EDCService' && 'Layanan EDC'}
                   {activeSheet === 'customerKJP' && 'Tarik Tunai KJP'}
                   {activeSheet === 'customerKJPReview' && 'Review Tarik Tunai KJP'}
                   {activeSheet === 'settlement' && `Settlement: ${selectedAccount?.label}`}
@@ -706,7 +729,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
 
 
             {activeSheet === 'operationalCostReport' && <OperationalCostReport onDone={closeAllSheets} />}
-            {activeSheet === 'settings' && <SettingsContent />}
+            {activeSheet === 'settings' && <SettingsContent onEndShift={handleEndShift} />}
             {activeSheet === 'shiftReconciliation' && <ShiftReconciliationForm onDone={closeAllSheets} />}
         </SheetContent>
       </Sheet>

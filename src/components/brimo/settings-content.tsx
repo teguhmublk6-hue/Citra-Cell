@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { ChevronRight, Bell, User, DollarSign, Settings, Pencil, Check, Smartphone as SmartphoneIcon, Sun, Moon, Laptop } from 'lucide-react';
+import { ChevronRight, Bell, User, DollarSign, Settings, Pencil, Check, Smartphone as SmartphoneIcon, Sun, Moon, Laptop, LogOut } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import KasManagement from './KasManagement';
@@ -10,11 +10,26 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { useTheme } from '@/components/theme-provider';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
-export default function SettingsContent() {
+interface SettingsContentProps {
+    onEndShift: () => void;
+}
+
+export default function SettingsContent({ onEndShift }: SettingsContentProps) {
   const { theme, setTheme } = useTheme();
   const [deviceName, setDeviceName] = useState('');
   const [isEditingDeviceName, setIsEditingDeviceName] = useState(false);
+  const [isEndShiftConfirmOpen, setIsEndShiftConfirmOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
 
   useEffect(() => {
@@ -46,6 +61,7 @@ export default function SettingsContent() {
   ];
 
   return (
+    <>
     <div className="px-4">
       <Card>
         <CardHeader>
@@ -109,7 +125,7 @@ export default function SettingsContent() {
                 <div className="flex items-center gap-4">
                   <SmartphoneIcon size={20} className="text-muted-foreground" />
                   <div>
-                    <p className="font-medium">Nama Perangkat</p>
+                    <p className="font-medium">Nama Operator</p>
                     <p className="text-sm text-muted-foreground">{deviceName || 'Belum diatur'}</p>
                   </div>
                 </div>
@@ -129,8 +145,34 @@ export default function SettingsContent() {
               <ChevronRight size={20} className="text-muted-foreground" />
             </button>
           ))}
+           <button onClick={() => setIsEndShiftConfirmOpen(true)} className="flex items-center justify-between p-4 bg-destructive/10 text-destructive rounded-xl w-full hover:bg-destructive/20 transition-colors">
+              <div className="flex items-center gap-4">
+                <LogOut size={20} />
+                <span className="font-medium">Akhiri Shift</span>
+              </div>
+              <ChevronRight size={20} />
+            </button>
         </CardContent>
       </Card>
     </div>
+
+    <AlertDialog open={isEndShiftConfirmOpen} onOpenChange={setIsEndShiftConfirmOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Akhiri Shift?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Anda akan keluar dari shift saat ini. Anda perlu memulai shift baru untuk dapat melakukan transaksi lagi. Pastikan Anda sudah melakukan rekonsiliasi.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={onEndShift} className="bg-destructive hover:bg-destructive/90">
+                    Ya, Akhiri Shift
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
+    </>
   );
 }
