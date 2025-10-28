@@ -25,8 +25,25 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
   const [count, setCount] = React.useState(0)
 
   const serviceGroups = [
-    { title: 'BRILink', services: quickServices },
-    { title: 'PPOB', services: ppobServices },
+    { title: 'BRILink', services: quickServices, labels: {
+        'customerTransfer': 'Transfer',
+        'withdraw': 'Tarik Tunai',
+        'topUp': 'Top Up',
+        'customerVAPayment': 'VA Payment',
+        'EDCService': 'Layanan EDC',
+        'Emoney': 'Emoney',
+        'KJP': 'KJP'
+    } },
+    { title: 'PPOB', services: ppobServices, labels: {
+        'Pulsa': 'Pulsa',
+        'Paket Telpon': 'Paket Telpon',
+        'Data': 'Data',
+        'Token Listrik': 'Token Listrik',
+        'PLN': 'PLN',
+        'PDAM': 'PDAM',
+        'BPJS': 'BPJS',
+        'Wifi': 'Wifi'
+    } },
   ];
 
   React.useEffect(() => {
@@ -87,7 +104,7 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
                             )}>
                             <service.icon size={28} strokeWidth={1.5} />
                           </div>
-                          <span className="text-xs text-muted-foreground font-medium text-center leading-tight mt-1">{service.label}</span>
+                          <span className="text-xs text-muted-foreground font-medium text-center leading-tight mt-1">{(group.labels as any)[service.label] || service.label}</span>
                         </button>
                       ))}
                     </div>

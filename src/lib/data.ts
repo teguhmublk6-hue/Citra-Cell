@@ -31,14 +31,13 @@ export type QuickService = {
 }
 
 export const quickServices: QuickService[] = [
-  { icon: Send, label: 'Transfer', color: 'bg-blue-500' },
-  { icon: Wallet, label: 'Tarik Tunai', color: 'bg-gray-400' },
-  { icon: Smartphone, label: 'Top Up', color: 'bg-purple-500' },
-  { icon: CreditCard, label: 'VA Payment', color: 'bg-orange-500' },
-  { icon: Calculator, label: 'Layanan EDC', color: 'bg-teal-500' },
+  { icon: Send, label: 'customerTransfer', color: 'bg-blue-500' },
+  { icon: Wallet, label: 'withdraw', color: 'bg-gray-400' },
+  { icon: Smartphone, label: 'topUp', color: 'bg-purple-500' },
+  { icon: CreditCard, label: 'customerVAPayment', color: 'bg-orange-500' },
+  { icon: Calculator, label: 'EDCService', color: 'bg-teal-500' },
   { icon: IdCard, label: 'Emoney', color: 'bg-sky-500' },
   { icon: GraduationCap, label: 'KJP', color: 'bg-pink-500' },
-  // { icon: MoreHorizontal, label: 'Lainnya', color: 'bg-gray-400' },
 ];
 
 export const ppobServices: QuickService[] = [
