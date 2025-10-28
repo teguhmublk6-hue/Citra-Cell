@@ -1,6 +1,28 @@
 
 {
   "entities": {
+    "PPOBWifi": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PPOBWifi",
+      "type": "object",
+      "description": "Represents a Wifi bill payment transaction.",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "customerName": { "type": "string" },
+        "billAmount": { "type": "number", "description": "The actual bill amount (modal)." },
+        "totalAmount": { "type": "number", "description": "The total amount paid by the customer (harga jual)." },
+        "cashback": { "type": "number", "description": "Cashback received from the PPOB provider." },
+        "netProfit": { "type": "number" },
+        "sourcePPOBAccountId": { "type": "string" },
+        "paymentMethod": { "type": "string", "enum": ["Tunai", "Transfer", "Split"] },
+        "paymentToKasTunaiAmount": { "type": "number" },
+        "paymentToKasTransferAccountId": { "type": "string" },
+        "paymentToKasTransferAmount": { "type": "number" },
+        "deviceName": { "type": "string" }
+      },
+      "required": ["date", "customerName", "billAmount", "totalAmount", "netProfit", "sourcePPOBAccountId", "paymentMethod", "deviceName"]
+    },
     "PPOBPricing": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PPOBPricing",
@@ -722,6 +744,12 @@
         "$ref": "#/entities/PPOBBpjs"
       },
       "description": "Stores a log of all BPJS bill payment transactions."
+    },
+    "/ppobWifi/{ppobWifiId}": {
+      "schema": {
+        "$ref": "#/entities/PPOBWifi"
+      },
+      "description": "Stores a log of all Wifi bill payment transactions."
     },
     "/edcServices/{edcServiceId}": {
       "schema": {

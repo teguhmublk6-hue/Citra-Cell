@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
-import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal, PPOBTransaction, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs } from '@/lib/types';
+import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal, PPOBTransaction, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs, PPOBWifi } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,8 @@ type BrilinkReportItem =
 type PpobBillReportItem = 
     | (PPOBPlnPostpaid & { id: string; serviceName: 'PLN Pascabayar' })
     | (PPOBPdam & { id: string; serviceName: 'PDAM' })
-    | (PPOBBpjs & { id: string; serviceName: 'BPJS' });
+    | (PPOBBpjs & { id: string; serviceName: 'BPJS' })
+    | (PPOBWifi & { id: string; serviceName: 'Wifi' });
 
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
@@ -80,6 +81,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
             const ppobPlnPostpaidQuery = getDocs(query(collection(firestore, 'ppobPlnPostpaid'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
             const ppobPdamQuery = getDocs(query(collection(firestore, 'ppobPdam'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
             const ppobBpjsQuery = getDocs(query(collection(firestore, 'ppobBpjs'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
+            const ppobWifiQuery = getDocs(query(collection(firestore, 'ppobWifi'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
             
             const [
                 transfersSnapshot, 
@@ -93,7 +95,8 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                 ppobPlnPostpaidSnapshot,
                 ppobPdamSnapshot,
                 ppobBpjsSnapshot,
-            ] = await Promise.all([...brilinkQueries, ppobQuery, ppobPlnPostpaidQuery, ppobPdamQuery, ppobBpjsQuery]);
+                ppobWifiSnapshot,
+            ] = await Promise.all([...brilinkQueries, ppobQuery, ppobPlnPostpaidQuery, ppobPdamQuery, ppobBpjsQuery, ppobWifiQuery]);
 
             const combinedBrilinkReports: BrilinkReportItem[] = [];
 
@@ -112,6 +115,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
             ppobPlnPostpaidSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBPlnPostpaid), serviceName: 'PLN Pascabayar' }));
             ppobPdamSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBPdam), serviceName: 'PDAM' }));
             ppobBpjsSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBBpjs), serviceName: 'BPJS' }));
+            ppobWifiSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBWifi), serviceName: 'Wifi' }));
             fetchedPpobBillReports.sort((a, b) => (b.date as any).toDate().getTime() - (a.date as any).toDate().getTime());
 
             setBrilinkReports(combinedBrilinkReports);

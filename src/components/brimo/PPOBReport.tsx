@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
-import type { PPOBTransaction, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs } from '@/lib/types';
+import type { PPOBTransaction, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs, PPOBWifi } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -67,9 +67,10 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                 getDocs(query(collection(firestore, 'ppobPlnPostpaid'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
                 getDocs(query(collection(firestore, 'ppobPdam'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
                 getDocs(query(collection(firestore, 'ppobBpjs'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+                getDocs(query(collection(firestore, 'ppobWifi'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
             ];
             
-            const [ppobSnapshot, plnPostpaidSnapshot, pdamSnapshot, bpjsSnapshot] = await Promise.all(queries);
+            const [ppobSnapshot, plnPostpaidSnapshot, pdamSnapshot, bpjsSnapshot, wifiSnapshot] = await Promise.all(queries);
 
             const fetchedReports: MergedPPOBReportItem[] = [];
 
@@ -120,6 +121,22 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                     id: doc.id,
                     date: (data.date as any).toDate(),
                     serviceName: 'BPJS',
+                    destination: data.customerName,
+                    description: `Tagihan an. ${data.customerName}`,
+                    costPrice: data.billAmount,
+                    sellingPrice: data.totalAmount,
+                    profit: data.netProfit,
+                    sourcePPOBAccountId: data.sourcePPOBAccountId,
+                    deviceName: data.deviceName
+                });
+            });
+
+            wifiSnapshot.forEach(doc => {
+                const data = doc.data() as PPOBWifi;
+                fetchedReports.push({
+                    id: doc.id,
+                    date: (data.date as any).toDate(),
+                    serviceName: 'Wifi',
                     destination: data.customerName,
                     description: `Tagihan an. ${data.customerName}`,
                     costPrice: data.billAmount,
