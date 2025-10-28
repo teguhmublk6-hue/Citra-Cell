@@ -164,8 +164,9 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
     acc.costPrice += report.billAmount;
     acc.sellingPrice += report.totalAmount;
     acc.profit += report.netProfit;
+    acc.cashback += report.cashback || 0;
     return acc;
-  }, { costPrice: 0, sellingPrice: 0, profit: 0 });
+  }, { costPrice: 0, sellingPrice: 0, profit: 0, cashback: 0 });
   
   const totalPpobProfit = ppobTotals.profit + ppobBillTotals.profit;
 
@@ -305,6 +306,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                             <TableHead className="py-2">Akun PPOB</TableHead>
                             <TableHead className="text-right py-2">Harga Modal</TableHead>
                             <TableHead className="text-right py-2">Harga Jual</TableHead>
+                            <TableHead className="text-right py-2">Cashback</TableHead>
                             <TableHead className="text-right py-2">Laba/Rugi</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -317,6 +319,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                 <TableCell className="py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.sellingPrice)}</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(0)}</TableCell>
                                 <TableCell className="text-right font-semibold text-green-500 py-2">{formatToRupiah(report.profit)}</TableCell>
                             </TableRow>
                         ))}
@@ -328,6 +331,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                 <TableCell className="py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.billAmount)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.totalAmount)}</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(report.cashback)}</TableCell>
                                 <TableCell className="text-right font-semibold text-green-500 py-2">{formatToRupiah(report.netProfit)}</TableCell>
                             </TableRow>
                         ))}
@@ -337,6 +341,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                             <TableCell colSpan={4} className="sticky left-0 bg-muted/50 z-10">Total</TableCell>
                             <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.costPrice + ppobBillTotals.costPrice)}</TableCell>
                             <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.sellingPrice + ppobBillTotals.sellingPrice)}</TableCell>
+                            <TableCell className="text-right py-2">{formatToRupiah(ppobBillTotals.cashback)}</TableCell>
                             <TableCell className="text-right py-2">{formatToRupiah(totalPpobProfit)}</TableCell>
                         </TableRow>
                     </TableFooter>
