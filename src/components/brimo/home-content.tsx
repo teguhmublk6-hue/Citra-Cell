@@ -93,7 +93,7 @@ export const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'laporan' | 'mutasi' | 'accounts' | 'admin';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview' | 'ppobPaketData' | 'ppobPaketDataReview' | 'ppobPlnPostpaid' | 'ppobPlnPostpaidReview' | 'ppobPdam' | 'ppobPdamReview' | 'ppobBpjs' | 'ppobBpjsReview' | 'ppobWifi' | 'ppobWifiReview' | 'operationalCostReport' | 'settings' | 'deleteAllKasAccounts' | 'ppobPaketTelpon' | 'ppobPaketTelponReview' | 'shiftReconciliation';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview' | 'ppobPaketData' | 'ppobPaketDataReview' | 'ppobPlnPostpaid' | 'ppobPlnPostpaidReview' | 'ppobPdam' | 'ppobPdamReview' | 'ppobBpjs' | 'ppobBpjsReview' | 'ppobWifi' | 'ppobWifiReview' | 'operationalCostReport' | 'deleteAllKasAccounts' | 'ppobPaketTelpon' | 'ppobPaketTelponReview' | 'shiftReconciliation';
 type FormSheet = 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'ppobPulsa' | 'ppobTokenListrik' | 'ppobPaketData' | 'ppobPlnPostpaid' | 'ppobPdam' | 'ppobBpjs' | 'ppobWifi' | 'ppobPaketTelpon' | 'shiftReconciliation';
 
 
@@ -118,6 +118,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const [isProfitLossReportVisible, setIsProfitLossReportVisible] = useState(false);
   const [isOperationalCostReportVisible, setIsOperationalCostReportVisible] = useState(false);
   const [isCapitalAdditionReportVisible, setIsCapitalAdditionReportVisible] = useState(false);
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isDeleteReportsDialogOpen, setIsDeleteReportsDialogOpen] = useState(false);
   const [isDeleteAllAccountsDialogOpen, setIsDeleteAllAccountsDialogOpen] = useState(false);
   const [activeOperator, setActiveOperator] = useState<string | null>(null);
@@ -446,7 +447,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   }
 
   const handleSettingsClick = () => {
-    setActiveSheet('settings');
+    setIsSettingsVisible(true);
   }
 
   const handlePasscodeSuccess = () => {
@@ -460,6 +461,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     localStorage.removeItem('brimoDeviceName');
     setActiveOperator(null);
     setActiveTab('home');
+    setIsSettingsVisible(false);
     toast({ title: 'Shift Berakhir', description: 'Anda telah mengakhiri shift. Silakan mulai shift baru.' });
   };
   
@@ -485,6 +487,10 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
 
     if (isCapitalAdditionReportVisible) {
         return <CapitalAdditionReport onDone={() => setIsCapitalAdditionReportVisible(false)} />;
+    }
+    
+    if (isSettingsVisible) {
+        return <SettingsContent onBack={() => setIsSettingsVisible(false)} onEndShift={handleEndShift} />;
     }
 
   const isKJPReview = activeSheet === 'customerKJPReview' && reviewData && 'withdrawalAmount' in reviewData && !('customerBankSource' in reviewData);
@@ -666,7 +672,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                   {activeSheet === 'ppobPaketTelpon' && 'Transaksi Paket Telpon'}
                   {activeSheet === 'ppobPaketTelponReview' && 'Review Transaksi Paket Telpon'}
                   {activeSheet === 'operationalCostReport' && 'Laporan Biaya Operasional'}
-                  {activeSheet === 'settings' && 'Pengaturan'}
                   {activeSheet === 'deleteAllKasAccounts' && 'Reset Semua Akun Kas'}
                   {activeSheet === 'shiftReconciliation' && 'Rekonsiliasi Shift'}
                 </SheetTitle>
@@ -729,7 +734,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
 
 
             {activeSheet === 'operationalCostReport' && <OperationalCostReport onDone={closeAllSheets} />}
-            {activeSheet === 'settings' && <SettingsContent onEndShift={handleEndShift} />}
             {activeSheet === 'shiftReconciliation' && <ShiftReconciliationForm onDone={closeAllSheets} />}
         </SheetContent>
       </Sheet>

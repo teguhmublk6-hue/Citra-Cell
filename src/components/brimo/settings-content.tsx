@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { ChevronRight, Bell, User, DollarSign, Settings, Pencil, Check, Smartphone as SmartphoneIcon, Sun, Moon, Laptop, LogOut } from 'lucide-react';
+import { ChevronRight, Bell, User, DollarSign, Settings, Pencil, Check, Smartphone as SmartphoneIcon, Sun, Moon, Laptop, LogOut, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import KasManagement from './KasManagement';
@@ -23,9 +23,10 @@ import {
 
 interface SettingsContentProps {
     onEndShift: () => void;
+    onBack: () => void;
 }
 
-export default function SettingsContent({ onEndShift }: SettingsContentProps) {
+export default function SettingsContent({ onEndShift, onBack }: SettingsContentProps) {
   const { theme, setTheme } = useTheme();
   const [deviceName, setDeviceName] = useState('');
   const [isEditingDeviceName, setIsEditingDeviceName] = useState(false);
@@ -62,99 +63,105 @@ export default function SettingsContent({ onEndShift }: SettingsContentProps) {
 
   return (
     <>
-    <div className="px-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Pengaturan</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl text-white shadow-lg">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                <Settings size={24} />
-              </div>
-              <div>
-                <p className="font-semibold">Firebase Database</p>
-                <p className="text-xs opacity-90">Online & Shared</p>
-              </div>
-            </div>
-            <div className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-            </div>
-          </div>
+    <div className="h-full flex flex-col">
+        <header className="p-4 flex items-center gap-4 border-b">
+            <Button variant="ghost" size="icon" onClick={onBack}>
+                <ArrowLeft />
+            </Button>
+            <h1 className="text-lg font-semibold">Pengaturan</h1>
+        </header>
+        <div className="flex-1 overflow-auto p-4">
+            <Card>
+                <CardContent className="pt-6 space-y-3">
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl text-white shadow-lg">
+                    <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                        <Settings size={24} />
+                    </div>
+                    <div>
+                        <p className="font-semibold">Firebase Database</p>
+                        <p className="text-xs opacity-90">Online & Shared</p>
+                    </div>
+                    </div>
+                    <div className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                    </div>
+                </div>
 
-          <div className="p-4 bg-card-foreground/5 rounded-xl w-full">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Sun className="text-muted-foreground" />
-                    <span className="font-medium">Mode Tampilan</span>
+                <div className="p-4 bg-card-foreground/5 rounded-xl w-full">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <Sun className="text-muted-foreground" />
+                            <span className="font-medium">Mode Tampilan</span>
+                        </div>
+                        <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+                            <Button variant={theme === 'light' ? 'default' : 'ghost'} size="sm" onClick={() => setTheme('light')} className={cn(theme === 'light' && 'bg-background text-foreground shadow-sm')}>
+                                <Sun size={16} />
+                            </Button>
+                            <Button variant={theme === 'dark' ? 'default' : 'ghost'} size="sm" onClick={() => setTheme('dark')} className={cn(theme === 'dark' && 'bg-background text-foreground shadow-sm')}>
+                                <Moon size={16} />
+                            </Button>
+                            <Button variant={theme === 'system' ? 'default' : 'ghost'} size="sm" onClick={() => setTheme('system')} className={cn(theme === 'system' && 'bg-background text-foreground shadow-sm')}>
+                                <Laptop size={16} />
+                            </Button>
+                        </div>
+                    </div>
                 </div>
-                <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
-                    <Button variant={theme === 'light' ? 'default' : 'ghost'} size="sm" onClick={() => setTheme('light')} className={cn(theme === 'light' && 'bg-background text-foreground shadow-sm')}>
-                        <Sun size={16} />
-                    </Button>
-                    <Button variant={theme === 'dark' ? 'default' : 'ghost'} size="sm" onClick={() => setTheme('dark')} className={cn(theme === 'dark' && 'bg-background text-foreground shadow-sm')}>
-                        <Moon size={16} />
-                    </Button>
-                     <Button variant={theme === 'system' ? 'default' : 'ghost'} size="sm" onClick={() => setTheme('system')} className={cn(theme === 'system' && 'bg-background text-foreground shadow-sm')}>
-                        <Laptop size={16} />
-                    </Button>
+                
+                <div className="p-4 bg-card-foreground/5 rounded-xl w-full">
+                    {isEditingDeviceName ? (
+                    <div className="flex items-center gap-2">
+                        <SmartphoneIcon size={20} className="text-muted-foreground" />
+                        <Input
+                        type="text"
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={handleDeviceNameKeyDown}
+                        className="h-9 flex-1"
+                        autoFocus
+                        />
+                        <Button onClick={handleDeviceNameSave} size="icon" className="h-9 w-9 bg-green-500 hover:bg-green-600">
+                        <Check size={18} />
+                        </Button>
+                    </div>
+                    ) : (
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                        <SmartphoneIcon size={20} className="text-muted-foreground" />
+                        <div>
+                            <p className="font-medium">Nama Operator</p>
+                            <p className="text-sm text-muted-foreground">{deviceName || 'Belum diatur'}</p>
+                        </div>
+                        </div>
+                        <Button onClick={() => setIsEditingDeviceName(true)} variant="ghost" size="icon">
+                        <Pencil size={16} />
+                        </Button>
+                    </div>
+                    )}
                 </div>
-            </div>
-          </div>
-          
-          <div className="p-4 bg-card-foreground/5 rounded-xl w-full">
-            {isEditingDeviceName ? (
-              <div className="flex items-center gap-2">
-                <SmartphoneIcon size={20} className="text-muted-foreground" />
-                <Input
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleDeviceNameKeyDown}
-                  className="h-9 flex-1"
-                  autoFocus
-                />
-                <Button onClick={handleDeviceNameSave} size="icon" className="h-9 w-9 bg-green-500 hover:bg-green-600">
-                  <Check size={18} />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <SmartphoneIcon size={20} className="text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Nama Operator</p>
-                    <p className="text-sm text-muted-foreground">{deviceName || 'Belum diatur'}</p>
-                  </div>
-                </div>
-                <Button onClick={() => setIsEditingDeviceName(true)} variant="ghost" size="icon">
-                  <Pencil size={16} />
-                </Button>
-              </div>
-            )}
-          </div>
 
-          {settingsItems.map((item, idx) => (
-            <button key={idx} className="flex items-center justify-between p-4 bg-card-foreground/5 rounded-xl w-full hover:bg-card-foreground/10 transition-colors">
-              <div className="flex items-center gap-4">
-                <item.icon size={20} className="text-muted-foreground" />
-                <span className="font-medium">{item.label}</span>
-              </div>
-              <ChevronRight size={20} className="text-muted-foreground" />
-            </button>
-          ))}
-           <button onClick={() => setIsEndShiftConfirmOpen(true)} className="flex items-center justify-between p-4 bg-destructive/10 text-destructive rounded-xl w-full hover:bg-destructive/20 transition-colors">
-              <div className="flex items-center gap-4">
-                <LogOut size={20} />
-                <span className="font-medium">Akhiri Shift</span>
-              </div>
-              <ChevronRight size={20} />
-            </button>
-        </CardContent>
-      </Card>
+                {settingsItems.map((item, idx) => (
+                    <button key={idx} className="flex items-center justify-between p-4 bg-card-foreground/5 rounded-xl w-full hover:bg-card-foreground/10 transition-colors">
+                    <div className="flex items-center gap-4">
+                        <item.icon size={20} className="text-muted-foreground" />
+                        <span className="font-medium">{item.label}</span>
+                    </div>
+                    <ChevronRight size={20} className="text-muted-foreground" />
+                    </button>
+                ))}
+                <button onClick={() => setIsEndShiftConfirmOpen(true)} className="flex items-center justify-between p-4 bg-destructive/10 text-destructive rounded-xl w-full hover:bg-destructive/20 transition-colors">
+                    <div className="flex items-center gap-4">
+                        <LogOut size={20} />
+                        <span className="font-medium">Akhiri Shift</span>
+                    </div>
+                    <ChevronRight size={20} />
+                    </button>
+                </CardContent>
+            </Card>
+        </div>
     </div>
+
 
     <AlertDialog open={isEndShiftConfirmOpen} onOpenChange={setIsEndShiftConfirmOpen}>
         <AlertDialogContent>
