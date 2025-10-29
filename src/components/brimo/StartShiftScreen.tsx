@@ -40,14 +40,14 @@ export default function StartShiftScreen({ onShiftStart }: StartShiftScreenProps
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Mulai Shift Baru</CardTitle>
-          <CardDescription>Masukkan nama Anda untuk memulai sesi.</CardDescription>
+          <CardDescription>Masukkan nama Anda untuk memulai sesi global.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
               id="operatorName"
-              placeholder="Nama Operator"
+              placeholder="Nama Anda"
               value={operatorName}
               onChange={(e) => setOperatorName(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -58,10 +58,12 @@ export default function StartShiftScreen({ onShiftStart }: StartShiftScreenProps
         </CardContent>
         <CardFooter>
           <Button className="w-full" onClick={handleStartShift}>
-            Mulai Bekerja
+            Mulai Shift
           </Button>
         </CardFooter>
       </Card>
     </div>
   );
 }
+
+    

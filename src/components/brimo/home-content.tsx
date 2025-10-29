@@ -121,6 +121,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isDeleteReportsDialogOpen, setIsDeleteReportsDialogOpen] = useState(false);
   const [isDeleteAllAccountsDialogOpen, setIsDeleteAllAccountsDialogOpen] = useState(false);
+  const [deviceName, setDeviceName] = useState('');
   const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -130,10 +131,17 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
 
 
   useEffect(() => {
-    if (shiftStatus) {
-      localStorage.setItem('brimoDeviceName', shiftStatus.operatorName);
-    }
-  }, [shiftStatus]);
+    const storedName = localStorage.getItem('brimoDeviceName') || '';
+    setDeviceName(storedName);
+    
+    // Listen for storage changes from other tabs/windows
+    const handleStorageChange = () => {
+        const updatedName = localStorage.getItem('brimoDeviceName') || '';
+        setDeviceName(updatedName);
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   useEffect(() => {
     const hasAccess = sessionStorage.getItem('brimoAdminAccess') === 'true';
@@ -359,7 +367,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
 
   const handleEndShift = async () => {
     await setDoc(shiftStatusDocRef, { isActive: false }, { merge: true });
-    localStorage.removeItem('brimoDeviceName');
     setActiveTab('home');
     setIsSettingsVisible(false);
     toast({ title: 'Shift Berakhir', description: 'Anda telah mengakhiri shift. Silakan mulai shift baru.' });
@@ -468,7 +475,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
         operatorName: operatorName,
         startTime: new Date().toISOString()
     }, { merge: true });
-    localStorage.setItem('brimoDeviceName', operatorName);
     toast({
         title: 'Shift Dimulai',
         description: `Selamat bekerja, ${operatorName}!`,
@@ -531,6 +537,8 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
             <Header 
               onSync={revalidateData} 
               isSyncing={isSyncing} 
+              deviceName={deviceName}
+              shiftStatus={shiftStatus}
             />
             <div className="px-4 -mt-16">
               <Carousel 
@@ -791,3 +799,5 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     </>
   );
 }
+
+    
