@@ -510,7 +510,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     }
     
     if (isSettingsVisible) {
-        return <SettingsContent onBack={() => setIsSettingsVisible(false)} onEndShift={handleEndShift} />;
+        return <SettingsContent onBack={() => setIsSettingsVisible(false)} />;
     }
 
   const isKJPReview = activeSheet === 'customerKJPReview' && reviewData && 'withdrawalAmount' in reviewData && !('customerBankSource' in reviewData);
@@ -594,6 +594,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                     onSettlementClick={handleSettlementClick}
                     onAdminClick={handleAdminClick}
                     onSettingsClick={handleSettingsClick}
+                    onEndShift={handleEndShift}
                 />;
       case 'admin':
         return (
@@ -799,5 +800,3 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     </>
   );
 }
-
-    

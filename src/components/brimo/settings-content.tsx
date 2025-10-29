@@ -22,15 +22,13 @@ import {
 } from "@/components/ui/alert-dialog"
 
 interface SettingsContentProps {
-    onEndShift: () => void;
     onBack: () => void;
 }
 
-export default function SettingsContent({ onEndShift, onBack }: SettingsContentProps) {
+export default function SettingsContent({ onBack }: SettingsContentProps) {
   const { theme, setTheme } = useTheme();
   const [deviceName, setDeviceName] = useState('');
   const [isEditingDeviceName, setIsEditingDeviceName] = useState(false);
-  const [isEndShiftConfirmOpen, setIsEndShiftConfirmOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
 
   useEffect(() => {
@@ -150,36 +148,10 @@ export default function SettingsContent({ onEndShift, onBack }: SettingsContentP
                     <ChevronRight size={20} className="text-muted-foreground" />
                     </button>
                 ))}
-                <button onClick={() => setIsEndShiftConfirmOpen(true)} className="flex items-center justify-between p-4 bg-destructive/10 text-destructive rounded-xl w-full hover:bg-destructive/20 transition-colors">
-                    <div className="flex items-center gap-4">
-                        <LogOut size={20} />
-                        <span className="font-medium">Akhiri Shift</span>
-                    </div>
-                    <ChevronRight size={20} />
-                    </button>
                 </CardContent>
             </Card>
         </div>
     </div>
-
-
-    <AlertDialog open={isEndShiftConfirmOpen} onOpenChange={setIsEndShiftConfirmOpen}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Akhiri Shift?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Anda akan keluar dari shift saat ini. Anda perlu memulai shift baru untuk dapat melakukan transaksi lagi. Pastikan Anda sudah melakukan rekonsiliasi.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel>Batal</AlertDialogCancel>
-                <AlertDialogAction onClick={onEndShift} className="bg-destructive hover:bg-destructive/90">
-                    Ya, Akhiri Shift
-                </AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
-
     </>
   );
 }

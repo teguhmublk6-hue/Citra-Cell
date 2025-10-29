@@ -6,19 +6,32 @@ import { collection } from 'firebase/firestore';
 import type { KasAccount as KasAccountType } from '@/lib/data';
 import { iconMap } from './home-content';
 import { Button } from '../ui/button';
-import { Banknote, ChevronRight, Settings, UserCog } from 'lucide-react';
+import { Banknote, ChevronRight, Settings, UserCog, LogOut } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface AccountsContentProps {
     onAccountClick: (account: KasAccountType) => void;
     onSettlementClick: (account: KasAccountType) => void;
     onAdminClick: () => void;
     onSettingsClick: () => void;
+    onEndShift: () => void;
 }
 
-export default function AccountsContent({ onAccountClick, onSettlementClick, onAdminClick, onSettingsClick }: AccountsContentProps) {
+export default function AccountsContent({ onAccountClick, onSettlementClick, onAdminClick, onSettingsClick, onEndShift }: AccountsContentProps) {
     const firestore = useFirestore();
     const [showSettlementShortcut, setShowSettlementShortcut] = useState(false);
+    const [isEndShiftConfirmOpen, setIsEndShiftConfirmOpen] = useState(false);
+
 
     useEffect(() => {
         const checkTime = () => {
@@ -83,10 +96,11 @@ export default function AccountsContent({ onAccountClick, onSettlementClick, onA
     }, [groupedAccounts]);
 
     return (
+        <>
         <div className="py-4 px-4 pb-28 h-full flex flex-col">
             <h1 className="text-2xl font-bold mb-4">Akun & Pengaturan</h1>
 
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-3 gap-4 mb-6">
                 <button onClick={onAdminClick} className="flex flex-col items-center justify-center p-4 bg-card-foreground/5 rounded-xl w-full hover:bg-card-foreground/10 transition-colors gap-2">
                     <UserCog size={24} className="text-muted-foreground" />
                     <span className="font-medium text-sm">Menu Admin</span>
@@ -94,6 +108,10 @@ export default function AccountsContent({ onAccountClick, onSettlementClick, onA
                  <button onClick={onSettingsClick} className="flex flex-col items-center justify-center p-4 bg-card-foreground/5 rounded-xl w-full hover:bg-card-foreground/10 transition-colors gap-2">
                     <Settings size={24} className="text-muted-foreground" />
                     <span className="font-medium text-sm">Pengaturan</span>
+                </button>
+                <button onClick={() => setIsEndShiftConfirmOpen(true)} className="flex flex-col items-center justify-center p-4 bg-destructive/10 text-destructive rounded-xl w-full hover:bg-destructive/20 transition-colors gap-2">
+                    <LogOut size={24} />
+                    <span className="font-medium text-sm">Akhiri Shift</span>
                 </button>
             </div>
 
@@ -156,5 +174,22 @@ export default function AccountsContent({ onAccountClick, onSettlementClick, onA
                 </div>
             )}
         </div>
+        <AlertDialog open={isEndShiftConfirmOpen} onOpenChange={setIsEndShiftConfirmOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Akhiri Shift?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Anda akan keluar dari shift saat ini. Anda perlu memulai shift baru untuk dapat melakukan transaksi lagi. Pastikan Anda sudah melakukan rekonsiliasi.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogAction onClick={onEndShift} className="bg-destructive hover:bg-destructive/90">
+                        Ya, Akhiri Shift
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+      </>
     )
 }
