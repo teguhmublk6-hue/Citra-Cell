@@ -204,7 +204,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     }, 150);
   }
   
-  const handleQuickServiceClick = (service: 'customerTransfer' | 'withdraw' | 'topUp' | 'customerVAPayment' | 'EDCService' | 'Emoney' | 'KJP' | 'Pulsa' | 'Token Listrik' | 'Data' | 'PLN' | 'PDAM' | 'BPJS' | 'Wifi' | 'Paket Telpon') => {
+  const handleQuickServiceClick = (service: ServiceType) => {
     if (service === 'customerTransfer') {
       setActiveSheet('customerTransfer');
     } else if (service === 'withdraw') {
@@ -362,6 +362,14 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     setActiveSheet('deleteAllKasAccounts');
   }
 
+  const handleEndShift = () => {
+    localStorage.removeItem('brimoDeviceName');
+    setActiveOperator(null);
+    setActiveTab('home');
+    setIsSettingsVisible(false); // Close settings if it was open
+    toast({ title: 'Shift Berakhir', description: 'Anda telah mengakhiri shift. Silakan mulai shift baru.' });
+  };
+
   const confirmResetReports = async () => {
     if (!firestore) {
         toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
@@ -396,6 +404,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
         }
         await batch.commit();
         toast({ title: "Sukses", description: "Semua riwayat laporan telah dihapus." });
+        handleEndShift();
     } catch (error) {
         console.error("Error resetting reports:", error);
         toast({ variant: "destructive", title: "Gagal", description: "Terjadi kesalahan saat menghapus laporan." });
@@ -429,6 +438,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
         await batch.commit();
         toast({ title: "Sukses", description: "Semua akun kas telah direset ke saldo 0 dan riwayatnya dihapus." });
         revalidateData();
+        handleEndShift();
     } catch (error) {
         console.error("Error resetting all accounts:", error);
         toast({ variant: "destructive", title: "Gagal", description: "Terjadi kesalahan saat mereset akun." });
@@ -455,14 +465,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     setIsAdminAccessGranted(true);
     setActiveTab('admin');
     setIsPasscodeDialogOpen(false);
-  };
-  
-  const handleEndShift = () => {
-    localStorage.removeItem('brimoDeviceName');
-    setActiveOperator(null);
-    setActiveTab('home');
-    setIsSettingsVisible(false);
-    toast({ title: 'Shift Berakhir', description: 'Anda telah mengakhiri shift. Silakan mulai shift baru.' });
   };
   
   if (!activeOperator) {
