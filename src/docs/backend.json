@@ -1,6 +1,18 @@
 
 {
   "entities": {
+    "CurrentShiftStatus": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CurrentShiftStatus",
+      "type": "object",
+      "description": "Represents the currently active shift status, shared across all devices.",
+      "properties": {
+        "isActive": { "type": "boolean" },
+        "operatorName": { "type": "string" },
+        "startTime": { "type": "string", "format": "date-time" }
+      },
+      "required": ["isActive", "operatorName", "startTime"]
+    },
     "ShiftReconciliation": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ShiftReconciliation",
@@ -680,6 +692,12 @@
     }
   },
   "firestore": {
+    "/appConfig/currentShiftStatus": {
+      "schema": {
+        "$ref": "#/entities/CurrentShiftStatus"
+      },
+      "description": "Stores the currently active shift status, shared across all devices."
+    },
     "/shiftReconciliations/{reconciliationId}": {
       "schema": {
         "$ref": "#/entities/ShiftReconciliation"
@@ -796,5 +814,3 @@
     }
   }
 }
-
-    

@@ -3,6 +3,12 @@
 import type { LucideIcon } from 'lucide-react';
 import { Wallet, Building2, Zap, Smartphone, ShoppingBag, Send, CreditCard, Gift, FileText, QrCode, UserCog, Settings, Home, MoreHorizontal, Phone, Wifi, Lightbulb, Droplets, HeartPulse, Plus, Calculator, IdCard, GraduationCap, BookText, PhoneCall } from 'lucide-react';
 
+export type CurrentShiftStatus = {
+  isActive: boolean;
+  operatorName: string;
+  startTime: string;
+};
+
 export type KasAccount = {
   id: string;
   // userId field is no longer needed for a shared data model
@@ -31,11 +37,11 @@ export type QuickService = {
 }
 
 export const quickServices: QuickService[] = [
-  { icon: Send, label: 'customerTransfer', color: 'bg-blue-500' },
-  { icon: Wallet, label: 'withdraw', color: 'bg-gray-400' },
-  { icon: Smartphone, label: 'topUp', color: 'bg-purple-500' },
-  { icon: CreditCard, label: 'customerVAPayment', color: 'bg-orange-500' },
-  { icon: Calculator, label: 'EDCService', color: 'bg-teal-500' },
+  { icon: Send, label: 'Transfer', color: 'bg-blue-500' },
+  { icon: Wallet, label: 'Tarik Tunai', color: 'bg-gray-400' },
+  { icon: Smartphone, label: 'Top Up', color: 'bg-purple-500' },
+  { icon: CreditCard, label: 'VA Payment', color: 'bg-orange-500' },
+  { icon: Calculator, label: 'Layanan EDC', color: 'bg-teal-500' },
   { icon: IdCard, label: 'Emoney', color: 'bg-sky-500' },
   { icon: GraduationCap, label: 'KJP', color: 'bg-pink-500' },
 ];

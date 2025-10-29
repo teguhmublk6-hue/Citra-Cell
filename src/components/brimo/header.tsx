@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { Input } from '../ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import type { CurrentShiftStatus } from '@/lib/data';
 
 interface HeaderProps {
     onSync: () => void;
@@ -13,23 +16,9 @@ interface HeaderProps {
 }
 
 export default function Header({ onSync, isSyncing }: HeaderProps) {
-  const [deviceName, setDeviceName] = useState<string | null>(null);
-
-  useEffect(() => {
-    const storedName = localStorage.getItem('brimoDeviceName');
-    setDeviceName(storedName);
-
-    const handleStorageChange = () => {
-        const newName = localStorage.getItem('brimoDeviceName') || '';
-        setDeviceName(newName);
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-
-    return () => {
-        window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
+  const firestore = useFirestore();
+  const shiftStatusDocRef = useMemoFirebase(() => doc(firestore, 'appConfig', 'currentShiftStatus'), [firestore]);
+  const { data: shiftStatus } = useDoc<CurrentShiftStatus>(shiftStatusDocRef);
 
   return (
     <header className="bg-gradient-to-br from-primary to-orange-500 text-primary-foreground p-4 pt-8 h-40 rounded-b-3xl">
@@ -37,7 +26,7 @@ export default function Header({ onSync, isSyncing }: HeaderProps) {
         <div>
           <p className="text-sm opacity-90">Selamat bekerja,</p>
             <div className="flex items-center gap-2">
-              <p className="text-xl font-semibold">{deviceName || 'Operator'}</p>
+              <p className="text-xl font-semibold">{shiftStatus?.operatorName || 'Operator'}</p>
             </div>
         </div>
         <div className="flex gap-2">

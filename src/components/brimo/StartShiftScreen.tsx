@@ -19,12 +19,7 @@ export default function StartShiftScreen({ onShiftStart }: StartShiftScreenProps
   const handleStartShift = () => {
     const trimmedName = operatorName.trim();
     if (trimmedName) {
-      localStorage.setItem('brimoDeviceName', trimmedName);
       onShiftStart(trimmedName);
-      toast({
-        title: 'Shift Dimulai',
-        description: `Selamat bekerja, ${trimmedName}!`,
-      });
     } else {
       toast({
         variant: 'destructive',

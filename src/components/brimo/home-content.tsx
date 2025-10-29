@@ -7,9 +7,9 @@ import BottomNav from './bottom-nav';
 import AdminContent from './AdminContent';
 import SettingsContent from './settings-content';
 import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw, Banknote, ArrowLeft } from 'lucide-react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, writeBatch, getDocs } from 'firebase/firestore';
-import type { KasAccount as KasAccountType } from '@/lib/data';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, doc, writeBatch, getDocs, setDoc } from 'firebase/firestore';
+import type { KasAccount as KasAccountType, CurrentShiftStatus } from '@/lib/data';
 import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight, CreditCard, IdCard, GraduationCap, Lightbulb, BookText, Home, FileText, HeartPulse, Plus, Calculator, Wifi, Phone, PhoneCall, UserCheck } from 'lucide-react';
 import Header from './header';
 import BalanceCard from './balance-card';
@@ -121,22 +121,19 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isDeleteReportsDialogOpen, setIsDeleteReportsDialogOpen] = useState(false);
   const [isDeleteAllAccountsDialogOpen, setIsDeleteAllAccountsDialogOpen] = useState(false);
-  const [activeOperator, setActiveOperator] = useState<string | null>(null);
   const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
+  const firestore = useFirestore();
+
+  const shiftStatusDocRef = useMemoFirebase(() => doc(firestore, 'appConfig', 'currentShiftStatus'), [firestore]);
+  const { data: shiftStatus, isLoading: isShiftLoading } = useDoc<CurrentShiftStatus>(shiftStatusDocRef);
+
 
   useEffect(() => {
-    const operator = localStorage.getItem('brimoDeviceName');
-    setActiveOperator(operator);
-
-    const handleStorageChange = () => {
-      const newOperator = localStorage.getItem('brimoDeviceName');
-      setActiveOperator(newOperator);
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+    if (shiftStatus) {
+      localStorage.setItem('brimoDeviceName', shiftStatus.operatorName);
+    }
+  }, [shiftStatus]);
 
   useEffect(() => {
     const hasAccess = sessionStorage.getItem('brimoAdminAccess') === 'true';
@@ -161,8 +158,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
         }
     };
   }, [activeTab, isAdminAccessGranted]);
-
-  const firestore = useFirestore();
 
   const plugin = useRef(
     Autoplay({ delay: 5000, stopOnInteraction: true })
@@ -362,11 +357,11 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     setActiveSheet('deleteAllKasAccounts');
   }
 
-  const handleEndShift = () => {
+  const handleEndShift = async () => {
+    await setDoc(shiftStatusDocRef, { isActive: false }, { merge: true });
     localStorage.removeItem('brimoDeviceName');
-    setActiveOperator(null);
     setActiveTab('home');
-    setIsSettingsVisible(false); // Close settings if it was open
+    setIsSettingsVisible(false);
     toast({ title: 'Shift Berakhir', description: 'Anda telah mengakhiri shift. Silakan mulai shift baru.' });
   };
 
@@ -467,8 +462,25 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     setIsPasscodeDialogOpen(false);
   };
   
-  if (!activeOperator) {
-      return <StartShiftScreen onShiftStart={(name) => setActiveOperator(name)} />;
+  const handleShiftStart = (operatorName: string) => {
+    setDoc(shiftStatusDocRef, {
+        isActive: true,
+        operatorName: operatorName,
+        startTime: new Date().toISOString()
+    }, { merge: true });
+    localStorage.setItem('brimoDeviceName', operatorName);
+    toast({
+        title: 'Shift Dimulai',
+        description: `Selamat bekerja, ${operatorName}!`,
+    });
+  };
+  
+  if (isShiftLoading) {
+    return <div className="fixed inset-0 bg-background" />;
+  }
+
+  if (!shiftStatus?.isActive) {
+      return <StartShiftScreen onShiftStart={handleShiftStart} />;
   }
 
     if (isBrilinkReportVisible) {
