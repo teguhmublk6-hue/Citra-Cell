@@ -31,30 +31,38 @@ export const kasAccounts: KasAccount[] = [
 ];
 
 export type QuickService = {
+  id: 'customerTransfer' | 'withdraw' | 'topUp' | 'customerVAPayment' | 'EDCService' | 'Emoney' | 'KJP';
   icon: LucideIcon;
   label: string;
   color: string;
 }
 
 export const quickServices: QuickService[] = [
-  { icon: Send, label: 'Transfer', color: 'bg-blue-500' },
-  { icon: Wallet, label: 'Tarik Tunai', color: 'bg-gray-400' },
-  { icon: Smartphone, label: 'Top Up', color: 'bg-purple-500' },
-  { icon: CreditCard, label: 'VA Payment', color: 'bg-orange-500' },
-  { icon: Calculator, label: 'Layanan EDC', color: 'bg-teal-500' },
-  { icon: IdCard, label: 'Emoney', color: 'bg-sky-500' },
-  { icon: GraduationCap, label: 'KJP', color: 'bg-pink-500' },
+  { id: 'customerTransfer', icon: Send, label: 'Transfer', color: 'bg-blue-500' },
+  { id: 'withdraw', icon: Wallet, label: 'Tarik Tunai', color: 'bg-gray-400' },
+  { id: 'topUp', icon: Smartphone, label: 'Top Up', color: 'bg-purple-500' },
+  { id: 'customerVAPayment', icon: CreditCard, label: 'VA Payment', color: 'bg-orange-500' },
+  { id: 'EDCService', icon: Calculator, label: 'Layanan EDC', color: 'bg-teal-500' },
+  { id: 'Emoney', icon: IdCard, label: 'Emoney', color: 'bg-sky-500' },
+  { id: 'KJP', icon: GraduationCap, label: 'KJP', color: 'bg-pink-500' },
 ];
 
-export const ppobServices: QuickService[] = [
-    { icon: Phone, label: 'Pulsa', color: 'bg-blue-500' },
-    { icon: PhoneCall, label: 'Paket Telpon', color: 'bg-green-500' },
-    { icon: Smartphone, label: 'Data', color: 'bg-sky-500' },
-    { icon: Lightbulb, label: 'Token Listrik', color: 'bg-yellow-500' },
-    { icon: Zap, label: 'PLN', color: 'bg-amber-500' },
-    { icon: Droplets, label: 'PDAM', color: 'bg-cyan-500' },
-    { icon: HeartPulse, label: 'BPJS', color: 'bg-teal-500' },
-    { icon: Wifi, label: 'Wifi', color: 'bg-green-500' },
+export type PPOBService = {
+    id: 'Pulsa' | 'Paket Telpon' | 'Data' | 'Token Listrik' | 'PLN' | 'PDAM' | 'BPJS' | 'Wifi';
+    icon: LucideIcon;
+    label: string;
+    color: string;
+}
+
+export const ppobServices: PPOBService[] = [
+    { id: 'Pulsa', icon: Phone, label: 'Pulsa', color: 'bg-blue-500' },
+    { id: 'Paket Telpon', icon: PhoneCall, label: 'Paket Telpon', color: 'bg-green-500' },
+    { id: 'Data', icon: Smartphone, label: 'Data', color: 'bg-sky-500' },
+    { id: 'Token Listrik', icon: Lightbulb, label: 'Token Listrik', color: 'bg-yellow-500' },
+    { id: 'PLN', icon: Zap, label: 'PLN', color: 'bg-amber-500' },
+    { id: 'PDAM', icon: Droplets, label: 'PDAM', color: 'bg-cyan-500' },
+    { id: 'BPJS', icon: HeartPulse, label: 'BPJS', color: 'bg-teal-500' },
+    { id: 'Wifi', icon: Wifi, label: 'Wifi', color: 'bg-green-500' },
 ];
 
 export type Transaction = {

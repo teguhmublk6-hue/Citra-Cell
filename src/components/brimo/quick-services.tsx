@@ -13,6 +13,9 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { CarouselApi } from "@/components/ui/carousel"
 import React from 'react';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import type { CurrentShiftStatus } from '@/lib/data';
 
 type ServiceType = 'customerTransfer' | 'withdraw' | 'topUp' | 'customerVAPayment' | 'EDCService' | 'Emoney' | 'KJP' | 'Pulsa' | 'Token Listrik' | 'Data' | 'PLN' | 'PDAM' | 'BPJS' | 'Wifi' | 'Paket Telpon';
 interface QuickServicesProps {
@@ -23,27 +26,14 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
   const [api, setApi] = React.useState<CarouselApi>()
   const [current, setCurrent] = React.useState(0)
   const [count, setCount] = React.useState(0)
+  const firestore = useFirestore();
+
+  const shiftStatusDocRef = useMemoFirebase(() => doc(firestore, 'appConfig', 'currentShiftStatus'), [firestore]);
+  const { data: shiftStatus } = useDoc<CurrentShiftStatus>(shiftStatusDocRef);
 
   const serviceGroups = [
-    { title: 'BRILink', services: quickServices, labels: {
-        'customerTransfer': 'Transfer',
-        'withdraw': 'Tarik Tunai',
-        'topUp': 'Top Up',
-        'customerVAPayment': 'VA Payment',
-        'EDCService': 'Layanan EDC',
-        'Emoney': 'Emoney',
-        'KJP': 'KJP'
-    } },
-    { title: 'PPOB', services: ppobServices, labels: {
-        'Pulsa': 'Pulsa',
-        'Paket Telpon': 'Paket Telpon',
-        'Data': 'Data',
-        'Token Listrik': 'Token Listrik',
-        'PLN': 'PLN',
-        'PDAM': 'PDAM',
-        'BPJS': 'BPJS',
-        'Wifi': 'Wifi'
-    } },
+    { title: 'BRILink', services: quickServices },
+    { title: 'PPOB', services: ppobServices },
   ];
 
   React.useEffect(() => {
@@ -59,8 +49,13 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
     })
   }, [api])
 
-  const handleServiceClick = (label: string) => {
-    onServiceClick(label as ServiceType);
+  const handleServiceClick = (serviceId: ServiceType) => {
+    if (!shiftStatus?.isActive) {
+        // Optionally, show a toast or message that a shift needs to be started
+        console.warn("Shift is not active. Cannot perform service.");
+        return;
+    }
+    onServiceClick(serviceId);
   }
 
   return (
@@ -92,19 +87,21 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
                       {group.services.map((service, idx) => (
                         <button
                           key={idx}
-                          onClick={() => handleServiceClick(service.label)}
+                          onClick={() => handleServiceClick(service.id as ServiceType)}
                           className="flex flex-col items-center gap-2 group"
                           aria-label={service.label}
+                          disabled={!shiftStatus?.isActive}
                         >
                           <div className={cn(
-                            "w-14 h-14 rounded-2xl flex items-center justify-center text-white group-hover:scale-105 transition-transform shadow-lg",
+                            "w-14 h-14 rounded-2xl flex items-center justify-center text-white transition-transform shadow-lg",
                             service.color,
+                            shiftStatus?.isActive ? "group-hover:scale-105" : "opacity-50 cursor-not-allowed",
                             "dark:bg-opacity-100",
                             "bg-orange-800"
                             )}>
                             <service.icon size={28} strokeWidth={1.5} />
                           </div>
-                          <span className="text-xs text-muted-foreground font-medium text-center leading-tight mt-1">{(group.labels as any)[service.label] || service.label}</span>
+                          <span className={cn("text-xs text-muted-foreground font-medium text-center leading-tight mt-1", !shiftStatus?.isActive && "opacity-50")}>{service.label}</span>
                         </button>
                       ))}
                     </div>
