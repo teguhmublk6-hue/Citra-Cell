@@ -22,15 +22,16 @@
         "id": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
         "operatorName": { "type": "string" },
-        "appCashIn": { "type": "number", "description": "Total cash received according to this web app's transactions." },
+        "initialCapital": { "type": "number", "description": "The initial cash amount at the start of the shift." },
+        "appCashIn": { "type": "number", "description": "Total cash received according to this web app's transactions during the shift." },
         "voucherCashIn": { "type": "number", "description": "Total cash received from the external voucher POS system, entered manually." },
-        "expectedTotalCash": { "type": "number", "description": "The sum of appCashIn and voucherCashIn." },
+        "expectedTotalCash": { "type": "number", "description": "The sum of initialCapital, appCashIn, and voucherCashIn." },
         "actualPhysicalCash": { "type": "number", "description": "The actual physical cash amount counted in the drawer." },
         "difference": { "type": "number", "description": "The difference between expectedTotalCash and actualPhysicalCash." },
         "notes": { "type": "string", "description": "Optional notes about the reconciliation, e.g., explaining a difference." },
         "deviceName": { "type": "string" }
       },
-      "required": ["date", "operatorName", "appCashIn", "voucherCashIn", "expectedTotalCash", "actualPhysicalCash", "difference", "deviceName"]
+      "required": ["date", "operatorName", "initialCapital", "appCashIn", "voucherCashIn", "expectedTotalCash", "actualPhysicalCash", "difference", "deviceName"]
     },
     "PPOBWifi": {
       "$schema": "http://json-schema.org/draft-07/schema#",

@@ -6,9 +6,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, addDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
-import type { KasAccount, Transaction } from '@/lib/data';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, addDoc, query, where, getDocs, Timestamp, doc } from 'firebase/firestore';
+import type { KasAccount, Transaction, CurrentShiftStatus } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
@@ -39,9 +39,12 @@ export default function ShiftReconciliationForm({ onDone }: { onDone: () => void
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
 
+  const shiftStatusDocRef = useMemoFirebase(() => doc(firestore, 'appConfig', 'currentShiftStatus'), [firestore]);
+  const { data: shiftStatus } = useDoc<CurrentShiftStatus>(shiftStatusDocRef);
+
   useEffect(() => {
     const calculateAppCashIn = async () => {
-      if (!firestore || !kasAccounts) return;
+      if (!firestore || !kasAccounts || !shiftStatus?.startTime) return;
       setIsLoadingCash(true);
 
       const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
@@ -51,21 +54,23 @@ export default function ShiftReconciliationForm({ onDone }: { onDone: () => void
         return;
       }
 
-      const todayStart = startOfDay(new Date()).toISOString();
-      const todayEnd = endOfDay(new Date()).toISOString();
+      // Use the shift start time as the beginning of the range
+      const shiftStartTimeISO = new Date(shiftStatus.startTime).toISOString();
+      const nowISO = new Date().toISOString();
 
       const transactionsRef = collection(firestore, 'kasAccounts', laciAccount.id, 'transactions');
       const q = query(
         transactionsRef,
-        where('date', '>=', todayStart),
-        where('date', '<=', todayEnd)
+        where('date', '>=', shiftStartTimeISO),
+        where('date', '<=', nowISO)
       );
 
       let totalCashIn = 0;
       const querySnapshot = await getDocs(q);
       querySnapshot.forEach(doc => {
         const trx = doc.data() as Transaction;
-        if (trx.type === 'credit') {
+        // Sum up all credits, EXCEPT the initial capital one
+        if (trx.type === 'credit' && trx.category !== 'capital' && trx.name !== 'Modal Awal Shift') {
             totalCashIn += trx.amount;
         }
       });
@@ -74,10 +79,10 @@ export default function ShiftReconciliationForm({ onDone }: { onDone: () => void
       setIsLoadingCash(false);
     };
 
-    if (kasAccounts) {
+    if (kasAccounts && shiftStatus) {
       calculateAppCashIn();
     }
-  }, [firestore, kasAccounts, toast]);
+  }, [firestore, kasAccounts, shiftStatus, toast]);
 
   const form = useForm<ShiftReconciliationFormValues>({
     resolver: zodResolver(ShiftReconciliationFormSchema),
@@ -88,10 +93,23 @@ export default function ShiftReconciliationForm({ onDone }: { onDone: () => void
       notes: '',
     },
   });
+  
+  useEffect(() => {
+    if (shiftStatus?.operatorName) {
+        form.setValue('operatorName', shiftStatus.operatorName);
+    }
+  }, [shiftStatus, form]);
 
   const voucherCashIn = form.watch('voucherCashIn') || 0;
   const actualPhysicalCash = form.watch('actualPhysicalCash') || 0;
-  const expectedTotalCash = (appCashIn || 0) + voucherCashIn;
+  
+  const initialCapitalTransaction = kasAccounts
+    ?.find(acc => acc.label === 'Laci')?.transactions
+    ?.find(trx => trx.name === 'Modal Awal Shift' && new Date(trx.date) >= new Date(shiftStatus?.startTime || 0));
+  
+  const initialCapital = initialCapitalTransaction?.amount || 0;
+  
+  const expectedTotalCash = initialCapital + (appCashIn || 0) + voucherCashIn;
   const difference = expectedTotalCash - actualPhysicalCash;
 
   const onSubmit = async (values: ShiftReconciliationFormValues) => {
@@ -103,6 +121,7 @@ export default function ShiftReconciliationForm({ onDone }: { onDone: () => void
         await addDoc(collection(firestore, 'shiftReconciliations'), {
             date: new Date(),
             operatorName: values.operatorName,
+            initialCapital: initialCapital,
             appCashIn: appCashIn,
             voucherCashIn: values.voucherCashIn,
             expectedTotalCash: expectedTotalCash,
@@ -128,13 +147,18 @@ export default function ShiftReconciliationForm({ onDone }: { onDone: () => void
             <FormField control={form.control} name="operatorName" render={({ field }) => (
                 <FormItem>
                     <FormLabel>Nama Operator Shift</FormLabel>
-                    <FormControl><Input placeholder="Masukkan nama Anda" {...field} /></FormControl>
+                    <FormControl><Input placeholder="Masukkan nama Anda" {...field} readOnly disabled /></FormControl>
                     <FormMessage />
                 </FormItem>
             )}/>
             
             <FormItem>
-                <FormLabel>Total Uang Tunai dari Aplikasi Ini</FormLabel>
+              <FormLabel>Modal Awal Shift</FormLabel>
+              <Input value={formatToRupiah(initialCapital)} readOnly disabled />
+            </FormItem>
+
+            <FormItem>
+                <FormLabel>Total Uang Tunai dari Aplikasi Ini (selama shift)</FormLabel>
                 {isLoadingCash ? (
                     <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Menghitung...</div>
                 ) : (
