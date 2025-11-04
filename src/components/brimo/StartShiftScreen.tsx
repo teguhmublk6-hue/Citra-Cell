@@ -5,33 +5,59 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { User } from 'lucide-react';
+import { User, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface StartShiftScreenProps {
-  onShiftStart: (operatorName: string) => void;
+  onShiftStart: (operatorName: string, initialCapital: number) => void;
 }
+
+const formatToRupiah = (value: number | string | undefined | null): string => {
+  if (value === null || value === undefined || value === '') return '';
+  const num = Number(String(value).replace(/[^0-9]/g, ''));
+  if (isNaN(num)) return '';
+  return `Rp ${num.toLocaleString('id-ID')}`;
+};
+
+const parseRupiah = (value: string | undefined | null): number => {
+  if (!value) return 0;
+  return Number(String(value).replace(/[^0-9]/g, ''));
+}
+
 
 export default function StartShiftScreen({ onShiftStart }: StartShiftScreenProps) {
   const [operatorName, setOperatorName] = useState('');
+  const [initialCapital, setInitialCapital] = useState<number | undefined>(undefined);
   const { toast } = useToast();
 
   const handleStartShift = () => {
     const trimmedName = operatorName.trim();
-    if (trimmedName) {
-      onShiftStart(trimmedName);
-    } else {
+    if (!trimmedName) {
       toast({
         variant: 'destructive',
         title: 'Nama Kosong',
-        description: 'Silakan masukkan nama operator untuk memulai shift.',
+        description: 'Silakan masukkan nama operator.',
       });
+      return;
     }
+    if (initialCapital === undefined || isNaN(initialCapital)) {
+      toast({
+        variant: 'destructive',
+        title: 'Modal Awal Kosong',
+        description: 'Silakan masukkan jumlah modal awal di laci.',
+      });
+      return;
+    }
+    onShiftStart(trimmedName, initialCapital);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      handleStartShift();
+      if (e.currentTarget.id === 'operatorName') {
+        document.getElementById('initialCapital')?.focus();
+      } else {
+        handleStartShift();
+      }
     }
   };
 
@@ -40,9 +66,9 @@ export default function StartShiftScreen({ onShiftStart }: StartShiftScreenProps
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Mulai Shift Baru</CardTitle>
-          <CardDescription>Masukkan nama Anda untuk memulai sesi global.</CardDescription>
+          <CardDescription>Masukkan nama dan modal awal di laci.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
@@ -55,6 +81,18 @@ export default function StartShiftScreen({ onShiftStart }: StartShiftScreenProps
               autoFocus
             />
           </div>
+          <div className="relative">
+            <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              id="initialCapital"
+              placeholder="Modal Awal Shift"
+              type="text"
+              value={formatToRupiah(initialCapital)}
+              onChange={(e) => setInitialCapital(parseRupiah(e.target.value))}
+              onKeyDown={handleKeyDown}
+              className="pl-10 text-base"
+            />
+          </div>
         </CardContent>
         <CardFooter>
           <Button className="w-full" onClick={handleStartShift}>
@@ -65,5 +103,3 @@ export default function StartShiftScreen({ onShiftStart }: StartShiftScreenProps
     </div>
   );
 }
-
-    

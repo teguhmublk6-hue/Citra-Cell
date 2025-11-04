@@ -129,6 +129,12 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const shiftStatusDocRef = useMemoFirebase(() => doc(firestore, 'appConfig', 'currentShiftStatus'), [firestore]);
   const { data: shiftStatus, isLoading: isShiftLoading } = useDoc<CurrentShiftStatus>(shiftStatusDocRef);
 
+  const kasAccountsCollection = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'kasAccounts');
+  }, [firestore]);
+
+  const { data: kasAccounts } = useCollection<KasAccountType>(kasAccountsCollection);
 
   useEffect(() => {
     const storedName = localStorage.getItem('brimoDeviceName') || '';
@@ -170,13 +176,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const plugin = useRef(
     Autoplay({ delay: 5000, stopOnInteraction: true })
   );
-
-  const kasAccountsCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, 'kasAccounts');
-  }, [firestore]);
-
-  const { data: kasAccounts } = useCollection<KasAccountType>(kasAccountsCollection);
   
   useEffect(() => {
     if (!carouselApi) return;
@@ -207,36 +206,36 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     }, 150);
   }
   
-  const handleQuickServiceClick = (service: ServiceType) => {
-    if (service === 'customerTransfer') {
+  const handleQuickServiceClick = (serviceId: ServiceType) => {
+    if (serviceId === 'customerTransfer') {
       setActiveSheet('customerTransfer');
-    } else if (service === 'withdraw') {
+    } else if (serviceId === 'withdraw') {
       setActiveSheet('customerWithdrawal');
-    } else if (service === 'topUp') {
+    } else if (serviceId === 'topUp') {
       setActiveSheet('customerTopUp');
-    } else if (service === 'customerVAPayment') {
+    } else if (serviceId === 'customerVAPayment') {
       setActiveSheet('customerVAPayment');
-    } else if (service === 'EDCService') {
+    } else if (serviceId === 'EDCService') {
       setActiveSheet('EDCService');
-    } else if (service === 'Emoney') {
+    } else if (serviceId === 'Emoney') {
       setActiveSheet('customerEmoneyTopUp');
-    } else if (service === 'KJP') {
+    } else if (serviceId === 'KJP') {
       setActiveSheet('customerKJP');
-    } else if (service === 'Pulsa') {
+    } else if (serviceId === 'Pulsa') {
       setActiveSheet('ppobPulsa');
-    } else if (service === 'Token Listrik') {
+    } else if (serviceId === 'Token Listrik') {
         setActiveSheet('ppobTokenListrik');
-    } else if (service === 'Data') {
+    } else if (serviceId === 'Data') {
         setActiveSheet('ppobPaketData');
-    } else if (service === 'PLN') {
+    } else if (serviceId === 'PLN') {
         setActiveSheet('ppobPlnPostpaid');
-    } else if (service === 'PDAM') {
+    } else if (serviceId === 'PDAM') {
         setActiveSheet('ppobPdam');
-    } else if (service === 'BPJS') {
+    } else if (serviceId === 'BPJS') {
         setActiveSheet('ppobBpjs');
-    } else if (service === 'Wifi') {
+    } else if (serviceId === 'Wifi') {
         setActiveSheet('ppobWifi');
-    } else if (service === 'Paket Telpon') {
+    } else if (serviceId === 'Paket Telpon') {
         setActiveSheet('ppobPaketTelpon');
     }
   }
@@ -469,17 +468,59 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     setIsPasscodeDialogOpen(false);
   };
   
-  const handleShiftStart = (operatorName: string) => {
-    setDoc(shiftStatusDocRef, {
+  const handleShiftStart = async (operatorName: string, initialCapital: number) => {
+    if (!firestore || !kasAccounts) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Database tidak tersedia.' });
+      return;
+    }
+    const laciAccount = kasAccounts.find(acc => acc.label === 'Laci' && acc.type === 'Tunai');
+    if (!laciAccount) {
+      toast({ variant: 'destructive', title: 'Akun Laci Tidak Ditemukan', description: 'Buat akun kas "Laci" dengan tipe "Tunai".' });
+      return;
+    }
+  
+    try {
+      const batch = writeBatch(firestore);
+  
+      // Set shift status
+      const shiftStatusRef = doc(firestore, 'appConfig', 'currentShiftStatus');
+      batch.set(shiftStatusRef, {
         isActive: true,
         operatorName: operatorName,
         startTime: new Date().toISOString()
-    }, { merge: true });
-    toast({
+      }, { merge: true });
+  
+      // Reset laci balance and create initial transaction
+      const laciRef = doc(firestore, 'kasAccounts', laciAccount.id);
+      batch.update(laciRef, { balance: initialCapital });
+  
+      const transactionRef = doc(collection(laciRef, 'transactions'));
+      batch.set(transactionRef, {
+        kasAccountId: laciAccount.id,
+        type: 'credit',
+        name: 'Modal Awal Shift',
+        account: 'Internal',
+        date: new Date().toISOString(),
+        amount: initialCapital,
+        balanceBefore: 0, // Assuming reset, or could be laciAccount.balance for an addition
+        balanceAfter: initialCapital,
+        category: 'capital',
+        deviceName: deviceName,
+      });
+  
+      await batch.commit();
+  
+      toast({
         title: 'Shift Dimulai',
-        description: `Selamat bekerja, ${operatorName}!`,
-    });
+        description: `Selamat bekerja, ${operatorName}! Modal awal ${initialCapital.toLocaleString('id-ID')} dicatat.`,
+      });
+  
+    } catch (error) {
+      console.error("Error starting shift:", error);
+      toast({ variant: 'destructive', title: 'Gagal Memulai Shift', description: 'Terjadi kesalahan.' });
+    }
   };
+  
   
   if (isShiftLoading) {
     return <div className="fixed inset-0 bg-background" />;
