@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { quickServices, ppobServices } from '@/lib/data';
@@ -94,10 +93,8 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
                         >
                           <div className={cn(
                             "w-14 h-14 rounded-2xl flex items-center justify-center text-white transition-transform shadow-lg",
-                            service.color,
                             shiftStatus?.isActive ? "group-hover:scale-105" : "opacity-50 cursor-not-allowed",
-                            "dark:bg-opacity-100",
-                            "bg-orange-800"
+                            "bg-green-600 dark:bg-blue-600"
                             )}>
                             <service.icon size={28} strokeWidth={1.5} />
                           </div>
