@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { KasAccount, Transaction } from '@/lib/data';
 import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal, PPOBTransaction, Settlement, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs, PPOBWifi } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { Separator } from '../ui/separator';
 
 interface DailyReportProps {
   onDone: () => void;
@@ -273,4 +274,3 @@ export default function DailyReport({ onDone }: DailyReportProps) {
     </div>
   );
 }
-
