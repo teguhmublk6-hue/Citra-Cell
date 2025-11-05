@@ -82,6 +82,7 @@ import PPOBPaketTelponReview from './PPOBPaketTelponReview';
 import ShiftReconciliationForm from './ShiftReconciliationForm';
 import StartShiftScreen from './StartShiftScreen';
 import ShiftReconciliationReport from './ShiftReconciliationReport';
+import DailyReport from './DailyReport';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -94,7 +95,7 @@ export const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'laporan' | 'mutasi' | 'accounts' | 'admin';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview' | 'ppobPaketData' | 'ppobPaketDataReview' | 'ppobPlnPostpaid' | 'ppobPlnPostpaidReview' | 'ppobPdam' | 'ppobPdamReview' | 'ppobBpjs' | 'ppobBpjsReview' | 'ppobWifi' | 'ppobWifiReview' | 'operationalCostReport' | 'deleteAllKasAccounts' | 'ppobPaketTelpon' | 'ppobPaketTelponReview' | 'shiftReconciliation';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview' | 'ppobPaketData' | 'ppobPaketDataReview' | 'ppobPlnPostpaid' | 'ppobPlnPostpaidReview' | 'ppobPdam' | 'ppobPdamReview' | 'ppobBpjs' | 'ppobBpjsReview' | 'ppobWifi' | 'ppobWifiReview' | 'operationalCostReport' | 'deleteAllKasAccounts' | 'ppobPaketTelpon' | 'ppobPaketTelponReview' | 'shiftReconciliation' | 'dailyReport';
 type FormSheet = 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'ppobPulsa' | 'ppobTokenListrik' | 'ppobPaketData' | 'ppobPlnPostpaid' | 'ppobPdam' | 'ppobBpjs' | 'ppobWifi' | 'ppobPaketTelpon' | 'shiftReconciliation';
 
 
@@ -345,6 +346,11 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const handleShiftReconciliationClick = () => {
     setActiveSheet('shiftReconciliation');
   };
+  
+  const handleDailyReportClick = () => {
+    setActiveSheet('dailyReport');
+  };
+
 
   const handleShiftReconciliationReportClick = () => {
     setIsShiftReconciliationReportVisible(true);
@@ -668,6 +674,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                 onManagePPOBPricingClick={handleManagePPOBPricingClick} 
                 onResetReportsClick={handleResetReportsClick}
                 onResetAllAccountsClick={handleResetAllAccountsClick}
+                onDailyReportClick={handleDailyReportClick}
               />
             </div>
           </div>
@@ -749,6 +756,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                   {activeSheet === 'operationalCostReport' && 'Laporan Biaya Operasional'}
                   {activeSheet === 'deleteAllKasAccounts' && 'Reset Semua Akun Kas'}
                   {activeSheet === 'shiftReconciliation' && 'Rekonsiliasi Shift'}
+                  {activeSheet === 'dailyReport' && 'Laporan Harian'}
                 </SheetTitle>
             </SheetHeader>
             {activeSheet === 'history' && selectedAccount && <TransactionHistory account={selectedAccount} onDone={() => setActiveSheet(null)} />}
@@ -810,6 +818,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
 
             {activeSheet === 'operationalCostReport' && <OperationalCostReport onDone={closeAllSheets} />}
             {activeSheet === 'shiftReconciliation' && <ShiftReconciliationForm onDone={closeAllSheets} />}
+            {activeSheet === 'dailyReport' && <DailyReport onDone={closeAllSheets} />}
         </SheetContent>
       </Sheet>
 

@@ -1,6 +1,49 @@
 
 {
   "entities": {
+    "DailyReport": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DailyReport",
+      "type": "object",
+      "description": "Represents a comprehensive daily financial report.",
+      "properties": {
+        "date": { "type": "string", "format": "date-time" },
+        "totalAccountBalance": { "type": "number", "description": "Sum of all kas account balances at the time of report generation." },
+        "openingBalanceRotation": { "type": "number", "description": "The final liability/asset from the previous day's report." },
+        "capitalAdditionToday": { "type": "number", "description": "Total capital added via 'Tambah Modal' today." },
+        "liabilityBeforePayment": { "type": "number" },
+        "paymentToPartyB": { "type": "number", "description": "Manual input for payment made from party A to party B." },
+        "liabilityAfterPayment": { "type": "number" },
+        "manualSpending": { "type": "number", "description": "Manual input for capital expenditure (e.g., buying stock)." },
+        "finalLiabilityForNextDay": { "type": "number", "description": "The final liability value to be carried over to the next day." },
+        "assetAccessories": { "type": "number", "description": "Manual input for the value of accessory assets." },
+        "assetSIMCards": { "type": "number", "description": "Manual input for the value of SIM card assets." },
+        "assetVouchers": { "type": "number", "description": "Manual input for the value of voucher assets." },
+        "totalCurrentAssets": { "type": "number" },
+        "grossProfitBrilink": { "type": "number" },
+        "grossProfitPPOB": { "type": "number" },
+        "totalGrossProfit": { "type": "number" },
+        "operationalCosts": { "type": "number" },
+        "netProfit": { "type": "number" },
+        "cashInDrawer": { "type": "number", "description": "Manual input for cash in the small drawer." },
+        "cashInSafe": { "type": "number", "description": "Manual input for cash in the safe." },
+        "totalPhysicalCash": { "type": "number" },
+        "grandTotalBalance": { "type": "number" },
+        "liquidAccumulation": { "type": "number" }
+      },
+      "required": ["date"]
+    },
+    "DailyReportSettings": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DailyReportSettings",
+      "type": "object",
+      "description": "Stores settings and carry-over values for the daily report.",
+      "properties": {
+        "lastFinalLiability": { "type": "number", "description": "The final liability from the last generated report, to be used as the opening balance for the next." },
+        "lastReportDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["lastFinalLiability"]
+    },
     "CurrentShiftStatus": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "CurrentShiftStatus",
@@ -693,6 +736,18 @@
     }
   },
   "firestore": {
+    "/dailyReports/{reportId}": {
+      "schema": {
+        "$ref": "#/entities/DailyReport"
+      },
+      "description": "Stores generated comprehensive daily financial reports."
+    },
+    "/appConfig/dailyReportSettings": {
+      "schema": {
+        "$ref": "#/entities/DailyReportSettings"
+      },
+      "description": "Stores settings and carry-over values for the daily report, like the last final liability."
+    },
     "/appConfig/currentShiftStatus": {
       "schema": {
         "$ref": "#/entities/CurrentShiftStatus"
