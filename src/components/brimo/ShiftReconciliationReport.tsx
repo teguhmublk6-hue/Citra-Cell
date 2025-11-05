@@ -21,9 +21,10 @@ interface ShiftReconciliationReportProps {
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
     if (value === null || value === undefined || value === '') return 'Rp 0';
-    const num = Number(String(value).replace(/[^0-9]/g, ''));
+    const num = Number(String(value).replace(/[^0-9-]/g, ''));
     if (isNaN(num)) return 'Rp 0';
-    return `Rp ${num.toLocaleString('id-ID')}`;
+    const isNegative = num < 0;
+    return `${isNegative ? '-' : ''}Rp ${Math.abs(num).toLocaleString('id-ID')}`;
 };
 
 export default function ShiftReconciliationReport({ onDone }: ShiftReconciliationReportProps) {

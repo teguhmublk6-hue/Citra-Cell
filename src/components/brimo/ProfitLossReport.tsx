@@ -39,9 +39,10 @@ type PpobBillReportItem =
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
     if (value === null || value === undefined || value === '') return 'Rp 0';
-    const num = Number(String(value).replace(/[^0-9]/g, ''));
+    const num = Number(String(value).replace(/[^0-9-]/g, ''));
     if (isNaN(num)) return 'Rp 0';
-    return `Rp ${num.toLocaleString('id-ID')}`;
+    const isNegative = num < 0;
+    return `${isNegative ? '-' : ''}Rp ${Math.abs(num).toLocaleString('id-ID')}`;
 };
 
 export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
@@ -268,18 +269,23 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {brilinkReports.map((report, index) => (
-                                <TableRow key={report.id}>
-                                    <TableCell className="py-2">{index + 1}</TableCell>
-                                    <TableCell className="sticky left-0 bg-background z-10 py-2">{report.transactionType}</TableCell>
-                                    <TableCell className="py-2">{'destinationAccountName' in report ? report.destinationAccountName : report.customerName}</TableCell>
-                                    <TableCell className="py-2">{getBrilinkBankInfo(report)}</TableCell>
-                                    <TableCell className="text-right py-2">{formatToRupiah('transferAmount' in report ? report.transferAmount : ('withdrawalAmount' in report ? report.withdrawalAmount : ('topUpAmount' in report ? report.topUpAmount : ('paymentAmount' in report ? report.paymentAmount : 0))))}</TableCell>
-                                    <TableCell className="text-right py-2">{formatToRupiah('bankAdminFee' in report ? report.bankAdminFee : ('adminFee' in report ? report.adminFee : 0))}</TableCell>
-                                    <TableCell className="text-right py-2">{formatToRupiah(report.serviceFee)}</TableCell>
-                                    <TableCell className="text-right font-semibold text-green-500 py-2">{formatToRupiah('netProfit' in report ? report.netProfit : report.serviceFee)}</TableCell>
-                                </TableRow>
-                            ))}
+                            {brilinkReports.map((report, index) => {
+                                const labaRugi = 'netProfit' in report ? report.netProfit : report.serviceFee;
+                                return (
+                                    <TableRow key={report.id}>
+                                        <TableCell className="py-2">{index + 1}</TableCell>
+                                        <TableCell className="sticky left-0 bg-background z-10 py-2">{report.transactionType}</TableCell>
+                                        <TableCell className="py-2">{'destinationAccountName' in report ? report.destinationAccountName : report.customerName}</TableCell>
+                                        <TableCell className="py-2">{getBrilinkBankInfo(report)}</TableCell>
+                                        <TableCell className="text-right py-2">{formatToRupiah('transferAmount' in report ? report.transferAmount : ('withdrawalAmount' in report ? report.withdrawalAmount : ('topUpAmount' in report ? report.topUpAmount : ('paymentAmount' in report ? report.paymentAmount : 0))))}</TableCell>
+                                        <TableCell className="text-right py-2">{formatToRupiah('bankAdminFee' in report ? report.bankAdminFee : ('adminFee' in report ? report.adminFee : 0))}</TableCell>
+                                        <TableCell className="text-right py-2">{formatToRupiah(report.serviceFee)}</TableCell>
+                                        <TableCell className={cn("text-right font-semibold py-2", labaRugi < 0 ? "text-destructive" : "text-green-500")}>
+                                            {formatToRupiah(labaRugi)}
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
                         </TableBody>
                         <TableFooter>
                             <TableRow className="font-bold bg-muted/50">
@@ -287,7 +293,9 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                 <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.nominal)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.adminBank)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.jasa)}</TableCell>
-                                <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.labaRugi)}</TableCell>
+                                <TableCell className={cn("text-right py-2", brilinkTotals.labaRugi < 0 ? "text-destructive" : "text-green-500")}>
+                                    {formatToRupiah(brilinkTotals.labaRugi)}
+                                </TableCell>
                             </TableRow>
                         </TableFooter>
                     </Table>
@@ -324,7 +332,9 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                 <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.sellingPrice)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(0)}</TableCell>
-                                <TableCell className="text-right font-semibold text-green-500 py-2">{formatToRupiah(report.profit)}</TableCell>
+                                <TableCell className={cn("text-right font-semibold py-2", report.profit < 0 ? "text-destructive" : "text-green-500")}>
+                                    {formatToRupiah(report.profit)}
+                                </TableCell>
                             </TableRow>
                         ))}
                         {ppobBillReports.map((report, index) => (
@@ -336,7 +346,9 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                                 <TableCell className="text-right py-2">{formatToRupiah(report.billAmount)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.totalAmount)}</TableCell>
                                 <TableCell className="text-right py-2">{formatToRupiah(report.cashback)}</TableCell>
-                                <TableCell className="text-right font-semibold text-green-500 py-2">{formatToRupiah(report.netProfit)}</TableCell>
+                                <TableCell className={cn("text-right font-semibold py-2", report.netProfit < 0 ? "text-destructive" : "text-green-500")}>
+                                    {formatToRupiah(report.netProfit)}
+                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -346,7 +358,9 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                             <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.costPrice + ppobBillTotals.costPrice)}</TableCell>
                             <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.sellingPrice + ppobBillTotals.sellingPrice)}</TableCell>
                             <TableCell className="text-right py-2">{formatToRupiah(ppobBillTotals.cashback)}</TableCell>
-                            <TableCell className="text-right py-2">{formatToRupiah(totalPpobProfit)}</TableCell>
+                            <TableCell className={cn("text-right py-2", totalPpobProfit < 0 ? "text-destructive" : "text-green-500")}>
+                                {formatToRupiah(totalPpobProfit)}
+                            </TableCell>
                         </TableRow>
                     </TableFooter>
                 </Table>
@@ -357,7 +371,9 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                     <CardTitle>Total Laba Bersih Keseluruhan</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-3xl font-bold text-green-500">{formatToRupiah(totalNetProfit)}</p>
+                    <p className={cn("text-3xl font-bold", totalNetProfit < 0 ? "text-destructive" : "text-green-500")}>
+                        {formatToRupiah(totalNetProfit)}
+                    </p>
                     <p className="text-sm text-muted-foreground">({formatToRupiah(brilinkTotals.labaRugi)} dari BRILink + {formatToRupiah(totalPpobProfit)} dari PPOB)</p>
                 </CardContent>
             </Card>

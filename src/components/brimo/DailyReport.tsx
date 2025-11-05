@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getDocs, Timestamp, doc } from 'firebase/firestore';
+import { useState, useEffect, useRef } from 'react';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where, getDocs, Timestamp, doc, addDoc, setDoc } from 'firebase/firestore';
 import { startOfDay, endOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -14,6 +14,8 @@ import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmone
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Separator } from '../ui/separator';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface DailyReportProps {
   onDone: () => void;
@@ -33,42 +35,38 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
   return `${isNegative ? '-Rp ' : 'Rp '}${formattedNum}`;
 };
 
-const parseRupiah = (value: string): number => {
-    if (!value || typeof value !== 'string') return 0;
-    // Keep the minus sign if it exists at the start
-    const sign = value.startsWith('-') ? -1 : 1;
-    // Remove all non-digit characters
-    const numString = value.replace(/[^0-9]/g, '');
-    if (numString === '') return 0;
-    return parseInt(numString, 10) * sign;
-};
-
-
 export default function DailyReport({ onDone }: DailyReportProps) {
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
 
   // --- MANUAL INPUTS ---
-  const [openingBalance, setOpeningBalance] = useState<number>(0);
-  const [posGrossProfit, setPosGrossProfit] = useState(0);
-  const [paymentToPartyB, setPaymentToPartyB] = useState(0);
-  const [spendingItems, setSpendingItems] = useState<SpendingItem[]>([{ id: Date.now(), description: '', amount: 0 }]);
-  const [assetAccessories, setAssetAccessories] = useState(0);
-  const [assetSIMCards, setAssetSIMCards] = useState(0);
-  const [assetVouchers, setAssetVouchers] = useState(0);
-  const [cashInDrawer, setCashInDrawer] = useState(0);
-  const [cashInSafe, setCashInSafe] = useState(0);
+  const [openingBalanceInput, setOpeningBalanceInput] = useState('');
+  const [openingBalance, setOpeningBalance] = useState(0);
 
-  // Local string state for controlled inputs
-  const [openingBalanceInput, setOpeningBalanceInput] = useState('0');
-  const [paymentToPartyBInput, setPaymentToPartyBInput] = useState('0');
-  const [spendingInputs, setSpendingInputs] = useState<Record<number, { amount: string }>>({});
-  const [assetAccessoriesInput, setAssetAccessoriesInput] = useState('0');
-  const [assetSIMCardsInput, setAssetSIMCardsInput] = useState('0');
-  const [assetVouchersInput, setAssetVouchersInput] = useState('0');
-  const [cashInDrawerInput, setCashInDrawerInput] = useState('0');
-  const [cashInSafeInput, setCashInSafeInput] = useState('0');
   const [posGrossProfitInput, setPosGrossProfitInput] = useState('0');
+  const [posGrossProfit, setPosGrossProfit] = useState(0);
+  
+  const [paymentToPartyBInput, setPaymentToPartyBInput] = useState('0');
+  const [paymentToPartyB, setPaymentToPartyB] = useState(0);
+  
+  const [spendingItems, setSpendingItems] = useState<SpendingItem[]>([{ id: Date.now(), description: '', amount: 0 }]);
+  const [spendingInputs, setSpendingInputs] = useState<Record<number, { description: string, amount: string }>>({});
+  
+  const [assetAccessoriesInput, setAssetAccessoriesInput] = useState('0');
+  const [assetAccessories, setAssetAccessories] = useState(0);
+
+  const [assetSIMCardsInput, setAssetSIMCardsInput] = useState('0');
+  const [assetSIMCards, setAssetSIMCards] = useState(0);
+  
+  const [assetVouchersInput, setAssetVouchersInput] = useState('0');
+  const [assetVouchers, setAssetVouchers] = useState(0);
+
+  const [cashInDrawerInput, setCashInDrawerInput] = useState('0');
+  const [cashInDrawer, setCashInDrawer] = useState(0);
+
+  const [cashInSafeInput, setCashInSafeInput] = useState('0');
+  const [cashInSafe, setCashInSafe] = useState(0);
 
   // --- AUTOMATIC DATA ---
   const [capitalAdditionToday, setCapitalAdditionToday] = useState(0);
@@ -82,6 +80,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   
   const totalAccountBalance = kasAccounts?.reduce((sum, acc) => sum + acc.balance, 0) ?? 0;
 
+  // Fetch initial data
   useEffect(() => {
     const fetchData = async () => {
       if (!firestore) return;
@@ -96,6 +95,16 @@ export default function DailyReport({ onDone }: DailyReportProps) {
       let totalBrilinkProfit = 0;
       let totalPPOBProfit = 0;
       let totalOpsCost = 0;
+
+      // Fetch last report's final liability
+      const settingsRef = doc(firestore, 'appConfig', 'dailyReportSettings');
+      const settingsSnap = await getDocs(query(collection(firestore, 'appConfig'), where('id', '==', 'dailyReportSettings')));
+      if (!settingsSnap.empty) {
+        const lastLiability = settingsSnap.docs[0].data().lastFinalLiability || 0;
+        setOpeningBalance(lastLiability);
+        setOpeningBalanceInput(lastLiability.toString());
+      }
+
 
       // 1. Fetch Capital Additions & Operational Costs from Transactions
       if (kasAccounts) {
@@ -159,31 +168,40 @@ export default function DailyReport({ onDone }: DailyReportProps) {
     }
   }, [firestore, kasAccounts, isLoadingAccounts]);
 
-  const handleSpendingChange = (id: number, field: 'description' | 'amount', value: string | number) => {
-    setSpendingItems(items => items.map(item => item.id === id ? { ...item, [field]: value } : item));
-  };
-
-  const handleSpendingAmountInputChange = (id: number, value: string) => {
+  // Handler for dynamic spending inputs
+  const handleSpendingChange = (id: number, field: 'description' | 'amount', value: string) => {
     setSpendingInputs(prev => ({
         ...prev,
-        [id]: { amount: value }
+        [id]: {
+            ...prev[id],
+            [field]: value
+        }
     }));
   };
   
-  const handleSpendingAmountBlur = (id: number) => {
-    const stringValue = spendingInputs[id]?.amount || '';
-    const numValue = parseRupiah(stringValue);
-    handleSpendingChange(id, 'amount', numValue);
-    handleSpendingAmountInputChange(id, numValue.toString());
+  const handleSpendingBlur = (id: number, field: 'description' | 'amount') => {
+    const currentInput = spendingInputs[id] || {};
+    const value = currentInput[field] || (field === 'description' ? '' : '0');
+    
+    setSpendingItems(items => items.map(item => {
+        if (item.id === id) {
+            if (field === 'amount') {
+                return { ...item, amount: Number(value.replace(/[^0-9-]/g, '')) };
+            }
+            return { ...item, description: value };
+        }
+        return item;
+    }));
   };
-
 
   const addSpendingItem = () => {
     const newId = Date.now();
     setSpendingItems(items => [...items, { id: newId, description: '', amount: 0 }]);
-    setSpendingInputs(prev => ({ ...prev, [newId]: { amount: '0' } }));
+    setSpendingInputs(prev => ({ ...prev, [newId]: { description: '', amount: '0' } }));
   };
+
   const removeSpendingItem = (id: number) => {
+    if (spendingItems.length <= 1) return;
     setSpendingItems(items => items.filter(item => item.id !== id));
     setSpendingInputs(prev => {
         const newInputs = {...prev};
@@ -193,7 +211,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   };
 
   // Derived Calculations
-  const liabilityBeforePayment = openingBalance - capitalAdditionToday;
+  const liabilityBeforePayment = openingBalance < 0 ? openingBalance - capitalAdditionToday : openingBalance - capitalAdditionToday;
   const liabilityAfterPayment = liabilityBeforePayment + paymentToPartyB;
   const totalManualSpending = spendingItems.reduce((sum, item) => sum + Number(item.amount), 0);
   const finalLiabilityForNextDay = liabilityAfterPayment - totalManualSpending;
@@ -203,6 +221,55 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   const totalPhysicalCash = cashInDrawer + cashInSafe;
   const grandTotalBalance = totalPhysicalCash + totalAccountBalance + finalLiabilityForNextDay;
   const liquidAccumulation = grandTotalBalance - totalCurrentAssets;
+  
+  const handleSaveReport = async () => {
+    if (!firestore) return;
+    toast({ title: 'Menyimpan...', description: 'Laporan harian sedang disimpan.' });
+
+    try {
+        const reportData = {
+            date: new Date(),
+            totalAccountBalance,
+            openingBalanceRotation: openingBalance,
+            capitalAdditionToday,
+            liabilityBeforePayment,
+            paymentToPartyB,
+            liabilityAfterPayment,
+            manualSpending: totalManualSpending,
+            finalLiabilityForNextDay,
+            assetAccessories,
+            assetSIMCards,
+            assetVouchers,
+            totalCurrentAssets,
+            grossProfitBrilink,
+            grossProfitPPOB,
+            posGrossProfit,
+            totalGrossProfit,
+            operationalCosts,
+            netProfit,
+            cashInDrawer,
+            cashInSafe,
+            totalPhysicalCash,
+            grandTotalBalance,
+            liquidAccumulation,
+            spendingItems,
+        };
+
+        await addDoc(collection(firestore, 'dailyReports'), reportData);
+        
+        const settingsRef = doc(firestore, 'appConfig', 'dailyReportSettings');
+        await setDoc(settingsRef, { 
+            lastFinalLiability: finalLiabilityForNextDay,
+            lastReportDate: new Date()
+        }, { merge: true });
+
+        toast({ title: 'Sukses!', description: 'Laporan harian berhasil disimpan.' });
+        onDone();
+    } catch (error) {
+        console.error("Error saving daily report: ", error);
+        toast({ variant: 'destructive', title: 'Gagal Menyimpan', description: 'Terjadi kesalahan saat menyimpan laporan.' });
+    }
+  };
 
 
   const renderSectionA = () => (
@@ -239,10 +306,9 @@ export default function DailyReport({ onDone }: DailyReportProps) {
                     <label className="text-xs text-muted-foreground">Saldo Laporan Kemarin (Hutang/Piutang)</label>
                     <Input 
                         type="text" 
-                        inputMode="decimal"
                         value={openingBalanceInput}
                         onChange={(e) => setOpeningBalanceInput(e.target.value)}
-                        onBlur={() => setOpeningBalance(parseRupiah(openingBalanceInput))}
+                        onBlur={() => setOpeningBalance(Number(openingBalanceInput.replace(/[^0-9-]/g, '')) || 0)}
                         onFocus={(e) => e.target.select()}
                     />
                 </div>
@@ -252,22 +318,21 @@ export default function DailyReport({ onDone }: DailyReportProps) {
                 </div>
                 <div className="flex justify-between items-center font-bold">
                     <span>{liabilityLabel}</span>
-                    <span>{formatToRupiah(liabilityBeforePayment)}</span>
+                    <span className={cn(liabilityBeforePayment < 0 && "text-destructive")}>{formatToRupiah(liabilityBeforePayment)}</span>
                 </div>
                 <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">Dana Dibayar A ke B (Manual)</label>
                      <Input 
                         type="text" 
-                        inputMode="decimal"
                         value={paymentToPartyBInput} 
                         onChange={(e) => setPaymentToPartyBInput(e.target.value)}
-                        onBlur={() => setPaymentToPartyB(parseRupiah(paymentToPartyBInput))}
+                        onBlur={() => setPaymentToPartyB(Number(paymentToPartyBInput.replace(/[^0-9-]/g, '')) || 0)}
                         onFocus={(e) => e.target.select()}
                      />
                 </div>
                 <div className="flex justify-between items-center font-bold">
                     <span>{liabilityAfterLabel}</span>
-                    <span>{formatToRupiah(liabilityAfterPayment)}</span>
+                    <span className={cn(liabilityAfterPayment < 0 && "text-destructive")}>{formatToRupiah(liabilityAfterPayment)}</span>
                 </div>
             </div>
         </div>
@@ -282,22 +347,22 @@ export default function DailyReport({ onDone }: DailyReportProps) {
         {spendingItems.map((item, index) => (
           <div key={item.id} className="flex items-end gap-2">
             <div className="flex-1 space-y-1">
-              <label className="text-xs text-muted-foreground">Deskripsi Pembelanjaan #{index + 1}</label>
+              {index === 0 && <label className="text-xs text-muted-foreground">Deskripsi Pembelanjaan</label>}
               <Input
                 type="text"
                 placeholder="cth: Beli stok voucher"
-                value={item.description}
+                value={spendingInputs[item.id]?.description ?? item.description}
                 onChange={(e) => handleSpendingChange(item.id, 'description', e.target.value)}
+                onBlur={() => handleSpendingBlur(item.id, 'description')}
               />
             </div>
             <div className="w-40 space-y-1">
-              <label className="text-xs text-muted-foreground">Jumlah</label>
+              {index === 0 && <label className="text-xs text-muted-foreground">Jumlah</label>}
                <Input
                 type="text"
-                inputMode="decimal"
                 value={spendingInputs[item.id]?.amount ?? item.amount.toString()}
-                onChange={(e) => handleSpendingAmountInputChange(item.id, e.target.value)}
-                onBlur={() => handleSpendingAmountBlur(item.id)}
+                onChange={(e) => handleSpendingChange(item.id, 'amount', e.target.value)}
+                onBlur={() => handleSpendingBlur(item.id, 'amount')}
                 onFocus={(e) => e.target.select()}
               />
             </div>
@@ -316,8 +381,8 @@ export default function DailyReport({ onDone }: DailyReportProps) {
           <Plus size={16} className="mr-2" /> Tambah Pembelanjaan
         </Button>
         <Alert>
-          <AlertTitle>LIABILITAS FINAL (Untuk Besok)</AlertTitle>
-          <AlertDescription className="text-lg font-bold">{formatToRupiah(finalLiabilityForNextDay)}</AlertDescription>
+          <AlertTitle className={cn(finalLiabilityForNextDay < 0 && "text-destructive")}>LIABILITAS FINAL (Untuk Besok)</AlertTitle>
+          <AlertDescription className={cn("text-lg font-bold", finalLiabilityForNextDay < 0 && "text-destructive")}>{formatToRupiah(finalLiabilityForNextDay)}</AlertDescription>
         </Alert>
       </div>
     </div>
@@ -330,15 +395,15 @@ export default function DailyReport({ onDone }: DailyReportProps) {
       <div className="space-y-2">
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Aksesoris</label>
-            <Input type="text" inputMode="decimal" value={assetAccessoriesInput} onChange={(e) => setAssetAccessoriesInput(e.target.value)} onBlur={() => setAssetAccessories(parseRupiah(assetAccessoriesInput))} onFocus={(e) => e.target.select()} />
+            <Input type="text" value={assetAccessoriesInput} onChange={(e) => setAssetAccessoriesInput(e.target.value)} onBlur={() => setAssetAccessories(Number(assetAccessoriesInput.replace(/[^0-9-]/g, '')) || 0)} onFocus={(e) => e.target.select()} />
         </div>
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Perdana</label>
-            <Input type="text" inputMode="decimal" value={assetSIMCardsInput} onChange={(e) => setAssetSIMCardsInput(e.target.value)} onBlur={() => setAssetSIMCards(parseRupiah(assetSIMCardsInput))} onFocus={(e) => e.target.select()} />
+            <Input type="text" value={assetSIMCardsInput} onChange={(e) => setAssetSIMCardsInput(e.target.value)} onBlur={() => setAssetSIMCards(Number(assetSIMCardsInput.replace(/[^0-9-]/g, '')) || 0)} onFocus={(e) => e.target.select()} />
         </div>
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Voucher</label>
-            <Input type="text" inputMode="decimal" value={assetVouchersInput} onChange={(e) => setAssetVouchersInput(e.target.value)} onBlur={() => setAssetVouchers(parseRupiah(assetVouchersInput))} onFocus={(e) => e.target.select()} />
+            <Input type="text" value={assetVouchersInput} onChange={(e) => setAssetVouchersInput(e.target.value)} onBlur={() => setAssetVouchers(Number(assetVouchersInput.replace(/[^0-9-]/g, '')) || 0)} onFocus={(e) => e.target.select()} />
         </div>
       </div>
        <div className="mt-2 pt-2 border-t font-bold flex justify-between text-base">
@@ -356,12 +421,12 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             <div className="flex justify-between items-center"><span>Laba Kotor PPOB</span> <span className="font-medium">{formatToRupiah(grossProfitPPOB)}</span></div>
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Laba Kotor POS (Manual)</label>
-                <Input type="text" inputMode="decimal" value={posGrossProfitInput} onChange={(e) => setPosGrossProfitInput(e.target.value)} onBlur={() => setPosGrossProfit(parseRupiah(posGrossProfitInput))} onFocus={(e) => e.target.select()} />
+                <Input type="text" value={posGrossProfitInput} onChange={(e) => setPosGrossProfitInput(e.target.value)} onBlur={() => setPosGrossProfit(Number(posGrossProfitInput.replace(/[^0-9-]/g, '')) || 0)} onFocus={(e) => e.target.select()} />
             </div>
              <div className="flex justify-between items-center font-bold border-t pt-2"><span>TOTAL LABA KOTOR</span> <span>{formatToRupiah(totalGrossProfit)}</span></div>
 
-            <div className="flex justify-between items-center"><span>Biaya Operasional</span> <span className="font-medium text-red-500">{formatToRupiah(operationalCosts)}</span></div>
-            <div className="flex justify-between items-center font-bold border-t pt-2"><span>LABA BERSIH (NETT PROFIT)</span> <span>{formatToRupiah(netProfit)}</span></div>
+            <div className="flex justify-between items-center"><span>Biaya Operasional</span> <span className="font-medium text-destructive">{formatToRupiah(operationalCosts)}</span></div>
+            <div className="flex justify-between items-center font-bold border-t pt-2"><span>LABA BERSIH (NETT PROFIT)</span> <span className={cn(netProfit < 0 && "text-destructive")}>{formatToRupiah(netProfit)}</span></div>
         </div>
     </div>
   );
@@ -372,20 +437,20 @@ export default function DailyReport({ onDone }: DailyReportProps) {
         <div className="space-y-2">
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Kas Laci Kecil (Manual)</label>
-                <Input type="text" inputMode="decimal" value={cashInDrawerInput} onChange={(e) => setCashInDrawerInput(e.target.value)} onBlur={() => setCashInDrawer(parseRupiah(cashInDrawerInput))} onFocus={(e) => e.target.select()} />
+                <Input type="text" value={cashInDrawerInput} onChange={(e) => setCashInDrawerInput(e.target.value)} onBlur={() => setCashInDrawer(Number(cashInDrawerInput.replace(/[^0-9-]/g, '')) || 0)} onFocus={(e) => e.target.select()} />
             </div>
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Kas Brankas (Manual)</label>
-                <Input type="text" inputMode="decimal" value={cashInSafeInput} onChange={(e) => setCashInSafeInput(e.target.value)} onBlur={() => setCashInSafe(parseRupiah(cashInSafeInput))} onFocus={(e) => e.target.select()} />
+                <Input type="text" value={cashInSafeInput} onChange={(e) => setCashInSafeInput(e.target.value)} onBlur={() => setCashInSafe(Number(cashInSafeInput.replace(/[^0-9-]/g, '')) || 0)} onFocus={(e) => e.target.select()} />
             </div>
         </div>
         <div className="space-y-3 text-sm mt-4">
             <div className="flex justify-between"><span>Total Kas Fisik</span> <span className="font-medium">{formatToRupiah(totalPhysicalCash)}</span></div>
             <div className="flex justify-between"><span>Total Saldo Akun</span> <span className="font-medium">{formatToRupiah(totalAccountBalance)}</span></div>
-            <div className="flex justify-between"><span>LIABILITAS FINAL</span> <span className="font-medium">{formatToRupiah(finalLiabilityForNextDay)}</span></div>
+            <div className="flex justify-between"><span>LIABILITAS FINAL</span> <span className={cn("font-medium", finalLiabilityForNextDay < 0 && "text-destructive")}>{formatToRupiah(finalLiabilityForNextDay)}</span></div>
             <div className="flex justify-between font-bold border-t pt-2"><span>TOTAL KESELURUHAN</span> <span>{formatToRupiah(grandTotalBalance)}</span></div>
              <div className="flex justify-between mt-4"><span>Aset Lancar</span> <span className="font-medium">{formatToRupiah(totalCurrentAssets)}</span></div>
-             <div className="flex justify-between font-bold border-t pt-2 text-green-500"><span>AKUMULASI SALDO LIQUID</span> <span>{formatToRupiah(liquidAccumulation)}</span></div>
+             <div className="flex justify-between font-bold border-t pt-2 text-green-500"><span>AKUMULASI SALDO LIQUID</span> <span className={cn(liquidAccumulation < 0 && "text-destructive")}>{formatToRupiah(liquidAccumulation)}</span></div>
         </div>
     </div>
   )
@@ -420,7 +485,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
       </ScrollArea>
       <div className="p-4 border-t flex gap-2">
         <Button onClick={onDone} variant="outline" className="w-full">Tutup</Button>
-        <Button onClick={() => {}} className="w-full">Simpan Laporan</Button>
+        <Button onClick={handleSaveReport} className="w-full">Simpan Laporan</Button>
       </div>
     </div>
   );
