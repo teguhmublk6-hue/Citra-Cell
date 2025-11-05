@@ -81,6 +81,7 @@ import PPOBPaketTelponForm from './PPOBPaketTelponForm';
 import PPOBPaketTelponReview from './PPOBPaketTelponReview';
 import ShiftReconciliationForm from './ShiftReconciliationForm';
 import StartShiftScreen from './StartShiftScreen';
+import ShiftReconciliationReport from './ShiftReconciliationReport';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -118,6 +119,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const [isProfitLossReportVisible, setIsProfitLossReportVisible] = useState(false);
   const [isOperationalCostReportVisible, setIsOperationalCostReportVisible] = useState(false);
   const [isCapitalAdditionReportVisible, setIsCapitalAdditionReportVisible] = useState(false);
+  const [isShiftReconciliationReportVisible, setIsShiftReconciliationReportVisible] = useState(false);
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isDeleteReportsDialogOpen, setIsDeleteReportsDialogOpen] = useState(false);
   const [isDeleteAllAccountsDialogOpen, setIsDeleteAllAccountsDialogOpen] = useState(false);
@@ -344,6 +346,10 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     setActiveSheet('shiftReconciliation');
   };
 
+  const handleShiftReconciliationReportClick = () => {
+    setIsShiftReconciliationReportVisible(true);
+  }
+
   const handleSetMotivationClick = () => {
     setActiveSheet('setMotivation');
   }
@@ -549,6 +555,10 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     if (isCapitalAdditionReportVisible) {
         return <CapitalAdditionReport onDone={() => setIsCapitalAdditionReportVisible(false)} />;
     }
+
+    if (isShiftReconciliationReportVisible) {
+        return <ShiftReconciliationReport onDone={() => setIsShiftReconciliationReportVisible(false)} />;
+    }
     
     if (isSettingsVisible) {
         return <SettingsContent onBack={() => setIsSettingsVisible(false)} />;
@@ -652,6 +662,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                 onOperationalCostReportClick={handleOperationalCostReportClick} 
                 onCapitalAdditionReportClick={handleCapitalAdditionReportClick}
                 onShiftReconciliationClick={handleShiftReconciliationClick}
+                onShiftReconciliationReportClick={handleShiftReconciliationReportClick}
                 onSetMotivationClick={handleSetMotivationClick} 
                 onManageKasAccountsClick={handleManageKasAccountsClick} 
                 onManagePPOBPricingClick={handleManagePPOBPricingClick} 

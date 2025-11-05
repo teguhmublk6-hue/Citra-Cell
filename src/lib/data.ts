@@ -9,6 +9,20 @@ export type CurrentShiftStatus = {
   startTime: string;
 };
 
+export type ShiftReconciliation = {
+  id: string;
+  date: Date;
+  operatorName: string;
+  initialCapital: number;
+  appCashIn: number;
+  voucherCashIn: number;
+  expectedTotalCash: number;
+  actualPhysicalCash: number;
+  difference: number;
+  notes: string;
+  deviceName: string;
+}
+
 export type KasAccount = {
   id: string;
   // userId field is no longer needed for a shared data model
