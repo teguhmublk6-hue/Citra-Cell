@@ -27,15 +27,19 @@ type SpendingItem = {
 
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
-  if (value === null || value === undefined || value === '') return 'Rp 0';
-  const num = Number(String(value).replace(/[^0-9]/g, ''));
-  if (isNaN(num)) return 'Rp 0';
-  return `Rp ${num.toLocaleString('id-ID')}`;
+  if (value === null || value === undefined || value === '') return '';
+  const num = Number(String(value).replace(/[^0-9-]/g, ''));
+  if (isNaN(num)) return '';
+  const isNegative = num < 0;
+  const formattedNum = Math.abs(num).toLocaleString('id-ID');
+  return `${isNegative ? '- Rp ' : 'Rp '}${formattedNum}`;
 };
 
 const parseRupiah = (value: string | undefined | null): number => {
-    if (!value) return 0;
-    return Number(String(value).replace(/[^0-9]/g, ''));
+    if (value === null || value === undefined || value === '') return 0;
+    const sanitized = String(value).replace(/[Rp.\s]/g, '');
+    const number = parseInt(sanitized, 10);
+    return isNaN(number) ? 0 : number;
 }
 
 export default function DailyReport({ onDone }: DailyReportProps) {
@@ -153,7 +157,9 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   };
 
   // Derived Calculations
-  const liabilityBeforePayment = openingBalance - capitalAdditionToday;
+    const liabilityBeforePayment = openingBalance >= 0 
+    ? (openingBalance - capitalAdditionToday) 
+    : (openingBalance - capitalAdditionToday);
   const liabilityAfterPayment = liabilityBeforePayment + paymentToPartyB;
   const totalManualSpending = spendingItems.reduce((sum, item) => sum + item.amount, 0);
   const finalLiabilityForNextDay = liabilityAfterPayment - totalManualSpending;
@@ -187,33 +193,38 @@ export default function DailyReport({ onDone }: DailyReportProps) {
     </div>
   );
   
- const renderSectionB = () => (
-    <div className="space-y-4">
-      <h2 className="text-lg font-bold text-primary">B. Rotasi Saldo</h2>
-      <div className="space-y-3 text-sm">
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Saldo Laporan Kemarin (Manual)</label>
-          <Input type="text" placeholder="Rp 0" value={formatToRupiah(openingBalance)} onChange={(e) => setOpeningBalance(parseRupiah(e.target.value))} />
+  const renderSectionB = () => {
+    const liabilityLabel = liabilityBeforePayment < 0 ? "LIABILITAS (Kewajiban A)" : "Piutang Pihak A";
+    const liabilityAfterLabel = liabilityAfterPayment < 0 ? "LIABILITAS Setelah Bayar" : "Piutang Pihak A Setelah Bayar";
+    
+    return (
+        <div className="space-y-4">
+        <h2 className="text-lg font-bold text-primary">B. Rotasi Saldo</h2>
+        <div className="space-y-3 text-sm">
+            <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Saldo Laporan Kemarin (Hutang/Piutang)</label>
+            <Input type="text" placeholder="Rp 0" value={formatToRupiah(openingBalance)} onChange={(e) => setOpeningBalance(parseRupiah(e.target.value))} />
+            </div>
+            <div className="flex justify-between items-center">
+            <span>Permintaan Penambahan Modal ke Pihak B</span>
+            <span className="font-medium">{formatToRupiah(capitalAdditionToday)}</span>
+            </div>
+            <div className="flex justify-between items-center font-bold">
+            <span>{liabilityLabel}</span>
+            <span>{formatToRupiah(liabilityBeforePayment)}</span>
+            </div>
+            <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Dana Dibayar A ke B (Manual)</label>
+            <Input type="text" placeholder="Rp 0" value={formatToRupiah(paymentToPartyB)} onChange={(e) => setPaymentToPartyB(parseRupiah(e.target.value))} />
+            </div>
+            <div className="flex justify-between items-center font-bold">
+            <span>{liabilityAfterLabel}</span>
+            <span>{formatToRupiah(liabilityAfterPayment)}</span>
+            </div>
         </div>
-        <div className="flex justify-between items-center">
-          <span>Penambahan Modal Hari Ini</span>
-          <span className="font-medium text-green-500">{formatToRupiah(capitalAdditionToday)}</span>
         </div>
-        <div className="flex justify-between items-center font-bold">
-          <span>LIABILITAS (Sebelum Bayar)</span>
-          <span>{formatToRupiah(liabilityBeforePayment)}</span>
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Dana Dibayar A ke B (Manual)</label>
-          <Input type="text" placeholder="Rp 0" value={formatToRupiah(paymentToPartyB)} onChange={(e) => setPaymentToPartyB(parseRupiah(e.target.value))} />
-        </div>
-        <div className="flex justify-between items-center font-bold">
-          <span>LIABILITAS (Setelah Bayar)</span>
-          <span>{formatToRupiah(liabilityAfterPayment)}</span>
-        </div>
-      </div>
-    </div>
-  );
+    );
+ };
 
 
   const renderSectionC = () => (
