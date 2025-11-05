@@ -25,14 +25,21 @@ type SpendingItem = {
   amount: number;
 };
 
-
 const formatToRupiah = (value: number | string | undefined | null): string => {
-  if (value === null || value === undefined || value === '') return 'Rp 0';
+  if (value === null || value === undefined || value === '' || isNaN(Number(value))) return 'Rp 0';
   const num = Number(value);
-  if (isNaN(num)) return 'Rp 0';
   const isNegative = num < 0;
   const formattedNum = Math.abs(num).toLocaleString('id-ID');
   return `${isNegative ? '- Rp ' : 'Rp '}${formattedNum}`;
+};
+
+const parseFromRupiah = (value: string): number => {
+    if (!value) return 0;
+    const isNegative = value.startsWith('-');
+    const numString = value.replace(/[^0-9]/g, '');
+    if (numString === '') return 0;
+    const num = parseInt(numString, 10);
+    return isNegative ? -num : num;
 };
 
 
@@ -41,7 +48,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   // --- MANUAL INPUTS ---
-  const [openingBalance, setOpeningBalance] = useState(0);
+  const [openingBalance, setOpeningBalance] = useState<number>(0);
   const [posGrossProfit, setPosGrossProfit] = useState(0);
   const [paymentToPartyB, setPaymentToPartyB] = useState(0);
   const [spendingItems, setSpendingItems] = useState<SpendingItem[]>([{ id: Date.now(), description: '', amount: 0 }]);
@@ -151,14 +158,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   };
 
   // Derived Calculations
-    let liabilityBeforePayment = 0;
-    if (openingBalance >= 0) {
-        const remaining = openingBalance - capitalAdditionToday;
-        liabilityBeforePayment = remaining;
-    } else {
-        liabilityBeforePayment = openingBalance - capitalAdditionToday;
-    }
-    
+  const liabilityBeforePayment = openingBalance - capitalAdditionToday;
   const liabilityAfterPayment = liabilityBeforePayment + paymentToPartyB;
   const totalManualSpending = spendingItems.reduce((sum, item) => sum + Number(item.amount), 0);
   const finalLiabilityForNextDay = liabilityAfterPayment - totalManualSpending;
@@ -192,7 +192,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
     </div>
   );
   
-  const renderSectionB = () => {
+    const renderSectionB = () => {
     const liabilityLabel = liabilityBeforePayment < 0 ? "LIABILITAS (Kewajiban A)" : "Piutang Pihak A";
     const liabilityAfterLabel = liabilityAfterPayment < 0 ? "LIABILITAS Setelah Bayar" : "Piutang Pihak A Setelah Bayar";
     
@@ -201,15 +201,14 @@ export default function DailyReport({ onDone }: DailyReportProps) {
         <h2 className="text-lg font-bold text-primary">B. Rotasi Saldo</h2>
         <div className="space-y-3 text-sm">
             <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Saldo Laporan Kemarin (Hutang/Piutang)</label>
-            <Input 
-                type="number" 
-                placeholder="0"
-                value={openingBalance} 
-                onChange={(e) => setOpeningBalance(Number(e.target.value))}
-                onBlur={(e) => e.target.value = formatToRupiah(Number(e.target.value))}
-                onFocus={(e) => e.target.value = String(openingBalance)}
-            />
+                <label className="text-xs text-muted-foreground">Saldo Laporan Kemarin (Hutang/Piutang)</label>
+                <Input 
+                    type="text" 
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={openingBalance} 
+                    onChange={(e) => setOpeningBalance(Number(e.target.value) || 0)}
+                />
             </div>
             <div className="flex justify-between items-center">
             <span>Permintaan Penambahan Modal ke Pihak B</span>
@@ -222,12 +221,11 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Dana Dibayar A ke B (Manual)</label>
              <Input 
-                type="number" 
+                type="text" 
+                inputMode="decimal"
                 placeholder="0"
                 value={paymentToPartyB} 
-                onChange={(e) => setPaymentToPartyB(Number(e.target.value))}
-                onBlur={(e) => e.target.value = formatToRupiah(Number(e.target.value))}
-                onFocus={(e) => e.target.value = String(paymentToPartyB)}
+                onChange={(e) => setPaymentToPartyB(Number(e.target.value) || 0)}
              />
             </div>
             <div className="flex justify-between items-center font-bold">
@@ -258,12 +256,11 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             <div className="w-40 space-y-1">
               <label className="text-xs text-muted-foreground">Jumlah</label>
               <Input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 placeholder="0"
                 value={item.amount}
-                onChange={(e) => handleSpendingChange(item.id, 'amount', Number(e.target.value))}
-                onBlur={(e) => e.target.value = formatToRupiah(Number(e.target.value))}
-                onFocus={(e) => e.target.value = String(item.amount)}
+                onChange={(e) => handleSpendingChange(item.id, 'amount', Number(e.target.value) || 0)}
               />
             </div>
             <Button
@@ -294,22 +291,13 @@ export default function DailyReport({ onDone }: DailyReportProps) {
       <h2 className="text-lg font-bold text-primary">D. Aset Lancar (Inventaris)</h2>
       <div className="space-y-2">
         <div className="space-y-1"><label className="text-xs text-muted-foreground">Nilai Aset Aksesoris</label>
-            <Input type="number" placeholder="0" value={assetAccessories} onChange={(e) => setAssetAccessories(Number(e.target.value))} 
-            onBlur={(e) => e.target.value = formatToRupiah(Number(e.target.value))}
-            onFocus={(e) => e.target.value = String(assetAccessories)}
-            />
+            <Input type="text" inputMode="decimal" placeholder="0" value={assetAccessories} onChange={(e) => setAssetAccessories(Number(e.target.value) || 0)} />
         </div>
         <div className="space-y-1"><label className="text-xs text-muted-foreground">Nilai Aset Perdana</label>
-            <Input type="number" placeholder="0" value={assetSIMCards} onChange={(e) => setAssetSIMCards(Number(e.target.value))} 
-            onBlur={(e) => e.target.value = formatToRupiah(Number(e.target.value))}
-            onFocus={(e) => e.target.value = String(assetSIMCards)}
-            />
+            <Input type="text" inputMode="decimal" placeholder="0" value={assetSIMCards} onChange={(e) => setAssetSIMCards(Number(e.target.value) || 0)} />
         </div>
         <div className="space-y-1"><label className="text-xs text-muted-foreground">Nilai Aset Voucher</label>
-            <Input type="number" placeholder="0" value={assetVouchers} onChange={(e) => setAssetVouchers(Number(e.target.value))} 
-            onBlur={(e) => e.target.value = formatToRupiah(Number(e.target.value))}
-            onFocus={(e) => e.target.value = String(assetVouchers)}
-            />
+            <Input type="text" inputMode="decimal" placeholder="0" value={assetVouchers} onChange={(e) => setAssetVouchers(Number(e.target.value) || 0)} />
         </div>
       </div>
        <div className="mt-2 pt-2 border-t font-bold flex justify-between text-base">
@@ -327,10 +315,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             <div className="flex justify-between items-center"><span>Laba Kotor PPOB</span> <span className="font-medium">{formatToRupiah(grossProfitPPOB)}</span></div>
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Laba Kotor POS (Manual)</label>
-                <Input type="number" placeholder="0" value={posGrossProfit} onChange={(e) => setPosGrossProfit(Number(e.target.value))} 
-                onBlur={(e) => e.target.value = formatToRupiah(Number(e.target.value))}
-                onFocus={(e) => e.target.value = String(posGrossProfit)}
-                />
+                <Input type="text" inputMode="decimal" placeholder="0" value={posGrossProfit} onChange={(e) => setPosGrossProfit(Number(e.target.value) || 0)} />
             </div>
              <div className="flex justify-between items-center font-bold border-t pt-2"><span>TOTAL LABA KOTOR</span> <span>{formatToRupiah(totalGrossProfit)}</span></div>
 
@@ -345,16 +330,10 @@ export default function DailyReport({ onDone }: DailyReportProps) {
         <h2 className="text-lg font-bold text-primary">F. Timbangan (Neraca)</h2>
         <div className="space-y-2">
             <div className="space-y-1"><label className="text-xs text-muted-foreground">Kas Laci Kecil (Manual)</label>
-                <Input type="number" placeholder="0" value={cashInDrawer} onChange={(e) => setCashInDrawer(Number(e.target.value))} 
-                onBlur={(e) => e.target.value = formatToRupiah(Number(e.target.value))}
-                onFocus={(e) => e.target.value = String(cashInDrawer)}
-                />
+                <Input type="text" inputMode="decimal" placeholder="0" value={cashInDrawer} onChange={(e) => setCashInDrawer(Number(e.target.value) || 0)} />
             </div>
             <div className="space-y-1"><label className="text-xs text-muted-foreground">Kas Brankas (Manual)</label>
-                <Input type="number" placeholder="0" value={cashInSafe} onChange={(e) => setCashInSafe(Number(e.target.value))} 
-                onBlur={(e) => e.target.value = formatToRupiah(Number(e.target.value))}
-                onFocus={(e) => e.target.value = String(cashInSafe)}
-                />
+                <Input type="text" inputMode="decimal" placeholder="0" value={cashInSafe} onChange={(e) => setCashInSafe(Number(e.target.value) || 0)} />
             </div>
         </div>
         <div className="space-y-3 text-sm mt-4">
