@@ -3,6 +3,35 @@
 import type { LucideIcon } from 'lucide-react';
 import { Wallet, Building2, Zap, Smartphone, ShoppingBag, Send, CreditCard, Gift, FileText, QrCode, UserCog, Settings, Home, MoreHorizontal, Phone, Wifi, Lightbulb, Droplets, HeartPulse, Plus, Calculator, IdCard, GraduationCap, BookText, PhoneCall } from 'lucide-react';
 
+export type DailyReport = {
+  id: string;
+  date: { seconds: number; nanoseconds: number };
+  totalAccountBalance: number;
+  openingBalanceRotation: number;
+  capitalAdditionToday: number;
+  liabilityBeforePayment: number;
+  paymentToPartyB: number;
+  liabilityAfterPayment: number;
+  manualSpending: number;
+  finalLiabilityForNextDay: number;
+  assetAccessories: number;
+  assetSIMCards: number;
+  assetVouchers: number;
+  totalCurrentAssets: number;
+  grossProfitBrilink: number;
+  grossProfitPPOB: number;
+  posGrossProfit: number;
+  totalGrossProfit: number;
+  operationalCosts: number;
+  netProfit: number;
+  cashInDrawer: number;
+  cashInSafe: number;
+  totalPhysicalCash: number;
+  grandTotalBalance: number;
+  liquidAccumulation: number;
+  spendingItems: { id: number; description: string; amount: number; }[];
+};
+
 export type CurrentShiftStatus = {
   isActive: boolean;
   operatorName: string;
@@ -34,6 +63,7 @@ export type KasAccount = {
   color: string;
   settlementDestinationAccountId?: string;
   iconUrl?: string;
+  transactions?: Transaction[];
 };
 
 export const kasAccounts: KasAccount[] = [

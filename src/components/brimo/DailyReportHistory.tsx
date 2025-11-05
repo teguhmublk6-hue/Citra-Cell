@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -16,6 +17,7 @@ import { Card, CardContent } from '../ui/card';
 
 interface DailyReportHistoryProps {
   onDone: () => void;
+  onViewReport: (report: DailyReport) => void;
 }
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
@@ -26,7 +28,7 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
     return `${isNegative ? '-Rp ' : 'Rp '}${formattedNum}`;
 };
 
-export default function DailyReportHistory({ onDone }: DailyReportHistoryProps) {
+export default function DailyReportHistory({ onDone, onViewReport }: DailyReportHistoryProps) {
   const firestore = useFirestore();
   const dailyReportsCollection = useMemoFirebase(() => query(collection(firestore, 'dailyReports'), orderBy('date', 'desc')), [firestore]);
   const { data: reports, isLoading } = useCollection<DailyReport>(dailyReportsCollection);
@@ -50,7 +52,7 @@ export default function DailyReportHistory({ onDone }: DailyReportHistoryProps) 
                     </>
                 ) : reports && reports.length > 0 ? (
                     reports.map(report => (
-                        <Card key={report.id}>
+                        <Card key={report.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onViewReport(report)}>
                             <CardContent className="p-4">
                                 <h3 className="font-bold text-lg mb-2">
                                     {format(new Date(report.date.seconds * 1000), "EEEE, dd MMMM yyyy", { locale: idLocale })}
@@ -90,3 +92,4 @@ export default function DailyReportHistory({ onDone }: DailyReportHistoryProps) 
     </div>
   );
 }
+

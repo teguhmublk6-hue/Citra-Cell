@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -9,7 +10,7 @@ import SettingsContent from './settings-content';
 import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw, Banknote, ArrowLeft } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, doc, writeBatch, getDocs, setDoc } from 'firebase/firestore';
-import type { KasAccount as KasAccountType, CurrentShiftStatus } from '@/lib/data';
+import type { KasAccount as KasAccountType, CurrentShiftStatus, DailyReport as DailyReportType } from '@/lib/data';
 import { Wallet, Building2, Zap, Smartphone, ShoppingBag, ChevronRight, CreditCard, IdCard, GraduationCap, Lightbulb, BookText, Home, FileText, HeartPulse, Plus, Calculator, Wifi, Phone, PhoneCall, UserCheck } from 'lucide-react';
 import Header from './header';
 import BalanceCard from './balance-card';
@@ -84,6 +85,7 @@ import StartShiftScreen from './StartShiftScreen';
 import ShiftReconciliationReport from './ShiftReconciliationReport';
 import DailyReport from './DailyReport';
 import DailyReportHistory from './DailyReportHistory';
+import DailyReportDetail from './DailyReportDetail';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -124,6 +126,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const [isShiftReconciliationReportVisible, setIsShiftReconciliationReportVisible] = useState(false);
   const [isDailyReportVisible, setIsDailyReportVisible] = useState(false);
   const [isDailyReportHistoryVisible, setIsDailyReportHistoryVisible] = useState(false);
+  const [selectedDailyReport, setSelectedDailyReport] = useState<DailyReportType | null>(null);
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isDeleteReportsDialogOpen, setIsDeleteReportsDialogOpen] = useState(false);
   const [isDeleteAllAccountsDialogOpen, setIsDeleteAllAccountsDialogOpen] = useState(false);
@@ -358,6 +361,11 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     setIsDailyReportHistoryVisible(true);
   };
 
+  const handleViewDailyReportDetail = (report: DailyReportType) => {
+    setSelectedDailyReport(report);
+    setIsDailyReportHistoryVisible(false); // Hide history to show detail
+  };
+
   const handleShiftReconciliationReportClick = () => {
     setIsShiftReconciliationReportVisible(true);
   }
@@ -577,7 +585,11 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     }
 
     if (isDailyReportHistoryVisible) {
-        return <DailyReportHistory onDone={() => setIsDailyReportHistoryVisible(false)} />;
+        return <DailyReportHistory onDone={() => setIsDailyReportHistoryVisible(false)} onViewReport={handleViewDailyReportDetail} />;
+    }
+
+    if (selectedDailyReport) {
+        return <DailyReportDetail report={selectedDailyReport} onDone={() => setSelectedDailyReport(null)} />;
     }
     
     if (isSettingsVisible) {
@@ -874,3 +886,4 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     </>
   );
 }
+
