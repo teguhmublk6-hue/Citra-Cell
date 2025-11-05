@@ -29,7 +29,7 @@ export default function Header({ onSync, isSyncing, deviceName, shiftStatus }: H
     };
     
     return (
-        <header className="bg-gradient-to-br from-primary to-orange-500 text-primary-foreground p-4 pt-8 h-44 rounded-b-3xl">
+        <header className="bg-[#F68322] dark:bg-[#00529B] text-white p-4 pt-8 h-44 rounded-b-3xl">
             <div className="flex justify-between items-start">
                 <div>
                     <p className="text-sm opacity-90">Selamat bekerja,</p>
@@ -43,7 +43,7 @@ export default function Header({ onSync, isSyncing, deviceName, shiftStatus }: H
                     )}
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="ghost" size="icon" className="bg-white/10 hover:bg-white/20 rounded-full text-primary-foreground" onClick={onSync} disabled={isSyncing}>
+                    <Button variant="ghost" size="icon" className="bg-white/10 hover:bg-white/20 rounded-full text-white" onClick={onSync} disabled={isSyncing}>
                         <RotateCw size={20} className={isSyncing ? "animate-spin" : ""} />
                     </Button>
                 </div>
