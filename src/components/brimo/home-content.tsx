@@ -83,6 +83,7 @@ import ShiftReconciliationForm from './ShiftReconciliationForm';
 import StartShiftScreen from './StartShiftScreen';
 import ShiftReconciliationReport from './ShiftReconciliationReport';
 import DailyReport from './DailyReport';
+import DailyReportHistory from './DailyReportHistory';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -122,6 +123,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const [isCapitalAdditionReportVisible, setIsCapitalAdditionReportVisible] = useState(false);
   const [isShiftReconciliationReportVisible, setIsShiftReconciliationReportVisible] = useState(false);
   const [isDailyReportVisible, setIsDailyReportVisible] = useState(false);
+  const [isDailyReportHistoryVisible, setIsDailyReportHistoryVisible] = useState(false);
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isDeleteReportsDialogOpen, setIsDeleteReportsDialogOpen] = useState(false);
   const [isDeleteAllAccountsDialogOpen, setIsDeleteAllAccountsDialogOpen] = useState(false);
@@ -352,6 +354,9 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     setIsDailyReportVisible(true);
   };
 
+  const handleDailyReportHistoryClick = () => {
+    setIsDailyReportHistoryVisible(true);
+  };
 
   const handleShiftReconciliationReportClick = () => {
     setIsShiftReconciliationReportVisible(true);
@@ -570,6 +575,10 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     if (isDailyReportVisible) {
         return <DailyReport onDone={() => setIsDailyReportVisible(false)} />;
     }
+
+    if (isDailyReportHistoryVisible) {
+        return <DailyReportHistory onDone={() => setIsDailyReportHistoryVisible(false)} />;
+    }
     
     if (isSettingsVisible) {
         return <SettingsContent onBack={() => setIsSettingsVisible(false)} />;
@@ -680,6 +689,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                 onResetReportsClick={handleResetReportsClick}
                 onResetAllAccountsClick={handleResetAllAccountsClick}
                 onDailyReportClick={handleDailyReportClick}
+                onDailyReportHistoryClick={handleDailyReportHistoryClick}
               />
             </div>
           </div>
