@@ -43,6 +43,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   // --- MANUAL INPUTS ---
+  const [openingBalance, setOpeningBalance] = useState(0);
   const [posGrossProfit, setPosGrossProfit] = useState(0);
   const [paymentToPartyB, setPaymentToPartyB] = useState(0);
   const [spendingItems, setSpendingItems] = useState<SpendingItem[]>([{ id: Date.now(), description: '', amount: 0 }]);
@@ -152,7 +153,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   };
 
   // Derived Calculations
-  const liabilityBeforePayment = (0) - capitalAdditionToday; // Assuming Saldo Awal is 0 for now
+  const liabilityBeforePayment = openingBalance - capitalAdditionToday;
   const liabilityAfterPayment = liabilityBeforePayment + paymentToPartyB;
   const totalManualSpending = spendingItems.reduce((sum, item) => sum + item.amount, 0);
   const finalLiabilityForNextDay = liabilityAfterPayment - totalManualSpending;
@@ -186,22 +187,34 @@ export default function DailyReport({ onDone }: DailyReportProps) {
     </div>
   );
   
-  const renderSectionB = () => (
+ const renderSectionB = () => (
     <div className="space-y-4">
-        <h2 className="text-lg font-bold text-primary">B. Rotasi Saldo</h2>
-        <div className="space-y-3 text-sm">
-            <div className="flex justify-between items-center"><span>Saldo Laporan Kemarin</span> <span className="font-medium">{formatToRupiah(0)}</span></div>
-            <div className="flex justify-between items-center"><span>Penambahan Modal Hari Ini</span> <span className="font-medium text-green-500">{formatToRupiah(capitalAdditionToday)}</span></div>
-            <div className="flex justify-between items-center font-bold"><span>LIABILITAS (Sebelum Bayar)</span> <span>{formatToRupiah(liabilityBeforePayment)}</span></div>
-            
-            <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Dana Dibayar A ke B (Manual)</label>
-                <Input type="text" placeholder="Rp 0" value={formatToRupiah(paymentToPartyB)} onChange={(e) => setPaymentToPartyB(parseRupiah(e.target.value))} />
-            </div>
-            <div className="flex justify-between items-center font-bold"><span>LIABILITAS (Setelah Bayar)</span> <span>{formatToRupiah(liabilityAfterPayment)}</span></div>
+      <h2 className="text-lg font-bold text-primary">B. Rotasi Saldo</h2>
+      <div className="space-y-3 text-sm">
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Saldo Laporan Kemarin (Manual)</label>
+          <Input type="text" placeholder="Rp 0" value={formatToRupiah(openingBalance)} onChange={(e) => setOpeningBalance(parseRupiah(e.target.value))} />
         </div>
+        <div className="flex justify-between items-center">
+          <span>Penambahan Modal Hari Ini</span>
+          <span className="font-medium text-green-500">{formatToRupiah(capitalAdditionToday)}</span>
+        </div>
+        <div className="flex justify-between items-center font-bold">
+          <span>LIABILITAS (Sebelum Bayar)</span>
+          <span>{formatToRupiah(liabilityBeforePayment)}</span>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Dana Dibayar A ke B (Manual)</label>
+          <Input type="text" placeholder="Rp 0" value={formatToRupiah(paymentToPartyB)} onChange={(e) => setPaymentToPartyB(parseRupiah(e.target.value))} />
+        </div>
+        <div className="flex justify-between items-center font-bold">
+          <span>LIABILITAS (Setelah Bayar)</span>
+          <span>{formatToRupiah(liabilityAfterPayment)}</span>
+        </div>
+      </div>
     </div>
   );
+
 
   const renderSectionC = () => (
     <div className="space-y-4">
