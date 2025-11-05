@@ -13,6 +13,7 @@ import { KasAccount, Transaction } from '@/lib/data';
 import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal, PPOBTransaction, Settlement, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs, PPOBWifi } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Separator } from '../ui/separator';
+import { ArrowLeft } from 'lucide-react';
 
 interface DailyReportProps {
   onDone: () => void;
@@ -248,6 +249,9 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   return (
     <div className="h-full flex flex-col bg-background">
       <header className="p-4 flex items-center gap-4 border-b">
+        <Button variant="ghost" size="icon" onClick={onDone}>
+            <ArrowLeft />
+        </Button>
         <h1 className="text-lg font-semibold">Laporan Harian v5.0</h1>
       </header>
       <ScrollArea className="flex-1 px-6">
