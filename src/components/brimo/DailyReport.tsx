@@ -13,11 +13,18 @@ import { KasAccount, Transaction } from '@/lib/data';
 import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal, PPOBTransaction, Settlement, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs, PPOBWifi } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Separator } from '../ui/separator';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 interface DailyReportProps {
   onDone: () => void;
 }
+
+type SpendingItem = {
+  id: number;
+  description: string;
+  amount: number;
+};
+
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
   if (value === null || value === undefined || value === '') return 'Rp 0';
@@ -38,7 +45,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   // --- MANUAL INPUTS ---
   const [posGrossProfit, setPosGrossProfit] = useState(0);
   const [paymentToPartyB, setPaymentToPartyB] = useState(0);
-  const [manualSpending, setManualSpending] = useState(0);
+  const [spendingItems, setSpendingItems] = useState<SpendingItem[]>([{ id: Date.now(), description: '', amount: 0 }]);
   const [assetAccessories, setAssetAccessories] = useState(0);
   const [assetSIMCards, setAssetSIMCards] = useState(0);
   const [assetVouchers, setAssetVouchers] = useState(0);
@@ -134,10 +141,21 @@ export default function DailyReport({ onDone }: DailyReportProps) {
     }
   }, [firestore, kasAccounts, isLoadingAccounts]);
 
+  const handleSpendingChange = (id: number, field: 'description' | 'amount', value: string | number) => {
+    setSpendingItems(items => items.map(item => item.id === id ? { ...item, [field]: field === 'amount' ? parseRupiah(value as string) : value } : item));
+  };
+  const addSpendingItem = () => {
+    setSpendingItems(items => [...items, { id: Date.now(), description: '', amount: 0 }]);
+  };
+  const removeSpendingItem = (id: number) => {
+    setSpendingItems(items => items.filter(item => item.id !== id));
+  };
+
   // Derived Calculations
   const liabilityBeforePayment = (0) - capitalAdditionToday; // Assuming Saldo Awal is 0 for now
   const liabilityAfterPayment = liabilityBeforePayment + paymentToPartyB;
-  const finalLiabilityForNextDay = liabilityAfterPayment - manualSpending;
+  const totalManualSpending = spendingItems.reduce((sum, item) => sum + item.amount, 0);
+  const finalLiabilityForNextDay = liabilityAfterPayment - totalManualSpending;
   const totalCurrentAssets = assetAccessories + assetSIMCards + assetVouchers;
   const totalGrossProfit = grossProfitBrilink + grossProfitPPOB + posGrossProfit;
   const netProfit = totalGrossProfit - operationalCosts;
@@ -168,31 +186,69 @@ export default function DailyReport({ onDone }: DailyReportProps) {
     </div>
   );
   
-  const renderSectionB_C = () => (
+  const renderSectionB = () => (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold text-primary">B & C. Rotasi Saldo & Pembelanjaan</h2>
-      <div className="space-y-3 text-sm">
-        <div className="flex justify-between items-center"><span>Saldo Laporan Kemarin</span> <span className="font-medium">{formatToRupiah(0)}</span></div>
-        <div className="flex justify-between items-center"><span>Penambahan Modal Hari Ini</span> <span className="font-medium text-green-500">{formatToRupiah(capitalAdditionToday)}</span></div>
-        <div className="flex justify-between items-center font-bold"><span>LIABILITAS (Sebelum Bayar)</span> <span>{formatToRupiah(liabilityBeforePayment)}</span></div>
-        
-        <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Dana Dibayar A ke B (Manual)</label>
-            <Input type="text" placeholder="Rp 0" value={formatToRupiah(paymentToPartyB)} onChange={(e) => setPaymentToPartyB(parseRupiah(e.target.value))} />
+        <h2 className="text-lg font-bold text-primary">B. Rotasi Saldo</h2>
+        <div className="space-y-3 text-sm">
+            <div className="flex justify-between items-center"><span>Saldo Laporan Kemarin</span> <span className="font-medium">{formatToRupiah(0)}</span></div>
+            <div className="flex justify-between items-center"><span>Penambahan Modal Hari Ini</span> <span className="font-medium text-green-500">{formatToRupiah(capitalAdditionToday)}</span></div>
+            <div className="flex justify-between items-center font-bold"><span>LIABILITAS (Sebelum Bayar)</span> <span>{formatToRupiah(liabilityBeforePayment)}</span></div>
+            
+            <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Dana Dibayar A ke B (Manual)</label>
+                <Input type="text" placeholder="Rp 0" value={formatToRupiah(paymentToPartyB)} onChange={(e) => setPaymentToPartyB(parseRupiah(e.target.value))} />
+            </div>
+            <div className="flex justify-between items-center font-bold"><span>LIABILITAS (Setelah Bayar)</span> <span>{formatToRupiah(liabilityAfterPayment)}</span></div>
         </div>
-        <div className="flex justify-between items-center font-bold"><span>LIABILITAS (Setelah Bayar)</span> <span>{formatToRupiah(liabilityAfterPayment)}</span></div>
-        
-        <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Pembelanjaan (Manual)</label>
-            <Input type="text" placeholder="Rp 0" value={formatToRupiah(manualSpending)} onChange={(e) => setManualSpending(parseRupiah(e.target.value))} />
-        </div>
+    </div>
+  );
+
+  const renderSectionC = () => (
+    <div className="space-y-4">
+      <h2 className="text-lg font-bold text-primary">C. Pembelanjaan</h2>
+      <div className="space-y-3">
+        {spendingItems.map((item, index) => (
+          <div key={item.id} className="flex items-end gap-2">
+            <div className="flex-1 space-y-1">
+              <label className="text-xs text-muted-foreground">Deskripsi Pembelanjaan #{index + 1}</label>
+              <Input
+                type="text"
+                placeholder="cth: Beli stok voucher"
+                value={item.description}
+                onChange={(e) => handleSpendingChange(item.id, 'description', e.target.value)}
+              />
+            </div>
+            <div className="w-40 space-y-1">
+              <label className="text-xs text-muted-foreground">Jumlah</label>
+              <Input
+                type="text"
+                placeholder="Rp 0"
+                value={formatToRupiah(item.amount)}
+                onChange={(e) => handleSpendingChange(item.id, 'amount', e.target.value)}
+              />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => removeSpendingItem(item.id)}
+              className="text-destructive hover:bg-destructive/10 shrink-0"
+              disabled={spendingItems.length <= 1}
+            >
+              <Trash2 size={16} />
+            </Button>
+          </div>
+        ))}
+        <Button variant="outline" size="sm" onClick={addSpendingItem}>
+          <Plus size={16} className="mr-2" /> Tambah Pembelanjaan
+        </Button>
         <Alert>
-            <AlertTitle>LIABILITAS FINAL (Untuk Besok)</AlertTitle>
-            <AlertDescription className="text-lg font-bold">{formatToRupiah(finalLiabilityForNextDay)}</AlertDescription>
+          <AlertTitle>LIABILITAS FINAL (Untuk Besok)</AlertTitle>
+          <AlertDescription className="text-lg font-bold">{formatToRupiah(finalLiabilityForNextDay)}</AlertDescription>
         </Alert>
       </div>
     </div>
   );
+
 
   const renderSectionD = () => (
     <div className="space-y-4">
@@ -260,7 +316,9 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             <>
               {renderSectionA()}
               <Separator />
-              {renderSectionB_C()}
+              {renderSectionB()}
+              <Separator />
+              {renderSectionC()}
               <Separator />
               {renderSectionD()}
               <Separator />
