@@ -37,7 +37,6 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 
 const parseRupiah = (value: string | undefined | null): number => {
     if (!value) return 0;
-    // Allow a single leading minus sign
     const sanitized = value.toString().replace(/[^0-9-]/g, '');
     if (sanitized === '' || sanitized === '-') return 0;
     return Number(sanitized);
@@ -82,7 +81,11 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts, isLoading: isLoadingAccounts } = useCollection<KasAccount>(kasAccountsCollection);
   
-  const totalAccountBalance = kasAccounts?.reduce((sum, acc) => sum + acc.balance, 0) ?? 0;
+  const accountsForReport = useMemo(() => {
+    return kasAccounts?.filter(acc => acc.label.toLowerCase() !== 'laci') ?? [];
+  }, [kasAccounts]);
+
+  const totalAccountBalance = accountsForReport.reduce((sum, acc) => sum + acc.balance, 0) ?? 0;
 
   // Fetch initial data
   useEffect(() => {
@@ -205,11 +208,11 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   const liquidAccumulation = grandTotalBalance - totalCurrentAssets;
   
   const handleSaveReport = async () => {
-    if (!firestore || !kasAccounts) return;
+    if (!firestore) return;
     toast({ title: 'Menyimpan...', description: 'Laporan harian sedang disimpan.' });
 
     try {
-        const accountSnapshots = kasAccounts.map(acc => ({
+        const accountSnapshots = accountsForReport.map(acc => ({
             label: acc.label,
             balance: acc.balance,
             type: acc.type,
@@ -268,7 +271,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             <Skeleton className="h-24 w-full" />
         ) : (
         <div className="space-y-2 text-sm">
-          {kasAccounts?.map(acc => (
+          {accountsForReport.map(acc => (
             <div key={acc.id} className="flex justify-between">
               <span>{acc.label}</span>
               <span className="font-medium">{formatToRupiah(acc.balance)}</span>
@@ -295,6 +298,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
                     <label className="text-xs text-muted-foreground">Saldo Laporan Kemarin (Hutang/Piutang)</label>
                     <Input 
                         type="text"
+                        inputMode="decimal"
                         value={openingBalanceInput}
                         onChange={(e) => setOpeningBalanceInput(e.target.value)}
                         onFocus={(e) => e.target.select()}
@@ -312,6 +316,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
                     <label className="text-xs text-muted-foreground">Dana Dibayar A ke B (Manual)</label>
                      <Input 
                         type="text" 
+                        inputMode="decimal"
                         value={paymentToPartyBInput} 
                         onChange={(e) => setPaymentToPartyBInput(e.target.value)}
                         onFocus={(e) => e.target.select()}
@@ -346,6 +351,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
               {index === 0 && <label className="text-xs text-muted-foreground">Jumlah</label>}
                <Input
                 type="text"
+                inputMode="decimal"
                 value={item.amount === 0 ? '' : item.amount.toString()}
                 onChange={(e) => handleSpendingChange(item.id, 'amount', e.target.value)}
                 onFocus={(e) => e.target.select()}
@@ -381,15 +387,15 @@ export default function DailyReport({ onDone }: DailyReportProps) {
       <div className="space-y-2">
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Aksesoris</label>
-            <Input type="text" value={assetAccessoriesInput} onChange={(e) => setAssetAccessoriesInput(e.target.value)} onFocus={(e) => e.target.select()} />
+            <Input type="text" inputMode="decimal" value={assetAccessoriesInput} onChange={(e) => setAssetAccessoriesInput(e.target.value)} onFocus={(e) => e.target.select()} />
         </div>
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Perdana</label>
-            <Input type="text" value={assetSIMCardsInput} onChange={(e) => setAssetSIMCardsInput(e.target.value)} onFocus={(e) => e.target.select()} />
+            <Input type="text" inputMode="decimal" value={assetSIMCardsInput} onChange={(e) => setAssetSIMCardsInput(e.target.value)} onFocus={(e) => e.target.select()} />
         </div>
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Voucher</label>
-            <Input type="text" value={assetVouchersInput} onChange={(e) => setAssetVouchersInput(e.target.value)} onFocus={(e) => e.target.select()} />
+            <Input type="text" inputMode="decimal" value={assetVouchersInput} onChange={(e) => setAssetVouchersInput(e.target.value)} onFocus={(e) => e.target.select()} />
         </div>
       </div>
        <div className="mt-2 pt-2 border-t font-bold flex justify-between text-base">
@@ -407,7 +413,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             <div className="flex justify-between items-center"><span>Laba Kotor PPOB</span> <span className="font-medium">{formatToRupiah(grossProfitPPOB)}</span></div>
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Laba Kotor POS (Manual)</label>
-                <Input type="text" value={posGrossProfitInput} onChange={(e) => setPosGrossProfitInput(e.target.value)} onFocus={(e) => e.target.select()} />
+                <Input type="text" inputMode="decimal" value={posGrossProfitInput} onChange={(e) => setPosGrossProfitInput(e.target.value)} onFocus={(e) => e.target.select()} />
             </div>
              <div className="flex justify-between items-center font-bold border-t pt-2"><span>TOTAL LABA KOTOR</span> <span>{formatToRupiah(totalGrossProfit)}</span></div>
         </div>
@@ -430,11 +436,11 @@ export default function DailyReport({ onDone }: DailyReportProps) {
         <div className="space-y-2">
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Kas Laci Kecil (Manual)</label>
-                <Input type="text" value={cashInDrawerInput} onChange={(e) => setCashInDrawerInput(e.target.value)} onFocus={(e) => e.target.select()} />
+                <Input type="text" inputMode="decimal" value={cashInDrawerInput} onChange={(e) => setCashInDrawerInput(e.target.value)} onFocus={(e) => e.target.select()} />
             </div>
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Kas Brankas (Manual)</label>
-                <Input type="text" value={cashInSafeInput} onChange={(e) => setCashInSafeInput(e.target.value)} onFocus={(e) => e.target.select()} />
+                <Input type="text" inputMode="decimal" value={cashInSafeInput} onChange={(e) => setCashInSafeInput(e.target.value)} onFocus={(e) => e.target.select()} />
             </div>
         </div>
         <div className="space-y-3 text-sm mt-4">
