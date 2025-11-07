@@ -15,9 +15,10 @@
                 "type": "object",
                 "properties": {
                     "label": { "type": "string" },
-                    "balance": { "type": "number" }
+                    "balance": { "type": "number" },
+                    "type": { "type": "string" }
                 },
-                "required": ["label", "balance"]
+                "required": ["label", "balance", "type"]
             }
         },
         "totalAccountBalance": { "type": "number", "description": "Sum of all kas account balances at the time of report generation." },

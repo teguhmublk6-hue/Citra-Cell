@@ -6,7 +6,7 @@ import { Wallet, Building2, Zap, Smartphone, ShoppingBag, Send, CreditCard, Gift
 export type DailyReport = {
   id: string;
   date: { seconds: number; nanoseconds: number };
-  accountSnapshots: { label: string; balance: number }[];
+  accountSnapshots: { label: string; balance: number; type: string; }[];
   totalAccountBalance: number;
   openingBalanceRotation: number;
   capitalAdditionToday: number;

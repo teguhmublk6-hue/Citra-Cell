@@ -186,7 +186,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
     setSpendingItems(items => items.map(item => {
         if (item.id === id) {
             if (field === 'amount') {
-                return { ...item, amount: Number(value.replace(/[^0-9]/g, '')) || 0 };
+                return { ...item, amount: Number(value.replace(/[^0-9-]/g, '')) || 0 };
             }
             return { ...item, description: value };
         }
@@ -230,6 +230,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
         const accountSnapshots = kasAccounts.map(acc => ({
             label: acc.label,
             balance: acc.balance,
+            type: acc.type,
         }));
 
         const reportData = {

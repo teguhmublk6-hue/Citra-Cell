@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where, getDocs, Timestamp, doc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
@@ -33,17 +33,48 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 export default function DailyReportDetail({ report, onDone }: DailyReportDetailProps) {
   const [isLoading, setIsLoading] = useState(false);
 
+  const groupedAccounts = useMemo(() => {
+    if (!report.accountSnapshots) return {};
+
+    const groups = report.accountSnapshots.reduce((acc, account) => {
+        const type = account.type || 'Lainnya';
+        if (!acc[type]) {
+            acc[type] = [];
+        }
+        acc[type].push(account);
+        return acc;
+    }, {} as Record<string, { label: string; balance: number; type: string; }[]>);
+    
+    return groups;
+  }, [report.accountSnapshots]);
+
+  const accountTypes = useMemo(() => {
+      const order: (keyof typeof groupedAccounts)[] = ['Bank', 'E-Wallet', 'Merchant', 'PPOB', 'Tunai'];
+      const dynamicTypes = Object.keys(groupedAccounts).filter(type => !order.includes(type));
+      
+      const allSortedTypes = order.concat(dynamicTypes.sort()).filter(type => groupedAccounts[type]);
+      
+      return allSortedTypes;
+  }, [groupedAccounts]);
+
   const renderSectionA = () => (
     <div className="space-y-4">
       <h2 className="text-lg font-bold text-primary">A. Saldo Akun</h2>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          {report.accountSnapshots?.map(acc => (
-            <div key={acc.label} className="flex justify-between">
-              <span>{acc.label}</span>
-              <span className="font-medium">{formatToRupiah(acc.balance)}</span>
+        <div className="space-y-4 text-sm">
+          {accountTypes.map(type => (
+            <div key={type}>
+              <h3 className="font-semibold text-muted-foreground mb-2">{type}</h3>
+              <div className="space-y-2">
+                {groupedAccounts[type].map(acc => (
+                  <div key={acc.label} className="flex justify-between">
+                    <span>{acc.label}</span>
+                    <span className="font-medium">{formatToRupiah(acc.balance)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
-          <div className="col-span-2 mt-2 pt-2 border-t font-bold flex justify-between text-base">
+          <div className="col-span-2 mt-4 pt-4 border-t font-bold flex justify-between text-base">
             <span>TOTAL SALDO AKUN (Saat Laporan)</span>
             <span>{formatToRupiah(report.totalAccountBalance)}</span>
           </div>
@@ -146,7 +177,7 @@ export default function DailyReportDetail({ report, onDone }: DailyReportDetailP
             <div className="flex justify-between"><span>Kas Brankas</span><span>{formatToRupiah(report.cashInSafe)}</span></div>
         </div>
         <div className="space-y-3 text-sm mt-4">
-            <div className="flex justify-between"><span>Total Kas Fisik</span> <span className="font-medium">{formatToRupiah(report.totalPhysicalCash)}</span></div>
+            <div className="flex justify-between"><span>Total Kas Fisik</span> <span className="font-medium">{formatToRupiah(totalPhysicalCash)}</span></div>
             <div className="flex justify-between"><span>Total Saldo Akun</span> <span className="font-medium">{formatToRupiah(report.totalAccountBalance)}</span></div>
             <div className="flex justify-between"><span>LIABILITAS FINAL</span> <span className={cn("font-medium", report.finalLiabilityForNextDay < 0 && "text-destructive")}>{formatToRupiah(report.finalLiabilityForNextDay)}</span></div>
             <div className="flex justify-between font-bold border-t pt-2"><span>TOTAL KESELURUHAN</span> <span>{formatToRupiah(report.grandTotalBalance)}</span></div>
