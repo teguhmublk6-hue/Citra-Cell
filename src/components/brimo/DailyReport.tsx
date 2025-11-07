@@ -41,7 +41,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   // --- MANUAL INPUTS ---
-  const [openingBalanceInput, setOpeningBalanceInput] = useState('');
+  const [openingBalanceInput, setOpeningBalanceInput] = useState('0');
   const [openingBalance, setOpeningBalance] = useState(0);
 
   const [posGrossProfitInput, setPosGrossProfitInput] = useState('0');
@@ -186,7 +186,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
     setSpendingItems(items => items.map(item => {
         if (item.id === id) {
             if (field === 'amount') {
-                return { ...item, amount: Number(value.replace(/[^0-9-]/g, '')) };
+                return { ...item, amount: Number(value.replace(/[^0-9]/g, '')) || 0 };
             }
             return { ...item, description: value };
         }
@@ -211,7 +211,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   };
 
   // Derived Calculations
-  const liabilityBeforePayment = openingBalance < 0 ? openingBalance - capitalAdditionToday : openingBalance - capitalAdditionToday;
+  const liabilityBeforePayment = openingBalance - capitalAdditionToday;
   const liabilityAfterPayment = liabilityBeforePayment + paymentToPartyB;
   const totalManualSpending = spendingItems.reduce((sum, item) => sum + Number(item.amount), 0);
   const finalLiabilityForNextDay = liabilityAfterPayment - totalManualSpending;
@@ -223,12 +223,18 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   const liquidAccumulation = grandTotalBalance - totalCurrentAssets;
   
   const handleSaveReport = async () => {
-    if (!firestore) return;
+    if (!firestore || !kasAccounts) return;
     toast({ title: 'Menyimpan...', description: 'Laporan harian sedang disimpan.' });
 
     try {
+        const accountSnapshots = kasAccounts.map(acc => ({
+            label: acc.label,
+            balance: acc.balance,
+        }));
+
         const reportData = {
             date: new Date(),
+            accountSnapshots,
             totalAccountBalance,
             openingBalanceRotation: openingBalance,
             capitalAdditionToday,
@@ -252,7 +258,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             totalPhysicalCash,
             grandTotalBalance,
             liquidAccumulation,
-            spendingItems,
+            spendingItems: spendingItems.filter(item => item.description || item.amount),
         };
 
         await addDoc(collection(firestore, 'dailyReports'), reportData);
@@ -305,7 +311,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
                 <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">Saldo Laporan Kemarin (Hutang/Piutang)</label>
                     <Input 
-                        type="text" 
+                        type="text"
                         value={openingBalanceInput}
                         onChange={(e) => setOpeningBalanceInput(e.target.value)}
                         onBlur={() => setOpeningBalance(Number(openingBalanceInput.replace(/[^0-9-]/g, '')) || 0)}
@@ -351,16 +357,15 @@ export default function DailyReport({ onDone }: DailyReportProps) {
               <Input
                 type="text"
                 placeholder="cth: Beli stok voucher"
-                value={spendingInputs[item.id]?.description ?? item.description}
+                value={spendingInputs[item.id]?.description ?? ''}
                 onChange={(e) => handleSpendingChange(item.id, 'description', e.target.value)}
-                onBlur={() => handleSpendingBlur(item.id, 'description')}
               />
             </div>
             <div className="w-40 space-y-1">
               {index === 0 && <label className="text-xs text-muted-foreground">Jumlah</label>}
                <Input
                 type="text"
-                value={spendingInputs[item.id]?.amount ?? item.amount.toString()}
+                value={spendingInputs[item.id]?.amount ?? '0'}
                 onChange={(e) => handleSpendingChange(item.id, 'amount', e.target.value)}
                 onBlur={() => handleSpendingBlur(item.id, 'amount')}
                 onFocus={(e) => e.target.select()}

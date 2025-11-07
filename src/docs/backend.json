@@ -8,6 +8,18 @@
       "description": "Represents a comprehensive daily financial report.",
       "properties": {
         "date": { "type": "string", "format": "date-time" },
+        "accountSnapshots": {
+            "type": "array",
+            "description": "A snapshot of account balances at the time of the report.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "label": { "type": "string" },
+                    "balance": { "type": "number" }
+                },
+                "required": ["label", "balance"]
+            }
+        },
         "totalAccountBalance": { "type": "number", "description": "Sum of all kas account balances at the time of report generation." },
         "openingBalanceRotation": { "type": "number", "description": "The final liability/asset from the previous day's report." },
         "capitalAdditionToday": { "type": "number", "description": "Total capital added via 'Tambah Modal' today." },
@@ -22,6 +34,7 @@
         "totalCurrentAssets": { "type": "number" },
         "grossProfitBrilink": { "type": "number" },
         "grossProfitPPOB": { "type": "number" },
+        "posGrossProfit": { "type": "number" },
         "totalGrossProfit": { "type": "number" },
         "operationalCosts": { "type": "number" },
         "netProfit": { "type": "number" },
@@ -29,7 +42,17 @@
         "cashInSafe": { "type": "number", "description": "Manual input for cash in the safe." },
         "totalPhysicalCash": { "type": "number" },
         "grandTotalBalance": { "type": "number" },
-        "liquidAccumulation": { "type": "number" }
+        "liquidAccumulation": { "type": "number" },
+        "spendingItems": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "description": { "type": "string" },
+                    "amount": { "type": "number" }
+                }
+            }
+        }
       },
       "required": ["date"]
     },

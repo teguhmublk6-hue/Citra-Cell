@@ -31,35 +31,23 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 };
 
 export default function DailyReportDetail({ report, onDone }: DailyReportDetailProps) {
-  const [kasAccounts, setKasAccounts] = useState<KasAccount[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const firestore = useFirestore();
-
-  useEffect(() => {
-    // This effect is to fetch kas account names, since the report doesn't store them.
-    // In a real app, you might consider storing account names in the report for historical accuracy.
-    const fetchKasAccounts = async () => {
-      if (!firestore) return;
-      const kasAccountsRef = collection(firestore, 'kasAccounts');
-      const snapshot = await getDocs(kasAccountsRef);
-      const accounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as KasAccount[];
-      setKasAccounts(accounts);
-      setIsLoading(false);
-    };
-    fetchKasAccounts();
-  }, [firestore]);
-
+  const [isLoading, setIsLoading] = useState(false);
 
   const renderSectionA = () => (
     <div className="space-y-4">
       <h2 className="text-lg font-bold text-primary">A. Saldo Akun</h2>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-        <p>This section cannot be reproduced accurately from historical data without saving account snapshots.</p>
-        <div className="col-span-2 mt-2 pt-2 border-t font-bold flex justify-between text-base">
-          <span>TOTAL SALDO AKUN (Saat Laporan)</span>
-          <span>{formatToRupiah(report.totalAccountBalance)}</span>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+          {report.accountSnapshots?.map(acc => (
+            <div key={acc.label} className="flex justify-between">
+              <span>{acc.label}</span>
+              <span className="font-medium">{formatToRupiah(acc.balance)}</span>
+            </div>
+          ))}
+          <div className="col-span-2 mt-2 pt-2 border-t font-bold flex justify-between text-base">
+            <span>TOTAL SALDO AKUN (Saat Laporan)</span>
+            <span>{formatToRupiah(report.totalAccountBalance)}</span>
+          </div>
         </div>
-      </div>
     </div>
   );
   
