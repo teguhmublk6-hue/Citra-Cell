@@ -189,7 +189,7 @@ export default function DailyReportDetail({ report, onDone }: DailyReportDetailP
             <div className="flex justify-between"><span>LIABILITAS FINAL</span> <span className={cn("font-medium", report.finalLiabilityForNextDay < 0 && "text-destructive")}>{formatToRupiah(report.finalLiabilityForNextDay)}</span></div>
             <div className="flex justify-between font-bold border-t pt-2"><span>TOTAL KESELURUHAN</span> <span>{formatToRupiah(report.grandTotalBalance)}</span></div>
              <div className="flex justify-between mt-4"><span>Aset Lancar</span> <span className="font-medium">{formatToRupiah(report.totalCurrentAssets)}</span></div>
-             <div className="flex justify-between font-bold border-t pt-2 text-green-500"><span>AKUMULASI SALDO LIQUID</span> <span className={cn(report.liquidAccumulation < 0 && "text-destructive")}>{formatToRupiah(report.liquidAccumulation)}</span></div>
+             <div className="flex justify-between font-bold border-t pt-2 text-green-500"><span>TOTAL KEKAYAAN</span> <span className={cn(report.liquidAccumulation < 0 && "text-destructive")}>{formatToRupiah(report.liquidAccumulation)}</span></div>
         </div>
     </div>
   )
