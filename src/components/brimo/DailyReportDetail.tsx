@@ -74,7 +74,7 @@ export default function DailyReportDetail({ report, onDone }: DailyReportDetailP
               </div>
             </div>
           ))}
-          <div className="col-span-2 mt-4 pt-4 border-t font-bold flex justify-between text-base">
+          <div className="mt-4 pt-4 border-t font-bold flex justify-between text-base">
             <span>TOTAL SALDO AKUN (Saat Laporan)</span>
             <span>{formatToRupiah(report.totalAccountBalance)}</span>
           </div>
@@ -177,7 +177,7 @@ export default function DailyReportDetail({ report, onDone }: DailyReportDetailP
             <div className="flex justify-between"><span>Kas Brankas</span><span>{formatToRupiah(report.cashInSafe)}</span></div>
         </div>
         <div className="space-y-3 text-sm mt-4">
-            <div className="flex justify-between"><span>Total Kas Fisik</span> <span className="font-medium">{formatToRupiah(totalPhysicalCash)}</span></div>
+            <div className="flex justify-between"><span>Total Kas Fisik</span> <span className="font-medium">{formatToRupiah(report.totalPhysicalCash)}</span></div>
             <div className="flex justify-between"><span>Total Saldo Akun</span> <span className="font-medium">{formatToRupiah(report.totalAccountBalance)}</span></div>
             <div className="flex justify-between"><span>LIABILITAS FINAL</span> <span className={cn("font-medium", report.finalLiabilityForNextDay < 0 && "text-destructive")}>{formatToRupiah(report.finalLiabilityForNextDay)}</span></div>
             <div className="flex justify-between font-bold border-t pt-2"><span>TOTAL KESELURUHAN</span> <span>{formatToRupiah(report.grandTotalBalance)}</span></div>
@@ -196,7 +196,7 @@ export default function DailyReportDetail({ report, onDone }: DailyReportDetailP
         </Button>
         <div className="flex-1">
             <h1 className="text-lg font-semibold">Detail Laporan Harian</h1>
-            <p className="text-sm text-muted-foreground">{format(new Date(report.date.seconds * 1000), "EEEE, dd MMMM yyyy", { locale: idLocale })}</p>
+            <p className="text-sm text-muted-foreground">{format((report.date as any).toDate ? (report.date as any).toDate() : new Date(report.date), "EEEE, dd MMMM yyyy", { locale: idLocale })}</p>
         </div>
         <Button variant="outline" size="sm" disabled>
             <Download size={16} className="mr-2"/>
