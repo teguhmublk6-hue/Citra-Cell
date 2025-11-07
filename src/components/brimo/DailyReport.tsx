@@ -16,6 +16,8 @@ import { Separator } from '../ui/separator';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { produce } from 'immer';
+
 
 interface DailyReportProps {
   onDone: () => void;
@@ -25,6 +27,11 @@ type SpendingItem = {
   id: number;
   description: string;
   amount: number;
+};
+
+type CostItem = {
+    description: string;
+    amount: number;
 };
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
@@ -75,7 +82,9 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   const [capitalAdditionToday, setCapitalAdditionToday] = useState(0);
   const [grossProfitBrilink, setGrossProfitBrilink] = useState(0);
   const [grossProfitPPOB, setGrossProfitPPOB] = useState(0);
-  const [operationalCosts, setOperationalCosts] = useState(0);
+  const [operationalCostItems, setOperationalCostItems] = useState<CostItem[]>([]);
+  const operationalCosts = operationalCostItems.reduce((sum, item) => sum + item.amount, 0);
+
 
   // SECTION A: Saldo Akun
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
@@ -86,6 +95,11 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   }, [kasAccounts]);
 
   const totalAccountBalance = accountsForReport.reduce((sum, acc) => sum + acc.balance, 0) ?? 0;
+  
+  const getAccountLabel = (accountId?: string) => {
+    if (!accountId || !kasAccounts) return 'N/A';
+    return kasAccounts.find(acc => acc.id === accountId)?.label || accountId;
+  };
 
   // Fetch initial data
   useEffect(() => {
@@ -101,7 +115,8 @@ export default function DailyReport({ onDone }: DailyReportProps) {
       let totalCapital = 0;
       let totalBrilinkProfit = 0;
       let totalPPOBProfit = 0;
-      let totalOpsCost = 0;
+      const fetchedCostItems: CostItem[] = [];
+
 
       // Fetch last report's final liability
       const settingsRef = doc(firestore, 'appConfig', 'dailyReportSettings');
@@ -114,6 +129,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
 
       // 1. Fetch Capital Additions & Operational Costs from Transactions
       if (kasAccounts) {
+        const feeCategories = ['operational', 'operational_fee', 'transfer_fee'];
         for (const account of kasAccounts) {
           const transQuery = query(
             collection(firestore, 'kasAccounts', account.id, 'transactions'),
@@ -126,8 +142,8 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             if (trx.category === 'capital' && trx.type === 'credit') {
               totalCapital += trx.amount;
             }
-            if (['operational', 'operational_fee', 'transfer_fee'].includes(trx.category || '')) {
-              totalOpsCost += trx.amount;
+            if (feeCategories.includes(trx.category || '')) {
+              fetchedCostItems.push({ description: trx.name, amount: trx.amount });
             }
           });
         }
@@ -150,7 +166,12 @@ export default function DailyReport({ onDone }: DailyReportProps) {
        const settlementSnapshot = await getDocs(settlementQuery);
        settlementSnapshot.forEach(doc => {
            const data = doc.data() as Settlement;
-           totalOpsCost += data.mdrFee;
+           if (data.mdrFee > 0) {
+            fetchedCostItems.push({
+                description: `Biaya MDR Settlement dari ${getAccountLabel(data.sourceMerchantAccountId)}`,
+                amount: data.mdrFee
+            });
+           }
        });
 
       setGrossProfitBrilink(totalBrilinkProfit);
@@ -164,7 +185,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
           });
       }
       setGrossProfitPPOB(totalPPOBProfit);
-      setOperationalCosts(totalOpsCost);
+      setOperationalCostItems(fetchedCostItems);
       
       setIsLoading(false);
     };
@@ -176,16 +197,17 @@ export default function DailyReport({ onDone }: DailyReportProps) {
 
   const handleSpendingChange = (id: number, field: 'description' | 'amount', value: string) => {
     setSpendingItems(
-        produce(draft => {
-            const item = draft.find(item => item.id === id);
-            if (item) {
-                if (field === 'description') {
-                    item.description = value;
-                } else {
-                    item[field] = parseRupiah(value);
-                }
-            }
-        })
+      produce(draft => {
+        const item = draft.find(item => item.id === id);
+        if (item) {
+          if (field === 'description') {
+            item.description = value;
+          } else {
+            const parsedValue = parseRupiah(value);
+            item[field] = isNaN(parsedValue) ? 0 : parsedValue;
+          }
+        }
+      })
     );
   };
   
@@ -279,7 +301,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
               <span className="font-medium">{formatToRupiah(acc.balance)}</span>
             </div>
           ))}
-          <div className="col-span-2 mt-2 pt-2 border-t font-bold flex justify-between text-base">
+          <div className="mt-2 pt-2 border-t font-bold flex justify-between text-base">
             <span>TOTAL SALDO AKUN</span>
             <span>{formatToRupiah(totalAccountBalance)}</span>
           </div>
@@ -305,6 +327,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
                         onBlur={e => setOpeningBalanceInput(formatToRupiah(parseRupiah(e.target.value)))}
                         onChange={e => setOpeningBalanceInput(e.target.value)}
                         className="text-base"
+                        inputMode="text"
                     />
                 </div>
                 <div className="flex justify-between items-center">
@@ -324,6 +347,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
                         onBlur={e => setPaymentToPartyBInput(formatToRupiah(parseRupiah(e.target.value)))}
                         onChange={e => setPaymentToPartyBInput(e.target.value)}
                         className="text-base"
+                        inputMode="text"
                      />
                 </div>
                 <div className="flex justify-between items-center font-bold">
@@ -355,7 +379,8 @@ export default function DailyReport({ onDone }: DailyReportProps) {
               {index === 0 && <label className="text-xs text-muted-foreground">Jumlah</label>}
                <Input
                 type="text"
-                value={item.amount === 0 ? '' : item.amount.toString()}
+                inputMode="text"
+                value={item.amount === 0 ? '' : formatToRupiah(item.amount)}
                 onChange={(e) => handleSpendingChange(item.id, 'amount', e.target.value)}
                 onFocus={(e) => e.target.select()}
                 placeholder="Rp 0"
@@ -390,15 +415,15 @@ export default function DailyReport({ onDone }: DailyReportProps) {
       <div className="space-y-2">
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Aksesoris</label>
-            <Input type="text" value={assetAccessoriesInput} onChange={(e) => setAssetAccessoriesInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setAssetAccessoriesInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
+            <Input type="text" inputMode="text" value={assetAccessoriesInput} onChange={(e) => setAssetAccessoriesInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setAssetAccessoriesInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
         </div>
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Perdana</label>
-            <Input type="text" value={assetSIMCardsInput} onChange={(e) => setAssetSIMCardsInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setAssetSIMCardsInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
+            <Input type="text" inputMode="text" value={assetSIMCardsInput} onChange={(e) => setAssetSIMCardsInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setAssetSIMCardsInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
         </div>
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Voucher</label>
-            <Input type="text" value={assetVouchersInput} onChange={(e) => setAssetVouchersInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setAssetVouchersInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
+            <Input type="text" inputMode="text" value={assetVouchersInput} onChange={(e) => setAssetVouchersInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setAssetVouchersInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
         </div>
       </div>
        <div className="mt-2 pt-2 border-t font-bold flex justify-between text-base">
@@ -416,7 +441,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             <div className="flex justify-between items-center"><span>Laba Kotor PPOB</span> <span className="font-medium">{formatToRupiah(grossProfitPPOB)}</span></div>
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Laba Kotor POS (Manual)</label>
-                <Input type="text" value={posGrossProfitInput} onChange={(e) => setPosGrossProfitInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setPosGrossProfitInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
+                <Input type="text" inputMode="text" value={posGrossProfitInput} onChange={(e) => setPosGrossProfitInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setPosGrossProfitInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
             </div>
              <div className="flex justify-between items-center font-bold border-t pt-2"><span>TOTAL LABA KOTOR</span> <span>{formatToRupiah(totalGrossProfit)}</span></div>
         </div>
@@ -427,8 +452,25 @@ export default function DailyReport({ onDone }: DailyReportProps) {
       <div className="space-y-4">
         <h2 className="text-lg font-bold text-primary">G. Biaya Operasional</h2>
         <div className="space-y-3 text-sm">
-            <div className="flex justify-between items-center"><span>Total Biaya Operasional (Otomatis)</span> <span className="font-medium text-destructive">{formatToRupiah(operationalCosts)}</span></div>
-             <div className="flex justify-between items-center font-bold border-t pt-2 mt-4"><span>LABA BERSIH (NETT PROFIT)</span> <span className={cn(netProfit < 0 && "text-destructive")}>{formatToRupiah(netProfit)}</span></div>
+            {operationalCostItems.length > 0 ? (
+                operationalCostItems.map((item, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                        <span className="text-muted-foreground">{item.description}</span>
+                        <span className="font-medium text-destructive">{formatToRupiah(item.amount)}</span>
+                    </div>
+                ))
+            ) : (
+                <p className="text-muted-foreground text-center text-xs py-2">Tidak ada biaya operasional otomatis.</p>
+            )}
+
+             <div className="flex justify-between items-center font-bold border-t pt-2 mt-4">
+                <span>TOTAL BIAYA OPERASIONAL</span>
+                <span className="text-destructive">{formatToRupiah(operationalCosts)}</span>
+            </div>
+             <div className="flex justify-between items-center font-bold border-t pt-2 mt-4">
+                <span>LABA BERSIH (NETT PROFIT)</span> 
+                <span className={cn(netProfit < 0 && "text-destructive")}>{formatToRupiah(netProfit)}</span>
+            </div>
         </div>
     </div>
   );
@@ -439,11 +481,11 @@ export default function DailyReport({ onDone }: DailyReportProps) {
         <div className="space-y-2">
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Kas Laci Kecil (Manual)</label>
-                <Input type="text" value={cashInDrawerInput} onChange={(e) => setCashInDrawerInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setCashInDrawerInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
+                <Input type="text" inputMode="text" value={cashInDrawerInput} onChange={(e) => setCashInDrawerInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setCashInDrawerInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
             </div>
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Kas Brankas (Manual)</label>
-                <Input type="text" value={cashInSafeInput} onChange={(e) => setCashInSafeInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setCashInSafeInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
+                <Input type="text" inputMode="text" value={cashInSafeInput} onChange={(e) => setCashInSafeInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setCashInSafeInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
             </div>
         </div>
         <div className="space-y-3 text-sm mt-4">
