@@ -35,6 +35,15 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
   return `${isNegative ? '-Rp ' : 'Rp '}${formattedNum}`;
 };
 
+const parseRupiah = (value: string | undefined | null): number => {
+    if (!value) return 0;
+    // Allow a single leading minus sign
+    const sanitized = value.toString().replace(/[^0-9-]/g, '');
+    if (sanitized === '' || sanitized === '-') return 0;
+    return Number(sanitized);
+};
+
+
 export default function DailyReport({ onDone }: DailyReportProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -42,31 +51,26 @@ export default function DailyReport({ onDone }: DailyReportProps) {
 
   // --- MANUAL INPUTS ---
   const [openingBalanceInput, setOpeningBalanceInput] = useState('0');
-  const [openingBalance, setOpeningBalance] = useState(0);
-
   const [posGrossProfitInput, setPosGrossProfitInput] = useState('0');
-  const [posGrossProfit, setPosGrossProfit] = useState(0);
-  
   const [paymentToPartyBInput, setPaymentToPartyBInput] = useState('0');
-  const [paymentToPartyB, setPaymentToPartyB] = useState(0);
-  
   const [spendingItems, setSpendingItems] = useState<SpendingItem[]>([{ id: Date.now(), description: '', amount: 0 }]);
-  const [spendingInputs, setSpendingInputs] = useState<Record<number, { description: string, amount: string }>>({});
-  
   const [assetAccessoriesInput, setAssetAccessoriesInput] = useState('0');
-  const [assetAccessories, setAssetAccessories] = useState(0);
-
   const [assetSIMCardsInput, setAssetSIMCardsInput] = useState('0');
-  const [assetSIMCards, setAssetSIMCards] = useState(0);
-  
   const [assetVouchersInput, setAssetVouchersInput] = useState('0');
-  const [assetVouchers, setAssetVouchers] = useState(0);
-
   const [cashInDrawerInput, setCashInDrawerInput] = useState('0');
-  const [cashInDrawer, setCashInDrawer] = useState(0);
-
   const [cashInSafeInput, setCashInSafeInput] = useState('0');
-  const [cashInSafe, setCashInSafe] = useState(0);
+
+  // --- DERIVED FROM MANUAL INPUTS ---
+  const openingBalance = parseRupiah(openingBalanceInput);
+  const posGrossProfit = parseRupiah(posGrossProfitInput);
+  const paymentToPartyB = parseRupiah(paymentToPartyBInput);
+  const totalManualSpending = spendingItems.reduce((sum, item) => sum + item.amount, 0);
+  const assetAccessories = parseRupiah(assetAccessoriesInput);
+  const assetSIMCards = parseRupiah(assetSIMCardsInput);
+  const assetVouchers = parseRupiah(assetVouchersInput);
+  const cashInDrawer = parseRupiah(cashInDrawerInput);
+  const cashInSafe = parseRupiah(cashInSafeInput);
+
 
   // --- AUTOMATIC DATA ---
   const [capitalAdditionToday, setCapitalAdditionToday] = useState(0);
@@ -101,7 +105,6 @@ export default function DailyReport({ onDone }: DailyReportProps) {
       const settingsSnap = await getDocs(query(collection(firestore, 'appConfig'), where('id', '==', 'dailyReportSettings')));
       if (!settingsSnap.empty) {
         const lastLiability = settingsSnap.docs[0].data().lastFinalLiability || 0;
-        setOpeningBalance(lastLiability);
         setOpeningBalanceInput(lastLiability.toString());
       }
 
@@ -168,52 +171,31 @@ export default function DailyReport({ onDone }: DailyReportProps) {
     }
   }, [firestore, kasAccounts, isLoadingAccounts]);
 
-  // Handler for dynamic spending inputs
   const handleSpendingChange = (id: number, field: 'description' | 'amount', value: string) => {
-    setSpendingInputs(prev => ({
-        ...prev,
-        [id]: {
-            ...prev[id],
-            [field]: value
-        }
-    }));
-  };
-  
-  const handleSpendingBlur = (id: number, field: 'description' | 'amount') => {
-    const currentInput = spendingInputs[id] || {};
-    const value = currentInput[field] || (field === 'description' ? '' : '0');
-    
-    setSpendingItems(items => items.map(item => {
+    const updatedItems = spendingItems.map(item => {
         if (item.id === id) {
             if (field === 'amount') {
-                return { ...item, amount: Number(value.replace(/[^0-9-]/g, '')) || 0 };
+                return { ...item, amount: parseRupiah(value) };
             }
             return { ...item, description: value };
         }
         return item;
-    }));
+    });
+    setSpendingItems(updatedItems);
   };
-
+  
   const addSpendingItem = () => {
-    const newId = Date.now();
-    setSpendingItems(items => [...items, { id: newId, description: '', amount: 0 }]);
-    setSpendingInputs(prev => ({ ...prev, [newId]: { description: '', amount: '0' } }));
+    setSpendingItems(items => [...items, { id: Date.now(), description: '', amount: 0 }]);
   };
 
   const removeSpendingItem = (id: number) => {
     if (spendingItems.length <= 1) return;
     setSpendingItems(items => items.filter(item => item.id !== id));
-    setSpendingInputs(prev => {
-        const newInputs = {...prev};
-        delete newInputs[id];
-        return newInputs;
-    });
   };
 
   // Derived Calculations
   const liabilityBeforePayment = openingBalance - capitalAdditionToday;
   const liabilityAfterPayment = liabilityBeforePayment + paymentToPartyB;
-  const totalManualSpending = spendingItems.reduce((sum, item) => sum + Number(item.amount), 0);
   const finalLiabilityForNextDay = liabilityAfterPayment - totalManualSpending;
   const totalCurrentAssets = assetAccessories + assetSIMCards + assetVouchers;
   const totalGrossProfit = grossProfitBrilink + grossProfitPPOB + posGrossProfit;
@@ -285,7 +267,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
       {isLoadingAccounts ? (
         <Skeleton className="h-24 w-full" />
       ) : (
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <div className="space-y-2 text-sm">
           {kasAccounts?.map(acc => (
             <div key={acc.id} className="flex justify-between">
               <span>{acc.label}</span>
@@ -315,7 +297,6 @@ export default function DailyReport({ onDone }: DailyReportProps) {
                         type="text"
                         value={openingBalanceInput}
                         onChange={(e) => setOpeningBalanceInput(e.target.value)}
-                        onBlur={() => setOpeningBalance(Number(openingBalanceInput.replace(/[^0-9-]/g, '')) || 0)}
                         onFocus={(e) => e.target.select()}
                     />
                 </div>
@@ -333,7 +314,6 @@ export default function DailyReport({ onDone }: DailyReportProps) {
                         type="text" 
                         value={paymentToPartyBInput} 
                         onChange={(e) => setPaymentToPartyBInput(e.target.value)}
-                        onBlur={() => setPaymentToPartyB(Number(paymentToPartyBInput.replace(/[^0-9-]/g, '')) || 0)}
                         onFocus={(e) => e.target.select()}
                      />
                 </div>
@@ -358,7 +338,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
               <Input
                 type="text"
                 placeholder="cth: Beli stok voucher"
-                value={spendingInputs[item.id]?.description ?? ''}
+                value={item.description}
                 onChange={(e) => handleSpendingChange(item.id, 'description', e.target.value)}
               />
             </div>
@@ -366,10 +346,10 @@ export default function DailyReport({ onDone }: DailyReportProps) {
               {index === 0 && <label className="text-xs text-muted-foreground">Jumlah</label>}
                <Input
                 type="text"
-                value={spendingInputs[item.id]?.amount ?? '0'}
+                value={item.amount === 0 ? '' : item.amount.toString()}
                 onChange={(e) => handleSpendingChange(item.id, 'amount', e.target.value)}
-                onBlur={() => handleSpendingBlur(item.id, 'amount')}
                 onFocus={(e) => e.target.select()}
+                placeholder="Rp 0"
               />
             </div>
             <Button
@@ -401,15 +381,15 @@ export default function DailyReport({ onDone }: DailyReportProps) {
       <div className="space-y-2">
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Aksesoris</label>
-            <Input type="text" value={assetAccessoriesInput} onChange={(e) => setAssetAccessoriesInput(e.target.value)} onBlur={() => setAssetAccessories(Number(assetAccessoriesInput.replace(/[^0-9-]/g, '')) || 0)} onFocus={(e) => e.target.select()} />
+            <Input type="text" value={assetAccessoriesInput} onChange={(e) => setAssetAccessoriesInput(e.target.value)} onFocus={(e) => e.target.select()} />
         </div>
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Perdana</label>
-            <Input type="text" value={assetSIMCardsInput} onChange={(e) => setAssetSIMCardsInput(e.target.value)} onBlur={() => setAssetSIMCards(Number(assetSIMCardsInput.replace(/[^0-9-]/g, '')) || 0)} onFocus={(e) => e.target.select()} />
+            <Input type="text" value={assetSIMCardsInput} onChange={(e) => setAssetSIMCardsInput(e.target.value)} onFocus={(e) => e.target.select()} />
         </div>
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Voucher</label>
-            <Input type="text" value={assetVouchersInput} onChange={(e) => setAssetVouchersInput(e.target.value)} onBlur={() => setAssetVouchers(Number(assetVouchersInput.replace(/[^0-9-]/g, '')) || 0)} onFocus={(e) => e.target.select()} />
+            <Input type="text" value={assetVouchersInput} onChange={(e) => setAssetVouchersInput(e.target.value)} onFocus={(e) => e.target.select()} />
         </div>
       </div>
        <div className="mt-2 pt-2 border-t font-bold flex justify-between text-base">
@@ -427,7 +407,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             <div className="flex justify-between items-center"><span>Laba Kotor PPOB</span> <span className="font-medium">{formatToRupiah(grossProfitPPOB)}</span></div>
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Laba Kotor POS (Manual)</label>
-                <Input type="text" value={posGrossProfitInput} onChange={(e) => setPosGrossProfitInput(e.target.value)} onBlur={() => setPosGrossProfit(Number(posGrossProfitInput.replace(/[^0-9-]/g, '')) || 0)} onFocus={(e) => e.target.select()} />
+                <Input type="text" value={posGrossProfitInput} onChange={(e) => setPosGrossProfitInput(e.target.value)} onFocus={(e) => e.target.select()} />
             </div>
              <div className="flex justify-between items-center font-bold border-t pt-2"><span>TOTAL LABA KOTOR</span> <span>{formatToRupiah(totalGrossProfit)}</span></div>
 
@@ -443,11 +423,11 @@ export default function DailyReport({ onDone }: DailyReportProps) {
         <div className="space-y-2">
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Kas Laci Kecil (Manual)</label>
-                <Input type="text" value={cashInDrawerInput} onChange={(e) => setCashInDrawerInput(e.target.value)} onBlur={() => setCashInDrawer(Number(cashInDrawerInput.replace(/[^0-9-]/g, '')) || 0)} onFocus={(e) => e.target.select()} />
+                <Input type="text" value={cashInDrawerInput} onChange={(e) => setCashInDrawerInput(e.target.value)} onFocus={(e) => e.target.select()} />
             </div>
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Kas Brankas (Manual)</label>
-                <Input type="text" value={cashInSafeInput} onChange={(e) => setCashInSafeInput(e.target.value)} onBlur={() => setCashInSafe(Number(cashInSafeInput.replace(/[^0-9-]/g, '')) || 0)} onFocus={(e) => e.target.select()} />
+                <Input type="text" value={cashInSafeInput} onChange={(e) => setCashInSafeInput(e.target.value)} onFocus={(e) => e.target.select()} />
             </div>
         </div>
         <div className="space-y-3 text-sm mt-4">
