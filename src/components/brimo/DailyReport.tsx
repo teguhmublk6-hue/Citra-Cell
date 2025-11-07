@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where, getDocs, Timestamp, doc, addDoc, setDoc } from 'firebase/firestore';
 import { startOfDay, endOfDay } from 'date-fns';
@@ -298,7 +298,6 @@ export default function DailyReport({ onDone }: DailyReportProps) {
                     <label className="text-xs text-muted-foreground">Saldo Laporan Kemarin (Hutang/Piutang)</label>
                     <Input 
                         type="text"
-                        inputMode="decimal"
                         value={openingBalanceInput}
                         onChange={(e) => setOpeningBalanceInput(e.target.value)}
                         onFocus={(e) => e.target.select()}
@@ -316,7 +315,6 @@ export default function DailyReport({ onDone }: DailyReportProps) {
                     <label className="text-xs text-muted-foreground">Dana Dibayar A ke B (Manual)</label>
                      <Input 
                         type="text" 
-                        inputMode="decimal"
                         value={paymentToPartyBInput} 
                         onChange={(e) => setPaymentToPartyBInput(e.target.value)}
                         onFocus={(e) => e.target.select()}
@@ -351,7 +349,6 @@ export default function DailyReport({ onDone }: DailyReportProps) {
               {index === 0 && <label className="text-xs text-muted-foreground">Jumlah</label>}
                <Input
                 type="text"
-                inputMode="decimal"
                 value={item.amount === 0 ? '' : item.amount.toString()}
                 onChange={(e) => handleSpendingChange(item.id, 'amount', e.target.value)}
                 onFocus={(e) => e.target.select()}
@@ -387,15 +384,15 @@ export default function DailyReport({ onDone }: DailyReportProps) {
       <div className="space-y-2">
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Aksesoris</label>
-            <Input type="text" inputMode="decimal" value={assetAccessoriesInput} onChange={(e) => setAssetAccessoriesInput(e.target.value)} onFocus={(e) => e.target.select()} />
+            <Input type="text" value={assetAccessoriesInput} onChange={(e) => setAssetAccessoriesInput(e.target.value)} onFocus={(e) => e.target.select()} />
         </div>
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Perdana</label>
-            <Input type="text" inputMode="decimal" value={assetSIMCardsInput} onChange={(e) => setAssetSIMCardsInput(e.target.value)} onFocus={(e) => e.target.select()} />
+            <Input type="text" value={assetSIMCardsInput} onChange={(e) => setAssetSIMCardsInput(e.target.value)} onFocus={(e) => e.target.select()} />
         </div>
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Voucher</label>
-            <Input type="text" inputMode="decimal" value={assetVouchersInput} onChange={(e) => setAssetVouchersInput(e.target.value)} onFocus={(e) => e.target.select()} />
+            <Input type="text" value={assetVouchersInput} onChange={(e) => setAssetVouchersInput(e.target.value)} onFocus={(e) => e.target.select()} />
         </div>
       </div>
        <div className="mt-2 pt-2 border-t font-bold flex justify-between text-base">
@@ -413,7 +410,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             <div className="flex justify-between items-center"><span>Laba Kotor PPOB</span> <span className="font-medium">{formatToRupiah(grossProfitPPOB)}</span></div>
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Laba Kotor POS (Manual)</label>
-                <Input type="text" inputMode="decimal" value={posGrossProfitInput} onChange={(e) => setPosGrossProfitInput(e.target.value)} onFocus={(e) => e.target.select()} />
+                <Input type="text" value={posGrossProfitInput} onChange={(e) => setPosGrossProfitInput(e.target.value)} onFocus={(e) => e.target.select()} />
             </div>
              <div className="flex justify-between items-center font-bold border-t pt-2"><span>TOTAL LABA KOTOR</span> <span>{formatToRupiah(totalGrossProfit)}</span></div>
         </div>
@@ -436,11 +433,11 @@ export default function DailyReport({ onDone }: DailyReportProps) {
         <div className="space-y-2">
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Kas Laci Kecil (Manual)</label>
-                <Input type="text" inputMode="decimal" value={cashInDrawerInput} onChange={(e) => setCashInDrawerInput(e.target.value)} onFocus={(e) => e.target.select()} />
+                <Input type="text" value={cashInDrawerInput} onChange={(e) => setCashInDrawerInput(e.target.value)} onFocus={(e) => e.target.select()} />
             </div>
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Kas Brankas (Manual)</label>
-                <Input type="text" inputMode="decimal" value={cashInSafeInput} onChange={(e) => setCashInSafeInput(e.target.value)} onFocus={(e) => e.target.select()} />
+                <Input type="text" value={cashInSafeInput} onChange={(e) => setCashInSafeInput(e.target.value)} onFocus={(e) => e.target.select()} />
             </div>
         </div>
         <div className="space-y-3 text-sm mt-4">
