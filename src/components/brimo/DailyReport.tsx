@@ -139,7 +139,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
           const transSnapshot = await getDocs(transQuery);
           transSnapshot.forEach(docSnap => {
             const trx = docSnap.data() as Transaction;
-            if (trx.category === 'capital' && trx.type === 'credit') {
+            if (trx.category === 'capital' && trx.type === 'credit' && trx.name !== 'Modal Awal Shift') {
               totalCapital += trx.amount;
             }
             if (feeCategories.includes(trx.category || '')) {
@@ -448,6 +448,30 @@ export default function DailyReport({ onDone }: DailyReportProps) {
     </div>
   );
   
+  const renderSectionF = () => (
+     <div className="space-y-4">
+        <h2 className="text-lg font-bold text-primary">F. Timbangan (Neraca)</h2>
+        <div className="space-y-2">
+            <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Kas Laci Kecil (Manual)</label>
+                <Input type="text" inputMode="text" value={cashInDrawerInput} onChange={(e) => setCashInDrawerInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setCashInDrawerInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
+            </div>
+            <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Kas Brankas (Manual)</label>
+                <Input type="text" inputMode="text" value={cashInSafeInput} onChange={(e) => setCashInSafeInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setCashInSafeInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
+            </div>
+        </div>
+        <div className="space-y-3 text-sm mt-4">
+            <div className="flex justify-between"><span>Total Kas Fisik</span> <span className="font-medium">{formatToRupiah(totalPhysicalCash)}</span></div>
+            <div className="flex justify-between"><span>Total Saldo Akun</span> <span className="font-medium">{formatToRupiah(totalAccountBalance)}</span></div>
+            <div className="flex justify-between"><span>LIABILITAS FINAL</span> <span className={cn("font-medium", finalLiabilityForNextDay < 0 && "text-destructive")}>{formatToRupiah(finalLiabilityForNextDay)}</span></div>
+            <div className="flex justify-between font-bold border-t pt-2"><span>TOTAL KESELURUHAN</span> <span>{formatToRupiah(grandTotalBalance)}</span></div>
+             <div className="flex justify-between mt-4"><span>Aset Lancar</span> <span className="font-medium">{formatToRupiah(totalCurrentAssets)}</span></div>
+             <div className="flex justify-between font-bold border-t pt-2 text-green-500"><span>AKUMULASI SALDO LIQUID</span> <span className={cn(liquidAccumulation < 0 && "text-destructive")}>{formatToRupiah(liquidAccumulation)}</span></div>
+        </div>
+    </div>
+  )
+  
   const renderSectionG = () => (
       <div className="space-y-4">
         <h2 className="text-lg font-bold text-primary">G. Biaya Operasional</h2>
@@ -474,30 +498,6 @@ export default function DailyReport({ onDone }: DailyReportProps) {
         </div>
     </div>
   );
-  
-  const renderSectionF = () => (
-     <div className="space-y-4">
-        <h2 className="text-lg font-bold text-primary">F. Timbangan (Neraca)</h2>
-        <div className="space-y-2">
-            <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Kas Laci Kecil (Manual)</label>
-                <Input type="text" inputMode="text" value={cashInDrawerInput} onChange={(e) => setCashInDrawerInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setCashInDrawerInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
-            </div>
-            <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Kas Brankas (Manual)</label>
-                <Input type="text" inputMode="text" value={cashInSafeInput} onChange={(e) => setCashInSafeInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setCashInSafeInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
-            </div>
-        </div>
-        <div className="space-y-3 text-sm mt-4">
-            <div className="flex justify-between"><span>Total Kas Fisik</span> <span className="font-medium">{formatToRupiah(totalPhysicalCash)}</span></div>
-            <div className="flex justify-between"><span>Total Saldo Akun</span> <span className="font-medium">{formatToRupiah(totalAccountBalance)}</span></div>
-            <div className="flex justify-between"><span>LIABILITAS FINAL</span> <span className={cn("font-medium", finalLiabilityForNextDay < 0 && "text-destructive")}>{formatToRupiah(finalLiabilityForNextDay)}</span></div>
-            <div className="flex justify-between font-bold border-t pt-2"><span>TOTAL KESELURUHAN</span> <span>{formatToRupiah(grandTotalBalance)}</span></div>
-             <div className="flex justify-between mt-4"><span>Aset Lancar</span> <span className="font-medium">{formatToRupiah(totalCurrentAssets)}</span></div>
-             <div className="flex justify-between font-bold border-t pt-2 text-green-500"><span>AKUMULASI SALDO LIQUID</span> <span className={cn(liquidAccumulation < 0 && "text-destructive")}>{formatToRupiah(liquidAccumulation)}</span></div>
-        </div>
-    </div>
-  )
 
 
   return (
@@ -536,3 +536,5 @@ export default function DailyReport({ onDone }: DailyReportProps) {
     </div>
   );
 }
+
+    
