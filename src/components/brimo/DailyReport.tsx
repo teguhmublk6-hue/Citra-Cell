@@ -263,10 +263,10 @@ export default function DailyReport({ onDone }: DailyReportProps) {
 
   const renderSectionA = () => (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold text-primary">A. Saldo Akun</h2>
-      {isLoadingAccounts ? (
-        <Skeleton className="h-24 w-full" />
-      ) : (
+        <h2 className="text-lg font-bold text-primary">A. Saldo Akun</h2>
+        {isLoadingAccounts ? (
+            <Skeleton className="h-24 w-full" />
+        ) : (
         <div className="space-y-2 text-sm">
           {kasAccounts?.map(acc => (
             <div key={acc.id} className="flex justify-between">
@@ -279,9 +279,9 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             <span>{formatToRupiah(totalAccountBalance)}</span>
           </div>
         </div>
-      )}
+        )}
     </div>
-  );
+);
   
     const renderSectionB = () => {
     const liabilityLabel = liabilityBeforePayment < 0 ? "LIABILITAS (Kewajiban A)" : "Piutang Pihak A";
@@ -399,9 +399,9 @@ export default function DailyReport({ onDone }: DailyReportProps) {
     </div>
   );
   
-  const renderSectionE_H = () => (
+  const renderSectionE = () => (
     <div className="space-y-4">
-        <h2 className="text-lg font-bold text-primary">E & H. Laba & Biaya</h2>
+        <h2 className="text-lg font-bold text-primary">E. Laba</h2>
         <div className="space-y-3 text-sm">
             <div className="flex justify-between items-center"><span>Laba Kotor BRILink</span> <span className="font-medium">{formatToRupiah(grossProfitBrilink)}</span></div>
             <div className="flex justify-between items-center"><span>Laba Kotor PPOB</span> <span className="font-medium">{formatToRupiah(grossProfitPPOB)}</span></div>
@@ -410,9 +410,16 @@ export default function DailyReport({ onDone }: DailyReportProps) {
                 <Input type="text" value={posGrossProfitInput} onChange={(e) => setPosGrossProfitInput(e.target.value)} onFocus={(e) => e.target.select()} />
             </div>
              <div className="flex justify-between items-center font-bold border-t pt-2"><span>TOTAL LABA KOTOR</span> <span>{formatToRupiah(totalGrossProfit)}</span></div>
-
-            <div className="flex justify-between items-center"><span>Biaya Operasional</span> <span className="font-medium text-destructive">{formatToRupiah(operationalCosts)}</span></div>
-            <div className="flex justify-between items-center font-bold border-t pt-2"><span>LABA BERSIH (NETT PROFIT)</span> <span className={cn(netProfit < 0 && "text-destructive")}>{formatToRupiah(netProfit)}</span></div>
+        </div>
+    </div>
+  );
+  
+  const renderSectionH = () => (
+      <div className="space-y-4">
+        <h2 className="text-lg font-bold text-primary">H. Biaya Operasional</h2>
+        <div className="space-y-3 text-sm">
+            <div className="flex justify-between items-center"><span>Total Biaya Operasional (Otomatis)</span> <span className="font-medium text-destructive">{formatToRupiah(operationalCosts)}</span></div>
+             <div className="flex justify-between items-center font-bold border-t pt-2 mt-4"><span>LABA BERSIH (NETT PROFIT)</span> <span className={cn(netProfit < 0 && "text-destructive")}>{formatToRupiah(netProfit)}</span></div>
         </div>
     </div>
   );
@@ -462,7 +469,9 @@ export default function DailyReport({ onDone }: DailyReportProps) {
               <Separator />
               {renderSectionD()}
               <Separator />
-              {renderSectionE_H()}
+              {renderSectionE()}
+              <Separator />
+              {renderSectionH()}
               <Separator />
               {renderSectionF()}
             </>

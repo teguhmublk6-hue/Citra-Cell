@@ -154,17 +154,24 @@ export default function DailyReportDetail({ report, onDone }: DailyReportDetailP
     </div>
   );
   
-  const renderSectionE_H = () => (
+  const renderSectionE = () => (
     <div className="space-y-4">
-        <h2 className="text-lg font-bold text-primary">E & H. Laba & Biaya</h2>
+        <h2 className="text-lg font-bold text-primary">E. Laba</h2>
         <div className="space-y-3 text-sm">
             <div className="flex justify-between items-center"><span>Laba Kotor BRILink</span> <span className="font-medium">{formatToRupiah(report.grossProfitBrilink)}</span></div>
             <div className="flex justify-between items-center"><span>Laba Kotor PPOB</span> <span className="font-medium">{formatToRupiah(report.grossProfitPPOB)}</span></div>
             <div className="flex justify-between items-center"><span>Laba Kotor POS</span> <span className="font-medium">{formatToRupiah(report.posGrossProfit)}</span></div>
              <div className="flex justify-between items-center font-bold border-t pt-2"><span>TOTAL LABA KOTOR</span> <span>{formatToRupiah(report.totalGrossProfit)}</span></div>
+        </div>
+    </div>
+  );
 
-            <div className="flex justify-between items-center"><span>Biaya Operasional</span> <span className="font-medium text-destructive">{formatToRupiah(report.operationalCosts)}</span></div>
-            <div className="flex justify-between items-center font-bold border-t pt-2"><span>LABA BERSIH (NETT PROFIT)</span> <span className={cn(report.netProfit < 0 && "text-destructive")}>{formatToRupiah(report.netProfit)}</span></div>
+  const renderSectionH = () => (
+    <div className="space-y-4">
+        <h2 className="text-lg font-bold text-primary">H. Biaya Operasional</h2>
+        <div className="space-y-3 text-sm">
+            <div className="flex justify-between items-center"><span>Total Biaya Operasional</span> <span className="font-medium text-destructive">{formatToRupiah(report.operationalCosts)}</span></div>
+            <div className="flex justify-between items-center font-bold border-t pt-2 mt-4"><span>LABA BERSIH (NETT PROFIT)</span> <span className={cn(report.netProfit < 0 && "text-destructive")}>{formatToRupiah(report.netProfit)}</span></div>
         </div>
     </div>
   );
@@ -215,7 +222,9 @@ export default function DailyReportDetail({ report, onDone }: DailyReportDetailP
               <Separator />
               {renderSectionD()}
               <Separator />
-              {renderSectionE_H()}
+              {renderSectionE()}
+              <Separator />
+              {renderSectionH()}
               <Separator />
               {renderSectionF()}
             </>
