@@ -166,9 +166,9 @@ export default function DailyReportDetail({ report, onDone }: DailyReportDetailP
     </div>
   );
 
-  const renderSectionH = () => (
+  const renderSectionG = () => (
     <div className="space-y-4">
-        <h2 className="text-lg font-bold text-primary">H. Biaya Operasional</h2>
+        <h2 className="text-lg font-bold text-primary">G. Biaya Operasional</h2>
         <div className="space-y-3 text-sm">
             <div className="flex justify-between items-center"><span>Total Biaya Operasional</span> <span className="font-medium text-destructive">{formatToRupiah(report.operationalCosts)}</span></div>
             <div className="flex justify-between items-center font-bold border-t pt-2 mt-4"><span>LABA BERSIH (NETT PROFIT)</span> <span className={cn(report.netProfit < 0 && "text-destructive")}>{formatToRupiah(report.netProfit)}</span></div>
@@ -224,9 +224,9 @@ export default function DailyReportDetail({ report, onDone }: DailyReportDetailP
               <Separator />
               {renderSectionE()}
               <Separator />
-              {renderSectionH()}
-              <Separator />
               {renderSectionF()}
+              <Separator />
+              {renderSectionG()}
             </>
           )}
         </div>
