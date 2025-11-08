@@ -101,10 +101,24 @@ export default function DailyReport({ onDone }: DailyReportProps) {
     return kasAccounts.find(acc => acc.id === accountId)?.label || accountId;
   };
 
-  // Fetch initial data
+  // Fetch initial opening balance once
+  useEffect(() => {
+    const fetchOpeningBalance = async () => {
+        if (!firestore) return;
+        const settingsSnap = await getDocs(query(collection(firestore, 'appConfig'), where('id', '==', 'dailyReportSettings')));
+        if (!settingsSnap.empty) {
+            const lastLiability = settingsSnap.docs[0].data().lastFinalLiability || 0;
+            setOpeningBalanceInput(String(lastLiability));
+        }
+    };
+    fetchOpeningBalance();
+  }, [firestore]);
+
+
+  // Fetch all other daily data
   useEffect(() => {
     const fetchData = async () => {
-      if (!firestore) return;
+      if (!firestore || !kasAccounts) return;
       setIsLoading(true);
 
       const todayStart = startOfDay(new Date());
@@ -117,36 +131,24 @@ export default function DailyReport({ onDone }: DailyReportProps) {
       let totalPPOBProfit = 0;
       const fetchedCostItems: CostItem[] = [];
 
-
-      // Fetch last report's final liability
-      const settingsRef = doc(firestore, 'appConfig', 'dailyReportSettings');
-      const settingsSnap = await getDocs(query(collection(firestore, 'appConfig'), where('id', '==', 'dailyReportSettings')));
-      if (!settingsSnap.empty) {
-        const lastLiability = settingsSnap.docs[0].data().lastFinalLiability || 0;
-        setOpeningBalanceInput(String(lastLiability));
-      }
-
-
       // 1. Fetch Capital Additions & Operational Costs from Transactions
-      if (kasAccounts) {
-        const feeCategories = ['operational', 'operational_fee', 'transfer_fee'];
-        for (const account of kasAccounts) {
-          const transQuery = query(
-            collection(firestore, 'kasAccounts', account.id, 'transactions'),
-            where('date', '>=', todayStart.toISOString()),
-            where('date', '<=', todayEnd.toISOString())
-          );
-          const transSnapshot = await getDocs(transQuery);
-          transSnapshot.forEach(docSnap => {
-            const trx = docSnap.data() as Transaction;
-            if (trx.category === 'capital' && trx.type === 'credit' && trx.name !== 'Modal Awal Shift') {
-              totalCapital += trx.amount;
-            }
-            if (feeCategories.includes(trx.category || '')) {
-              fetchedCostItems.push({ description: trx.name, amount: trx.amount });
-            }
-          });
-        }
+      const feeCategories = ['operational', 'operational_fee', 'transfer_fee'];
+      for (const account of kasAccounts) {
+        const transQuery = query(
+          collection(firestore, 'kasAccounts', account.id, 'transactions'),
+          where('date', '>=', todayStart.toISOString()),
+          where('date', '<=', todayEnd.toISOString())
+        );
+        const transSnapshot = await getDocs(transQuery);
+        transSnapshot.forEach(docSnap => {
+          const trx = docSnap.data() as Transaction;
+          if (trx.category === 'capital' && trx.type === 'credit' && trx.name !== 'Modal Awal Shift') {
+            totalCapital += trx.amount;
+          }
+          if (feeCategories.includes(trx.category || '')) {
+            fetchedCostItems.push({ description: trx.name, amount: trx.amount });
+          }
+        });
       }
       setCapitalAdditionToday(totalCapital);
 
@@ -190,7 +192,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
       setIsLoading(false);
     };
 
-    if (!isLoadingAccounts) {
+    if (!isLoadingAccounts && kasAccounts) {
       fetchData();
     }
   }, [firestore, kasAccounts, isLoadingAccounts]);
@@ -467,7 +469,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             <div className="flex justify-between"><span>LIABILITAS FINAL</span> <span className={cn("font-medium", finalLiabilityForNextDay < 0 && "text-destructive")}>{formatToRupiah(finalLiabilityForNextDay)}</span></div>
             <div className="flex justify-between font-bold border-t pt-2 text-green-500"><span>TOTAL KESELURUHAN</span> <span>{formatToRupiah(grandTotalBalance)}</span></div>
              <div className="flex justify-between mt-4"><span>Aset Lancar</span> <span className="font-medium">{formatToRupiah(totalCurrentAssets)}</span></div>
-             <div className="flex justify-between font-bold border-t pt-2"><span>TOTAL KEKAYAAN</span> <span className={cn(liquidAccumulation < 0 && "text-destructive")}>{formatToRupiah(liquidAccumulation)}</span></div>
+             <div className="flex justify-between font-bold border-t pt-2"><span>Total saldo tanpa akumulasi dengan aset lancar</span> <span className={cn(liquidAccumulation < 0 && "text-destructive")}>{formatToRupiah(liquidAccumulation)}</span></div>
         </div>
     </div>
   )
