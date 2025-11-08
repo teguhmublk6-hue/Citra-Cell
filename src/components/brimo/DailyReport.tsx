@@ -322,7 +322,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
                     <label className="text-xs text-muted-foreground">Saldo Laporan Kemarin (Hutang/Piutang)</label>
                     <Input 
                         type="text"
-                        value={openingBalanceInput}
+                        value={formatToRupiah(openingBalanceInput)}
                         onFocus={e => e.target.select()}
                         onBlur={e => setOpeningBalanceInput(formatToRupiah(parseRupiah(e.target.value)))}
                         onChange={e => setOpeningBalanceInput(e.target.value)}
@@ -465,7 +465,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             <div className="flex justify-between"><span>Total Kas Fisik</span> <span className="font-medium">{formatToRupiah(totalPhysicalCash)}</span></div>
             <div className="flex justify-between"><span>Total Saldo Akun</span> <span className="font-medium">{formatToRupiah(totalAccountBalance)}</span></div>
             <div className="flex justify-between"><span>LIABILITAS FINAL</span> <span className={cn("font-medium", finalLiabilityForNextDay < 0 && "text-destructive")}>{formatToRupiah(finalLiabilityForNextDay)}</span></div>
-            <div className="flex justify-between font-bold border-t pt-2"><span>TOTAL KESELURUHAN</span> <span>{formatToRupiah(grandTotalBalance)}</span></div>
+            <div className="flex justify-between font-bold border-t pt-2 text-green-500"><span>TOTAL KESELURUHAN</span> <span>{formatToRupiah(grandTotalBalance)}</span></div>
              <div className="flex justify-between mt-4"><span>Aset Lancar</span> <span className="font-medium">{formatToRupiah(totalCurrentAssets)}</span></div>
              <div className="flex justify-between font-bold border-t pt-2 text-green-500"><span>TOTAL KEKAYAAN</span> <span className={cn(liquidAccumulation < 0 && "text-destructive")}>{formatToRupiah(liquidAccumulation)}</span></div>
         </div>
