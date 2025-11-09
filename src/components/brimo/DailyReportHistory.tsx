@@ -167,8 +167,12 @@ export default function DailyReportHistory({ onDone, onViewReport, onResetAll }:
       isOpen={isResetDialogOpen}
       onClose={() => setIsResetDialogOpen(false)}
       onConfirm={onResetAll}
+      title="Reset Riwayat Laporan Harian?"
+      description="Tindakan ini akan menghapus SEMUA riwayat laporan harian v5.0 secara permanen. Ini tidak dapat diurungkan."
+      confirmationKeyword="HAPUS LAPORAN HARIAN"
     />
     </>
   );
 }
+
 

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState } from "react";
@@ -19,13 +20,25 @@ interface DeleteAllReportsDialogProps {
     isOpen: boolean;
     onClose: () => void;
     onConfirm: () => void;
+    title?: string;
+    description?: string;
+    confirmationKeyword?: string;
 }
 
-const CONFIRMATION_KEYWORD = "HAPUS LAPORAN";
+const DEFAULT_TITLE = "Apakah Anda Benar-Benar Yakin?";
+const DEFAULT_DESCRIPTION = "Tindakan ini akan menghapus SEMUA riwayat laporan (Laba/Rugi, Pembukuan Harian, dll) secara permanen. Ini tidak akan mempengaruhi saldo akun kas Anda, tetapi semua catatan transaksi layanan akan hilang. Tindakan ini tidak dapat diurungkan.";
+const DEFAULT_KEYWORD = "HAPUS LAPORAN";
 
-export default function DeleteAllReportsDialog({ isOpen, onClose, onConfirm }: DeleteAllReportsDialogProps) {
+export default function DeleteAllReportsDialog({ 
+    isOpen, 
+    onClose, 
+    onConfirm,
+    title = DEFAULT_TITLE,
+    description = DEFAULT_DESCRIPTION,
+    confirmationKeyword = DEFAULT_KEYWORD,
+}: DeleteAllReportsDialogProps) {
     const [inputValue, setInputValue] = useState("");
-    const isConfirmed = inputValue.toUpperCase() === CONFIRMATION_KEYWORD;
+    const isConfirmed = inputValue.toUpperCase() === confirmationKeyword.toUpperCase();
 
     const handleConfirm = () => {
         if (isConfirmed) {
@@ -43,18 +56,18 @@ export default function DeleteAllReportsDialog({ isOpen, onClose, onConfirm }: D
         <AlertDialog open={isOpen} onOpenChange={handleClose}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Apakah Anda Benar-Benar Yakin?</AlertDialogTitle>
+                    <AlertDialogTitle>{title}</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Tindakan ini akan menghapus <strong>SELURUH</strong> riwayat laporan (Laba/Rugi, Pembukuan Harian) secara permanen. Ini tidak akan mempengaruhi saldo akun kas Anda, tetapi semua catatan transaksi layanan akan hilang. Tindakan ini tidak dapat diurungkan.
+                        {description}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <div className="space-y-2">
-                    <Label htmlFor="confirmation">Untuk mengonfirmasi, ketik <strong className="text-destructive">{CONFIRMATION_KEYWORD}</strong> di bawah ini.</Label>
+                    <Label htmlFor="confirmation">Untuk mengonfirmasi, ketik <strong className="text-destructive">{confirmationKeyword}</strong> di bawah ini.</Label>
                     <Input 
                         id="confirmation"
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
-                        placeholder={CONFIRMATION_KEYWORD}
+                        placeholder={confirmationKeyword}
                         autoComplete="off"
                         autoCorrect="off"
                     />
@@ -66,10 +79,11 @@ export default function DeleteAllReportsDialog({ isOpen, onClose, onConfirm }: D
                         disabled={!isConfirmed}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:bg-destructive/50"
                     >
-                        Ya, Hapus Semua Laporan
+                        Ya, Hapus
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
     );
 }
+

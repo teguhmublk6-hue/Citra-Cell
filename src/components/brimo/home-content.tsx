@@ -397,48 +397,37 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     toast({ title: 'Shift Berakhir', description: 'Anda telah mengakhiri shift. Silakan mulai shift baru.' });
   };
 
-  const confirmResetReports = async () => {
+  const confirmResetDailyReports = async () => {
     if (!firestore) {
-        toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
-        return;
+      toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
+      return;
     }
-    toast({ title: "Memproses...", description: "Menghapus semua riwayat laporan." });
+    toast({ title: "Memproses...", description: "Menghapus riwayat laporan harian." });
 
-    const reportCollections = [
-        "customerTransfers",
-        "customerWithdrawals",
-        "customerTopUps",
-        "customerEmoneyTopUps",
-        "customerVAPayments",
-        "edcServices",
-        "customerKJPWithdrawals",
-        "settlements",
-        "ppobTransactions",
-        "ppobPlnPostpaid",
-        "ppobPdam",
-        "ppobBpjs",
-        "ppobWifi",
-        "ppobPaketTelpon"
-    ];
-
+    const batch = writeBatch(firestore);
     try {
-        const batch = writeBatch(firestore);
-        for (const collectionName of reportCollections) {
-            const querySnapshot = await getDocs(collection(firestore, collectionName));
-            querySnapshot.forEach(doc => {
-                batch.delete(doc.ref);
-            });
-        }
+        const querySnapshot = await getDocs(collection(firestore, 'dailyReports'));
+        querySnapshot.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+        
+        // Also reset the settings carry-over value
+        const settingsRef = doc(firestore, 'appConfig', 'dailyReportSettings');
+        batch.set(settingsRef, { lastFinalLiability: 0 }, { merge: true });
+        
         await batch.commit();
-        toast({ title: "Sukses", description: "Semua riwayat laporan telah dihapus." });
-        handleEndShift();
+
+        toast({ title: "Sukses", description: "Semua riwayat laporan harian telah dihapus." });
+        setIsDailyReportHistoryVisible(false); // Close the history view
+        revalidateData();
     } catch (error) {
-        console.error("Error resetting reports:", error);
-        toast({ variant: "destructive", title: "Gagal", description: "Terjadi kesalahan saat menghapus laporan." });
+        console.error("Error resetting daily reports:", error);
+        toast({ variant: "destructive", title: "Gagal", description: "Terjadi kesalahan saat mereset laporan harian." });
     } finally {
         setIsDeleteReportsDialogOpen(false);
     }
-  };
+};
+
   
   const confirmResetAllAccounts = async () => {
     if (!firestore || !kasAccounts) {
@@ -585,7 +574,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     }
 
     if (isDailyReportHistoryVisible) {
-        return <DailyReportHistory onDone={() => setIsDailyReportHistoryVisible(false)} onViewReport={handleViewDailyReportDetail} onResetAll={confirmResetReports}/>;
+        return <DailyReportHistory onDone={() => setIsDailyReportHistoryVisible(false)} onViewReport={handleViewDailyReportDetail} onResetAll={confirmResetDailyReports}/>;
     }
 
     if (selectedDailyReport) {
@@ -731,7 +720,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
       <DeleteAllReportsDialog 
         isOpen={isDeleteReportsDialogOpen}
         onClose={() => setIsDeleteReportsDialogOpen(false)}
-        onConfirm={confirmResetReports}
+        onConfirm={confirmResetDailyReports}
       />
       
       <DeleteAllKasAccountsDialog 
@@ -886,4 +875,5 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     </>
   );
 }
+
 
