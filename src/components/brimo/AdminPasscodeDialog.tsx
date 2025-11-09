@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "../ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { Eye, EyeOff } from "lucide-react";
 
 interface AdminPasscodeDialogProps {
     isOpen: boolean;
@@ -25,6 +26,7 @@ const CORRECT_PASSCODE = "citra2malaka";
 
 export default function AdminPasscodeDialog({ isOpen, onClose, onSuccess }: AdminPasscodeDialogProps) {
     const [inputValue, setInputValue] = useState("");
+    const [showPasscode, setShowPasscode] = useState(false);
     const { toast } = useToast();
 
     const handleConfirm = () => {
@@ -48,6 +50,7 @@ export default function AdminPasscodeDialog({ isOpen, onClose, onSuccess }: Admi
 
     const handleClose = () => {
         setInputValue("");
+        setShowPasscode(false);
         onClose();
     }
 
@@ -62,16 +65,28 @@ export default function AdminPasscodeDialog({ isOpen, onClose, onSuccess }: Admi
                 </AlertDialogHeader>
                 <div className="space-y-2">
                     <Label htmlFor="passcode">Kode Sandi</Label>
-                    <Input 
-                        id="passcode"
-                        type="password"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Masukkan kode..."
-                        autoComplete="off"
-                        autoCorrect="off"
-                    />
+                    <div className="relative">
+                        <Input 
+                            id="passcode"
+                            type={showPasscode ? "text" : "password"}
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder="Masukkan kode..."
+                            autoComplete="off"
+                            autoCorrect="off"
+                            className="pr-10"
+                        />
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute inset-y-0 right-0 h-full w-10 text-muted-foreground"
+                            onClick={() => setShowPasscode((prev) => !prev)}
+                        >
+                            {showPasscode ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </Button>
+                    </div>
                 </div>
                 <AlertDialogFooter>
                     <Button variant="outline" onClick={handleClose}>Batal</Button>
