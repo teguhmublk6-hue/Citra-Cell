@@ -141,8 +141,8 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
     setIsDownloading(true);
 
     const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'px',
+        orientation: 'portrait',
+        unit: 'mm',
         format: 'a4'
     });
 
@@ -151,39 +151,43 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
     const dateTitle = dateRange?.from && dateRange?.to ? (dateFrom === dateTo ? dateFrom : `${dateFrom} - ${dateTo}`) : 'Semua Waktu';
     
     doc.setFontSize(16);
-    doc.text('Laporan Laba/Rugi Harian', 40, 30);
+    doc.text('Laporan Laba/Rugi Harian', 14, 22);
     doc.setFontSize(10);
-    doc.text(dateTitle, 40, 45);
+    doc.text(dateTitle, 14, 28);
 
-    let lastY = 50;
-
+    let lastY = 35;
+    const tableOptions = {
+        startY: lastY,
+        theme: 'grid' as const,
+        styles: { fontSize: 5, cellPadding: 1, overflow: 'linebreak' },
+        headStyles: { fillColor: [0, 82, 155] as [number, number, number] },
+        margin: { left: 2.5, right: 2.5 }
+    };
+    
     if (brilinkReports.length > 0) {
         (doc as any).autoTable({
+            ...tableOptions,
             html: '#brilink-table',
-            startY: lastY + 10,
             headStyles: { fillColor: [0, 82, 155] },
-            theme: 'grid',
-            styles: { fontSize: 6 },
         });
         lastY = (doc as any).lastAutoTable.finalY;
     }
 
     if (ppobReports.length > 0 || ppobBillReports.length > 0) {
         (doc as any).autoTable({
+            ...tableOptions,
             html: '#ppob-table',
-            startY: lastY + 20,
+            startY: lastY + 10,
             headStyles: { fillColor: [246, 131, 34] },
-            theme: 'grid',
-            styles: { fontSize: 6 },
         });
         lastY = (doc as any).lastAutoTable.finalY;
     }
 
     doc.setFontSize(12);
-    doc.text('Total Laba Bersih Keseluruhan', 40, lastY + 30);
+    doc.text('Total Laba Bersih Keseluruhan', 14, lastY + 20);
     doc.setFontSize(16);
     doc.setTextColor(brilinkTotals.labaRugi + totalPpobProfit >= 0 ? 'green' : 'red');
-    doc.text(formatToRupiah(brilinkTotals.labaRugi + totalPpobProfit), 40, lastY + 45);
+    doc.text(formatToRupiah(brilinkTotals.labaRugi + totalPpobProfit), 14, lastY + 28);
 
     const pdfFilename = `Laporan-Laba-Rugi-${dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'all'}.pdf`;
     doc.save(pdfFilename);
@@ -456,3 +460,6 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
   );
     
 
+
+
+    
