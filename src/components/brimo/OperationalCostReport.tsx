@@ -1,21 +1,24 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
 import type { Settlement, Transaction } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, ArrowLeft } from 'lucide-react';
+import { Calendar as CalendarIcon, ArrowLeft, Download, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format, startOfDay, endOfDay } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '../ui/card';
 import type { KasAccount } from '@/lib/data';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface OperationalCostReportProps {
   onDone: () => void;
@@ -41,6 +44,8 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
   const [costs, setCosts] = useState<CostItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
+  const [isDownloading, setIsDownloading] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -119,6 +124,27 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
     
     fetchCosts();
   }, [firestore, dateRange, kasAccounts]);
+
+  const handleDownloadPDF = async () => {
+    if (!reportRef.current) return;
+    setIsDownloading(true);
+
+    const canvas = await html2canvas(reportRef.current, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'px',
+      format: [canvas.width, canvas.height]
+    });
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    const dateFrom = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'start';
+    const dateTo = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : 'end';
+    pdf.save(`Laporan-Biaya-Operasional-${dateFrom}_${dateTo}.pdf`);
+
+    setIsDownloading(false);
+  };
   
   const totalCost = costs.reduce((sum, item) => sum + item.amount, 0);
 
@@ -129,7 +155,19 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
                 <Button variant="ghost" size="icon" onClick={onDone}>
                     <ArrowLeft />
                 </Button>
-                <h1 className="text-lg font-semibold">Laporan Biaya Operasional</h1>
+                <div className="flex-1">
+                    <h1 className="text-lg font-semibold">Laporan Biaya Operasional</h1>
+                    {dateRange?.from && (
+                        <p className="text-xs text-muted-foreground">
+                            {format(dateRange.from, "d MMMM yyyy", { locale: idLocale })}
+                            {dateRange.to && ` - ${format(dateRange.to, "d MMMM yyyy", { locale: idLocale })}`}
+                        </p>
+                    )}
+                </div>
+                <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={isDownloading}>
+                    {isDownloading ? <Loader2 size={16} className="mr-2 animate-spin"/> : <Download size={16} className="mr-2"/>}
+                    PDF
+                </Button>
             </div>
              <Popover>
                 <PopoverTrigger asChild>
@@ -170,51 +208,53 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
         </header>
       
         <div className="flex-1 overflow-auto">
-            {isLoading ? (
-                <div className="px-4 space-y-2">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                </div>
-            ) : costs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full py-20 text-center">
-                    <CalendarIcon size={48} strokeWidth={1} className="text-muted-foreground mb-4" />
-                    <p className="font-semibold">Belum Ada Laporan</p>
-                    <p className="text-sm text-muted-foreground">Tidak ada biaya operasional untuk rentang tanggal yang dipilih.</p>
-                </div>
-            ) : (
-                <Table className="text-sm whitespace-nowrap">
-                    <TableHeader className="sticky top-0 bg-background z-10">
-                        <TableRow>
-                            <TableHead className="w-[40px] sticky left-0 bg-background z-20 py-2">No</TableHead>
-                            <TableHead className="sticky left-[40px] bg-background z-20 py-2">Tanggal</TableHead>
-                            <TableHead className="py-2">Deskripsi Biaya</TableHead>
-                            <TableHead className="py-2">Sumber</TableHead>
-                            <TableHead className="text-right py-2">Jumlah</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {costs.map((cost, index) => (
-                            <TableRow key={cost.id}>
-                                <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
-                                <TableCell className="sticky left-[40px] bg-background z-10 py-2">{format(cost.date, 'dd/MM/yy HH:mm')}</TableCell>
-                                <TableCell className="py-2">{cost.description}</TableCell>
-                                <TableCell className="py-2">{cost.source}</TableCell>
-                                <TableCell className="text-right py-2">{formatToRupiah(cost.amount)}</TableCell>
+            <div ref={reportRef} className="bg-background p-4">
+                {isLoading ? (
+                    <div className="px-4 space-y-2">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                    </div>
+                ) : costs.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full py-20 text-center">
+                        <CalendarIcon size={48} strokeWidth={1} className="text-muted-foreground mb-4" />
+                        <p className="font-semibold">Belum Ada Laporan</p>
+                        <p className="text-sm text-muted-foreground">Tidak ada biaya operasional untuk rentang tanggal yang dipilih.</p>
+                    </div>
+                ) : (
+                    <Table className="text-sm whitespace-nowrap">
+                        <TableHeader className="sticky top-0 bg-background z-10">
+                            <TableRow>
+                                <TableHead className="w-[40px] sticky left-0 bg-background z-20 py-2">No</TableHead>
+                                <TableHead className="sticky left-[40px] bg-background z-20 py-2">Tanggal</TableHead>
+                                <TableHead className="py-2">Deskripsi Biaya</TableHead>
+                                <TableHead className="py-2">Sumber</TableHead>
+                                <TableHead className="text-right py-2">Jumlah</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            )}
-        </div>
-        {!isLoading && costs.length > 0 && (
-             <div className="border-t bg-muted/50 p-4">
-                <div className="flex justify-between items-center">
-                    <p className="text-lg font-bold">Total Biaya Operasional</p>
-                    <p className="text-xl font-bold text-destructive">{formatToRupiah(totalCost)}</p>
-                </div>
+                        </TableHeader>
+                        <TableBody>
+                            {costs.map((cost, index) => (
+                                <TableRow key={cost.id}>
+                                    <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
+                                    <TableCell className="sticky left-[40px] bg-background z-10 py-2">{format(cost.date, 'dd/MM/yy HH:mm')}</TableCell>
+                                    <TableCell className="py-2">{cost.description}</TableCell>
+                                    <TableCell className="py-2">{cost.source}</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah(cost.amount)}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                )}
+                 {!isLoading && costs.length > 0 && (
+                    <div className="border-t bg-muted/50 p-4 mt-4">
+                        <div className="flex justify-between items-center">
+                            <p className="text-lg font-bold">Total Biaya Operasional</p>
+                            <p className="text-xl font-bold text-destructive">{formatToRupiah(totalCost)}</p>
+                        </div>
+                    </div>
+                )}
             </div>
-        )}
+        </div>
     </div>
   );
 }

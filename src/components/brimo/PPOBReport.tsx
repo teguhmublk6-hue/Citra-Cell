@@ -1,21 +1,24 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
 import type { PPOBTransaction, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs, PPOBWifi } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, ArrowLeft } from 'lucide-react';
+import { Calendar as CalendarIcon, ArrowLeft, Download, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format, startOfDay, endOfDay } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '../ui/card';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface PPOBReportProps {
   onDone: () => void;
@@ -46,6 +49,8 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
   const [reports, setReports] = useState<MergedPPOBReportItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
+  const [isDownloading, setIsDownloading] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const kasAccountsCollection = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -161,6 +166,26 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
     fetchReports();
   }, [firestore, dateRange]);
 
+  const handleDownloadPDF = async () => {
+    if (!reportRef.current) return;
+    setIsDownloading(true);
+
+    const canvas = await html2canvas(reportRef.current, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'px',
+      format: [canvas.width, canvas.height]
+    });
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    const dateFrom = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'start';
+    const dateTo = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : 'end';
+    pdf.save(`Laporan-PPOB-${dateFrom}_${dateTo}.pdf`);
+
+    setIsDownloading(false);
+  };
 
   const getAccountLabel = (accountId?: string) => {
     if (!accountId) return 'N/A';
@@ -187,7 +212,19 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                 <Button variant="ghost" size="icon" onClick={onDone}>
                     <ArrowLeft />
                 </Button>
-                <h1 className="text-lg font-semibold">Laporan Transaksi PPOB</h1>
+                <div className="flex-1">
+                    <h1 className="text-lg font-semibold">Laporan Transaksi PPOB</h1>
+                    {dateRange?.from && (
+                        <p className="text-xs text-muted-foreground">
+                            {format(dateRange.from, "d MMMM yyyy", { locale: idLocale })}
+                            {dateRange.to && ` - ${format(dateRange.to, "d MMMM yyyy", { locale: idLocale })}`}
+                        </p>
+                    )}
+                </div>
+                <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={isDownloading}>
+                    {isDownloading ? <Loader2 size={16} className="mr-2 animate-spin"/> : <Download size={16} className="mr-2"/>}
+                    PDF
+                </Button>
             </div>
              <Popover>
                 <PopoverTrigger asChild>
@@ -228,54 +265,56 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
         </header>
       
         <div className="flex-1 overflow-auto">
-            {isLoading ? (
-                <div className="p-4 space-y-2">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                </div>
-            ) : reports.length === 0 ? (
-                <Card className="m-4">
-                    <CardContent className="pt-6 text-center text-muted-foreground">
-                        Tidak ada transaksi PPOB untuk tanggal ini.
-                    </CardContent>
-                </Card>
-            ) : (
-                <Table className="text-[11px] whitespace-nowrap">
-                    <TableHeader className="sticky top-0 bg-background z-10">
-                        <TableRow>
-                            <TableHead className="sticky left-0 bg-background z-20 w-[50px] py-2">No</TableHead>
-                            <TableHead className="sticky left-[50px] bg-background z-20 py-2">Layanan</TableHead>
-                            <TableHead className="py-2">Akun PPOB</TableHead>
-                            <TableHead className="py-2">Tujuan</TableHead>
-                            <TableHead className="text-right py-2">Harga Modal</TableHead>
-                            <TableHead className="text-right py-2">Harga Jual</TableHead>
-                            <TableHead className="py-2">Oleh</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {reports.map((report, index) => (
-                            <TableRow key={report.id}>
-                                <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
-                                <TableCell className="sticky left-[50px] bg-background z-10 py-2">{report.serviceName}</TableCell>
-                                <TableCell className="py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
-                                <TableCell className="py-2">{report.destination}</TableCell>
-                                <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
-                                <TableCell className="text-right py-2">{formatToRupiah(report.sellingPrice)}</TableCell>
-                                <TableCell className="py-2">{report.deviceName}</TableCell>
+            <div ref={reportRef} className="bg-background p-4">
+                {isLoading ? (
+                    <div className="p-4 space-y-2">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                    </div>
+                ) : reports.length === 0 ? (
+                    <Card className="m-4">
+                        <CardContent className="pt-6 text-center text-muted-foreground">
+                            Tidak ada transaksi PPOB untuk tanggal ini.
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Table className="text-[11px] whitespace-nowrap">
+                        <TableHeader className="sticky top-0 bg-background z-10">
+                            <TableRow>
+                                <TableHead className="sticky left-0 bg-background z-20 w-[50px] py-2">No</TableHead>
+                                <TableHead className="sticky left-[50px] bg-background z-20 py-2">Layanan</TableHead>
+                                <TableHead className="py-2">Akun PPOB</TableHead>
+                                <TableHead className="py-2">Tujuan</TableHead>
+                                <TableHead className="text-right py-2">Harga Modal</TableHead>
+                                <TableHead className="text-right py-2">Harga Jual</TableHead>
+                                <TableHead className="py-2">Oleh</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                    <TableFooter>
-                        <TableRow className="font-bold bg-muted/50">
-                            <TableCell colSpan={4}>Total</TableCell>
-                            <TableCell className="text-right py-2">{formatToRupiah(totals.costPrice)}</TableCell>
-                            <TableCell className="text-right py-2">{formatToRupiah(totals.sellingPrice)}</TableCell>
-                            <TableCell></TableCell>
-                        </TableRow>
-                    </TableFooter>
-                </Table>
-            )}
+                        </TableHeader>
+                        <TableBody>
+                            {reports.map((report, index) => (
+                                <TableRow key={report.id}>
+                                    <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
+                                    <TableCell className="sticky left-[50px] bg-background z-10 py-2">{report.serviceName}</TableCell>
+                                    <TableCell className="py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
+                                    <TableCell className="py-2">{report.destination}</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah(report.sellingPrice)}</TableCell>
+                                    <TableCell className="py-2">{report.deviceName}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                        <TableFooter>
+                            <TableRow className="font-bold bg-muted/50">
+                                <TableCell colSpan={4}>Total</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(totals.costPrice)}</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(totals.sellingPrice)}</TableCell>
+                                <TableCell></TableCell>
+                            </TableRow>
+                        </TableFooter>
+                    </Table>
+                )}
+            </div>
         </div>
     </div>
   );
