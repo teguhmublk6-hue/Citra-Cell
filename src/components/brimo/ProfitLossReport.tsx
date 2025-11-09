@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import 'jspdf-autotable';
 
 interface ProfitLossReportProps {
   onDone: () => void;
@@ -138,33 +138,52 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
   }, [firestore, dateRange]);
 
   const handleDownloadPDF = async () => {
-    const reportElement = reportRef.current;
-    if (!reportElement) return;
-
     setIsDownloading(true);
 
-    const canvas = await html2canvas(reportElement, {
-        scale: 2,
-        useCORS: true,
-        // Explicitly set width and height to capture the full scrollable content
-        width: reportElement.scrollWidth,
-        height: reportElement.scrollHeight,
-        windowWidth: reportElement.scrollWidth,
-        windowHeight: reportElement.scrollHeight,
+    const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: 'a4'
     });
+
+    const dateFrom = dateRange?.from ? format(dateRange.from, "d MMMM yyyy", { locale: idLocale }) : '';
+    const dateTo = dateRange?.to ? format(dateRange.to, "d MMMM yyyy", { locale: idLocale }) : '';
+    const dateTitle = dateRange?.from && dateRange?.to ? (dateFrom === dateTo ? dateFrom : `${dateFrom} - ${dateTo}`) : 'Semua Waktu';
     
-    const imgData = canvas.toDataURL('image/png');
-    
-    const pdf = new jsPDF({
-      orientation: 'landscape',
-      unit: 'px',
-      format: [canvas.width, canvas.height]
-    });
-    
-    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-    const dateFrom = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'start';
-    const dateTo = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : 'end';
-    pdf.save(`Laporan-Laba-Rugi-${dateFrom}_${dateTo}.pdf`);
+    doc.setFontSize(16);
+    doc.text('Laporan Laba/Rugi Harian', 40, 30);
+    doc.setFontSize(10);
+    doc.text(dateTitle, 40, 45);
+
+    if (brilinkReports.length > 0) {
+        (doc as any).autoTable({
+            html: '#brilink-table',
+            startY: 60,
+            headStyles: { fillColor: [0, 82, 155] },
+            theme: 'grid',
+            styles: { fontSize: 6 },
+        });
+    }
+
+    if (ppobReports.length > 0 || ppobBillReports.length > 0) {
+        (doc as any).autoTable({
+            html: '#ppob-table',
+            startY: (doc as any).lastAutoTable.finalY + 20,
+            headStyles: { fillColor: [246, 131, 34] },
+            theme: 'grid',
+            styles: { fontSize: 6 },
+        });
+    }
+
+    const finalY = (doc as any).lastAutoTable.finalY;
+    doc.setFontSize(12);
+    doc.text('Total Laba Bersih Keseluruhan', 40, finalY + 30);
+    doc.setFontSize(16);
+    doc.setTextColor(brilinkTotals.labaRugi + totalPpobProfit >= 0 ? 'green' : 'red');
+    doc.text(formatToRupiah(brilinkTotals.labaRugi + totalPpobProfit), 40, finalY + 45);
+
+    const pdfFilename = `Laporan-Laba-Rugi-${dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'all'}.pdf`;
+    doc.save(pdfFilename);
 
     setIsDownloading(false);
   };
@@ -303,7 +322,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                     ) : brilinkReports.length === 0 ? (
                         <Card><CardContent className="pt-6 text-center text-muted-foreground">Tidak ada transaksi BRILink untuk tanggal ini.</CardContent></Card>
                     ) : (
-                        <Table className="text-[11px] whitespace-nowrap">
+                        <Table id="brilink-table" className="text-[11px] whitespace-nowrap">
                             <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
                                     <TableHead className="py-2">No</TableHead>
@@ -359,7 +378,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                     ) : (ppobReports.length === 0 && ppobBillReports.length === 0) ? (
                         <Card><CardContent className="pt-6 text-center text-muted-foreground">Tidak ada transaksi PPOB untuk tanggal ini.</CardContent></Card>
                     ) : (
-                    <Table className="text-[11px] whitespace-nowrap">
+                    <Table id="ppob-table" className="text-[11px] whitespace-nowrap">
                         <TableHeader className="sticky top-0 bg-background z-10">
                             <TableRow>
                                 <TableHead className="w-[40px] py-2">No.</TableHead>
@@ -417,7 +436,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                     )}
                 </div>
             </div>
-            <Card className="my-6">
+            <Card id="totals-card" className="my-6">
                 <CardHeader>
                     <CardTitle>Total Laba Bersih Keseluruhan</CardTitle>
                 </CardHeader>
@@ -432,5 +451,4 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
         </div>
     </div>
   );
-
     
