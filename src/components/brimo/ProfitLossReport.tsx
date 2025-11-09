@@ -1,21 +1,24 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
 import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal, PPOBTransaction, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs, PPOBWifi } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, ArrowLeft } from 'lucide-react';
+import { Calendar as CalendarIcon, ArrowLeft, Download, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format, startOfDay, endOfDay } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface ProfitLossReportProps {
   onDone: () => void;
@@ -52,6 +55,8 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
   const [ppobBillReports, setPpobBillReports] = useState<PpobBillReportItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
+  const [isDownloading, setIsDownloading] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const kasAccountsCollection = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -133,6 +138,26 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
     fetchReports();
   }, [firestore, dateRange]);
 
+  const handleDownloadPDF = async () => {
+    if (!reportRef.current) return;
+    setIsDownloading(true);
+
+    const canvas = await html2canvas(reportRef.current, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'px',
+      format: [canvas.width, canvas.height]
+    });
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    const dateFrom = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'start';
+    const dateTo = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : 'end';
+    pdf.save(`Laporan-Laba-Rugi-${dateFrom}_${dateTo}.pdf`);
+
+    setIsDownloading(false);
+  };
 
   const getAccountLabel = (accountId?: string) => {
     if (!accountId) return 'N/A';
@@ -206,7 +231,19 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                 <Button variant="ghost" size="icon" onClick={onDone}>
                     <ArrowLeft />
                 </Button>
-                <h1 className="text-lg font-semibold">Laporan Laba/Rugi Harian</h1>
+                <div className="flex-1">
+                    <h1 className="text-lg font-semibold">Laporan Laba/Rugi Harian</h1>
+                     {dateRange?.from && (
+                        <p className="text-xs text-muted-foreground">
+                            {format(dateRange.from, "d MMMM yyyy", { locale: idLocale })}
+                            {dateRange.to && ` - ${format(dateRange.to, "d MMMM yyyy", { locale: idLocale })}`}
+                        </p>
+                    )}
+                </div>
+                <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={isDownloading}>
+                    {isDownloading ? <Loader2 size={16} className="mr-2 animate-spin"/> : <Download size={16} className="mr-2"/>}
+                    PDF
+                </Button>
             </div>
              <Popover>
                 <PopoverTrigger asChild>
@@ -246,8 +283,8 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
             </Popover>
         </header>
 
-        <div className="flex-1 overflow-auto">
-          <div className="px-4 pt-4 space-y-6">
+        <div className="flex-1 overflow-auto" ref={reportRef}>
+          <div className="p-4 space-y-6 bg-background">
             <div>
                 <h2 className="text-lg font-semibold mb-2">A. BRILink</h2>
                 {isLoading ? (
@@ -381,3 +418,5 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
         </div>
     </div>
   );
+
+    
