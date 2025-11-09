@@ -329,13 +329,9 @@ export default function DailyReport({ onDone }: DailyReportProps) {
                     <label className="text-xs text-muted-foreground">Saldo Laporan Kemarin (Hutang/Piutang)</label>
                     <Input
                         type="text"
-                        key={openingBalanceInput} 
-                        defaultValue={formatToRupiah(openingBalanceInput)}
-                        onBlur={(e) => {
-                            const parsed = parseRupiah(e.target.value);
-                            setOpeningBalanceInput(String(parsed));
-                            e.target.value = formatToRupiah(parsed);
-                        }}
+                        value={formatToRupiah(openingBalanceInput)}
+                        onBlur={(e) => setOpeningBalanceInput(String(parseRupiah(e.target.value)))}
+                        onChange={(e) => setOpeningBalanceInput(String(parseRupiah(e.target.value)))}
                         className="text-base"
                         inputMode="text"
                     />
