@@ -322,12 +322,15 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             <div className="space-y-3 text-sm">
                 <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">Saldo Laporan Kemarin (Hutang/Piutang)</label>
-                    <Input 
+                    <Input
                         type="text"
-                        value={formatToRupiah(openingBalanceInput)}
-                        onFocus={e => e.target.select()}
-                        onBlur={e => setOpeningBalanceInput(formatToRupiah(parseRupiah(e.target.value)))}
-                        onChange={e => setOpeningBalanceInput(e.target.value)}
+                        key={openingBalanceInput} 
+                        defaultValue={formatToRupiah(openingBalanceInput)}
+                        onBlur={(e) => {
+                            const parsed = parseRupiah(e.target.value);
+                            setOpeningBalanceInput(String(parsed));
+                            e.target.value = formatToRupiah(parsed);
+                        }}
                         className="text-base"
                         inputMode="text"
                     />
@@ -469,7 +472,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             <div className="flex justify-between"><span>LIABILITAS FINAL</span> <span className={cn("font-medium", finalLiabilityForNextDay < 0 && "text-destructive")}>{formatToRupiah(finalLiabilityForNextDay)}</span></div>
             <div className="flex justify-between font-bold border-t pt-2 text-green-500"><span>TOTAL KESELURUHAN</span> <span>{formatToRupiah(grandTotalBalance)}</span></div>
              <div className="flex justify-between mt-4"><span>Aset Lancar</span> <span className="font-medium">{formatToRupiah(totalCurrentAssets)}</span></div>
-             <div className="flex justify-between font-bold border-t pt-2"><span>Total saldo tanpa akumulasi dengan aset lancar</span> <span className={cn(liquidAccumulation < 0 && "text-destructive")}>{formatToRupiah(liquidAccumulation)}</span></div>
+             <div className="flex justify-between font-bold border-t pt-2"><span>TOTAL KEKAYAAN</span> <span className={cn(liquidAccumulation < 0 && "text-destructive")}>{formatToRupiah(liquidAccumulation)}</span></div>
         </div>
     </div>
   )
