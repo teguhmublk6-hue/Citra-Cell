@@ -2,14 +2,14 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, getDocs, Timestamp, doc, addDoc, setDoc } from 'firebase/firestore';
 import { startOfDay, endOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { KasAccount, Transaction } from '@/lib/data';
+import { KasAccount, Transaction, DailyReport as DailyReportTypeData } from '@/lib/data';
 import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal, PPOBTransaction, Settlement, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs, PPOBWifi } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Separator } from '../ui/separator';
@@ -104,18 +104,17 @@ export default function DailyReport({ onDone }: DailyReportProps) {
     return kasAccounts.find(acc => acc.id === accountId)?.label || accountId;
   };
 
-  // Fetch initial opening balance once
-  useEffect(() => {
-    const fetchOpeningBalance = async () => {
-        if (!firestore) return;
-        const settingsSnap = await getDocs(query(collection(firestore, 'appConfig'), where('id', '==', 'dailyReportSettings')));
-        if (!settingsSnap.empty) {
-            const lastLiability = settingsSnap.docs[0].data().lastFinalLiability || 0;
-            setOpeningBalanceInput(String(lastLiability));
-        }
-    };
-    fetchOpeningBalance();
+  const settingsDocRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'appConfig', 'dailyReportSettings');
   }, [firestore]);
+  const { data: reportSettings, isLoading: isLoadingSettings } = useDoc<DailyReportTypeData>(settingsDocRef as any);
+
+  useEffect(() => {
+    if (reportSettings && openingBalanceInput === '') {
+      setOpeningBalanceInput(String(reportSettings.lastFinalLiability || 0));
+    }
+  }, [reportSettings, openingBalanceInput]);
 
 
   // Fetch all other daily data
@@ -330,7 +329,6 @@ export default function DailyReport({ onDone }: DailyReportProps) {
                     <Input
                         type="text"
                         value={formatToRupiah(openingBalanceInput)}
-                        onBlur={(e) => setOpeningBalanceInput(String(parseRupiah(e.target.value)))}
                         onChange={(e) => setOpeningBalanceInput(String(parseRupiah(e.target.value)))}
                         className="text-base"
                         inputMode="text"
