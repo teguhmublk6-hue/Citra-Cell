@@ -585,7 +585,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     }
 
     if (isDailyReportHistoryVisible) {
-        return <DailyReportHistory onDone={() => setIsDailyReportHistoryVisible(false)} onViewReport={handleViewDailyReportDetail} />;
+        return <DailyReportHistory onDone={() => setIsDailyReportHistoryVisible(false)} onViewReport={handleViewDailyReportDetail} onResetAll={confirmResetReports}/>;
     }
 
     if (selectedDailyReport) {
