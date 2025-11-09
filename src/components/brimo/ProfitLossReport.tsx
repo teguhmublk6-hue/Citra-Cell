@@ -140,25 +140,18 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
   const handleDownloadPDF = async () => {
     const reportElement = reportRef.current;
     if (!reportElement) return;
-    
+
     setIsDownloading(true);
 
-    // Temporarily make overflow visible to capture full width
-    const originalOverflow = reportElement.style.overflow;
-    reportElement.style.overflow = 'visible';
-
     const canvas = await html2canvas(reportElement, {
-      scale: 2,
-      useCORS: true,
-      // Allow the canvas to expand to the full scroll width of the content
-      width: reportElement.scrollWidth,
-      height: reportElement.scrollHeight,
-      windowWidth: reportElement.scrollWidth,
-      windowHeight: reportElement.scrollHeight,
+        scale: 2,
+        useCORS: true,
+        // Explicitly set width and height to capture the full scrollable content
+        width: reportElement.scrollWidth,
+        height: reportElement.scrollHeight,
+        windowWidth: reportElement.scrollWidth,
+        windowHeight: reportElement.scrollHeight,
     });
-
-    // Restore original style
-    reportElement.style.overflow = originalOverflow;
     
     const imgData = canvas.toDataURL('image/png');
     
@@ -300,8 +293,8 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
             </Popover>
         </header>
 
-        <div className="flex-1 overflow-auto" ref={reportRef}>
-          <div className="p-4 space-y-6 bg-background">
+        <div className="flex-1 overflow-auto">
+          <div ref={reportRef} className="p-4 space-y-6 bg-background">
             <div>
                 <h2 className="text-lg font-semibold mb-2">A. BRILink</h2>
                 <div className="relative w-full overflow-x-auto">
