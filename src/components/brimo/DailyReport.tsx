@@ -65,6 +65,8 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   const [assetVouchersInput, setAssetVouchersInput] = useState<string>('');
   const [cashInDrawerInput, setCashInDrawerInput] = useState<string>('');
   const [cashInSafeInput, setCashInSafeInput] = useState<string>('');
+  const [operationalNonProfitInput, setOperationalNonProfitInput] = useState<string>('');
+
 
   // --- DERIVED FROM MANUAL INPUTS ---
   const openingBalance = parseRupiah(openingBalanceInput);
@@ -76,6 +78,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   const assetVouchers = parseRupiah(assetVouchersInput);
   const cashInDrawer = parseRupiah(cashInDrawerInput);
   const cashInSafe = parseRupiah(cashInSafeInput);
+  const operationalNonProfit = parseRupiah(operationalNonProfitInput);
 
 
   // --- AUTOMATIC DATA ---
@@ -230,8 +233,9 @@ export default function DailyReport({ onDone }: DailyReportProps) {
   const totalGrossProfit = grossProfitBrilink + grossProfitPPOB + posGrossProfit;
   const netProfit = totalGrossProfit - operationalCosts;
   const totalPhysicalCash = cashInDrawer + cashInSafe;
-  const grandTotalBalance = totalPhysicalCash + totalAccountBalance + finalLiabilityForNextDay;
-  const liquidAccumulation = grandTotalBalance - totalCurrentAssets;
+  
+  const grandTotalBalance = totalPhysicalCash + totalAccountBalance + finalLiabilityForNextDay - totalGrossProfit - operationalNonProfit;
+  const liquidAccumulation = grandTotalBalance + totalCurrentAssets;
   
   const handleSaveReport = async () => {
     if (!firestore) return;
@@ -264,6 +268,7 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             posGrossProfit,
             totalGrossProfit,
             operationalCosts,
+            operationalNonProfit,
             netProfit,
             cashInDrawer,
             cashInSafe,
@@ -470,6 +475,12 @@ export default function DailyReport({ onDone }: DailyReportProps) {
             <div className="flex justify-between"><span>Total Kas Fisik</span> <span className="font-medium">{formatToRupiah(totalPhysicalCash)}</span></div>
             <div className="flex justify-between"><span>Total Saldo Akun</span> <span className="font-medium">{formatToRupiah(totalAccountBalance)}</span></div>
             <div className="flex justify-between"><span>LIABILITAS FINAL</span> <span className={cn("font-medium", finalLiabilityForNextDay < 0 && "text-destructive")}>{formatToRupiah(finalLiabilityForNextDay)}</span></div>
+            <div className="flex justify-between text-destructive"><span>Total Laba Kotor</span> <span className="font-medium">- {formatToRupiah(totalGrossProfit)}</span></div>
+            <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Potongan Operasional Non Profit (Manual)</label>
+                <Input type="text" inputMode="text" value={operationalNonProfitInput} onChange={(e) => setOperationalNonProfitInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setOperationalNonProfitInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base text-destructive" />
+            </div>
+
             <div className="flex justify-between font-bold border-t pt-2 text-green-500"><span>TOTAL KESELURUHAN</span> <span>{formatToRupiah(grandTotalBalance)}</span></div>
              <div className="flex justify-between mt-4"><span>Aset Lancar</span> <span className="font-medium">{formatToRupiah(totalCurrentAssets)}</span></div>
              <div className="flex justify-between font-bold border-t pt-2"><span>TOTAL KEKAYAAN</span> <span className={cn(liquidAccumulation < 0 && "text-destructive")}>{formatToRupiah(liquidAccumulation)}</span></div>

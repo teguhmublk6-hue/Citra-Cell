@@ -187,9 +187,11 @@ export default function DailyReportDetail({ report, onDone }: DailyReportDetailP
             <div className="flex justify-between"><span>Total Kas Fisik</span> <span className="font-medium">{formatToRupiah(report.totalPhysicalCash)}</span></div>
             <div className="flex justify-between"><span>Total Saldo Akun</span> <span className="font-medium">{formatToRupiah(report.totalAccountBalance)}</span></div>
             <div className="flex justify-between"><span>LIABILITAS FINAL</span> <span className={cn("font-medium", report.finalLiabilityForNextDay < 0 && "text-destructive")}>{formatToRupiah(report.finalLiabilityForNextDay)}</span></div>
+            <div className="flex justify-between text-destructive"><span>Total Laba Kotor</span> <span className="font-medium">- {formatToRupiah(report.totalGrossProfit)}</span></div>
+            <div className="flex justify-between text-destructive"><span>Potongan Operasional Non Profit</span> <span className="font-medium">- {formatToRupiah(report.operationalNonProfit)}</span></div>
             <div className="flex justify-between font-bold border-t pt-2 text-green-500"><span>TOTAL KESELURUHAN</span> <span>{formatToRupiah(report.grandTotalBalance)}</span></div>
              <div className="flex justify-between mt-4"><span>Aset Lancar</span> <span className="font-medium">{formatToRupiah(report.totalCurrentAssets)}</span></div>
-             <div className="flex justify-between font-bold border-t pt-2 text-green-500"><span>TOTAL KEKAYAAN</span> <span className={cn(report.liquidAccumulation < 0 && "text-destructive")}>{formatToRupiah(report.liquidAccumulation)}</span></div>
+             <div className="flex justify-between font-bold border-t pt-2"><span>TOTAL KEKAYAAN</span> <span className={cn(report.liquidAccumulation < 0 && "text-destructive")}>{formatToRupiah(report.liquidAccumulation)}</span></div>
         </div>
     </div>
   )
