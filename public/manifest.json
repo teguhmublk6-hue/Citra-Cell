@@ -1,0 +1,21 @@
+{
+  "name": "Brimo UI Enhancer",
+  "short_name": "BrimoUI",
+  "description": "A modern financial dashboard UI.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#EBF0FA",
+  "theme_color": "#0d1117",
+  "icons": [
+    {
+      "src": "icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
