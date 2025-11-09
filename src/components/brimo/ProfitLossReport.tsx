@@ -41,9 +41,8 @@ type PpobBillReportItem =
 
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
-    if (value === null || value === undefined || value === '') return 'Rp 0';
+    if (value === null || value === undefined || value === '' || isNaN(Number(value))) return 'Rp 0';
     const num = Number(String(value).replace(/[^0-9-]/g, ''));
-    if (isNaN(num)) return 'Rp 0';
     const isNegative = num < 0;
     return `${isNegative ? '-' : ''}Rp ${Math.abs(num).toLocaleString('id-ID')}`;
 };
@@ -139,10 +138,28 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
   }, [firestore, dateRange]);
 
   const handleDownloadPDF = async () => {
-    if (!reportRef.current) return;
+    const reportElement = reportRef.current;
+    if (!reportElement) return;
+    
     setIsDownloading(true);
 
-    const canvas = await html2canvas(reportRef.current, { scale: 2 });
+    // Temporarily make overflow visible to capture full width
+    const originalOverflow = reportElement.style.overflow;
+    reportElement.style.overflow = 'visible';
+
+    const canvas = await html2canvas(reportElement, {
+      scale: 2,
+      useCORS: true,
+      // Allow the canvas to expand to the full scroll width of the content
+      width: reportElement.scrollWidth,
+      height: reportElement.scrollHeight,
+      windowWidth: reportElement.scrollWidth,
+      windowHeight: reportElement.scrollHeight,
+    });
+
+    // Restore original style
+    reportElement.style.overflow = originalOverflow;
+    
     const imgData = canvas.toDataURL('image/png');
     
     const pdf = new jsPDF({
@@ -287,121 +304,125 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
           <div className="p-4 space-y-6 bg-background">
             <div>
                 <h2 className="text-lg font-semibold mb-2">A. BRILink</h2>
-                {isLoading ? (
-                    <div className="space-y-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
-                ) : brilinkReports.length === 0 ? (
-                    <Card><CardContent className="pt-6 text-center text-muted-foreground">Tidak ada transaksi BRILink untuk tanggal ini.</CardContent></Card>
-                ) : (
-                    <Table className="text-[11px] whitespace-nowrap">
-                        <TableHeader className="sticky top-0 bg-background z-10">
-                            <TableRow>
-                                <TableHead className="py-2">No</TableHead>
-                                <TableHead className="sticky left-0 bg-background z-20 py-2">Deskripsi</TableHead>
-                                <TableHead className="py-2">Nama</TableHead>
-                                <TableHead className="py-2">Bank/Tujuan</TableHead>
-                                <TableHead className="text-right py-2">Nominal</TableHead>
-                                <TableHead className="text-right py-2">Admin Bank</TableHead>
-                                <TableHead className="text-right py-2">Jasa</TableHead>
-                                <TableHead className="text-right py-2">Laba/Rugi</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {brilinkReports.map((report, index) => {
-                                const labaRugi = 'netProfit' in report ? report.netProfit : report.serviceFee;
-                                return (
-                                    <TableRow key={report.id}>
-                                        <TableCell className="py-2">{index + 1}</TableCell>
-                                        <TableCell className="sticky left-0 bg-background z-10 py-2">{report.transactionType}</TableCell>
-                                        <TableCell className="py-2">{'destinationAccountName' in report ? report.destinationAccountName : report.customerName}</TableCell>
-                                        <TableCell className="py-2">{getBrilinkBankInfo(report)}</TableCell>
-                                        <TableCell className="text-right py-2">{formatToRupiah('transferAmount' in report ? report.transferAmount : ('withdrawalAmount' in report ? report.withdrawalAmount : ('topUpAmount' in report ? report.topUpAmount : ('paymentAmount' in report ? report.paymentAmount : 0))))}</TableCell>
-                                        <TableCell className="text-right py-2">{formatToRupiah('bankAdminFee' in report ? report.bankAdminFee : ('adminFee' in report ? report.adminFee : 0))}</TableCell>
-                                        <TableCell className="text-right py-2">{formatToRupiah(report.serviceFee)}</TableCell>
-                                        <TableCell className={cn("text-right font-semibold py-2", labaRugi < 0 ? "text-destructive" : "text-green-500")}>
-                                            {formatToRupiah(labaRugi)}
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
-                        </TableBody>
-                        <TableFooter>
-                            <TableRow className="font-bold bg-muted/50">
-                                <TableCell colSpan={4} className="sticky left-0 bg-muted/50 z-10">Total</TableCell>
-                                <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.nominal)}</TableCell>
-                                <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.adminBank)}</TableCell>
-                                <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.jasa)}</TableCell>
-                                <TableCell className={cn("text-right py-2", brilinkTotals.labaRugi < 0 ? "text-destructive" : "text-green-500")}>
-                                    {formatToRupiah(brilinkTotals.labaRugi)}
-                                </TableCell>
-                            </TableRow>
-                        </TableFooter>
-                    </Table>
-                )}
+                <div className="relative w-full overflow-x-auto">
+                    {isLoading ? (
+                        <div className="space-y-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
+                    ) : brilinkReports.length === 0 ? (
+                        <Card><CardContent className="pt-6 text-center text-muted-foreground">Tidak ada transaksi BRILink untuk tanggal ini.</CardContent></Card>
+                    ) : (
+                        <Table className="text-[11px] whitespace-nowrap">
+                            <TableHeader className="sticky top-0 bg-background z-10">
+                                <TableRow>
+                                    <TableHead className="py-2">No</TableHead>
+                                    <TableHead className="py-2">Deskripsi</TableHead>
+                                    <TableHead className="py-2">Nama</TableHead>
+                                    <TableHead className="py-2">Bank/Tujuan</TableHead>
+                                    <TableHead className="text-right py-2">Nominal</TableHead>
+                                    <TableHead className="text-right py-2">Admin Bank</TableHead>
+                                    <TableHead className="text-right py-2">Jasa</TableHead>
+                                    <TableHead className="text-right py-2">Laba/Rugi</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {brilinkReports.map((report, index) => {
+                                    const labaRugi = 'netProfit' in report ? report.netProfit : report.serviceFee;
+                                    return (
+                                        <TableRow key={report.id}>
+                                            <TableCell className="py-2">{index + 1}</TableCell>
+                                            <TableCell className="py-2">{report.transactionType}</TableCell>
+                                            <TableCell className="py-2">{'destinationAccountName' in report ? report.destinationAccountName : report.customerName}</TableCell>
+                                            <TableCell className="py-2">{getBrilinkBankInfo(report)}</TableCell>
+                                            <TableCell className="text-right py-2">{formatToRupiah('transferAmount' in report ? report.transferAmount : ('withdrawalAmount' in report ? report.withdrawalAmount : ('topUpAmount' in report ? report.topUpAmount : ('paymentAmount' in report ? report.paymentAmount : 0))))}</TableCell>
+                                            <TableCell className="text-right py-2">{formatToRupiah('bankAdminFee' in report ? report.bankAdminFee : ('adminFee' in report ? report.adminFee : 0))}</TableCell>
+                                            <TableCell className="text-right py-2">{formatToRupiah(report.serviceFee)}</TableCell>
+                                            <TableCell className={cn("text-right font-semibold py-2", labaRugi < 0 ? "text-destructive" : "text-green-500")}>
+                                                {formatToRupiah(labaRugi)}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                            <TableFooter>
+                                <TableRow className="font-bold bg-muted/50">
+                                    <TableCell colSpan={4}>Total</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.nominal)}</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.adminBank)}</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah(brilinkTotals.jasa)}</TableCell>
+                                    <TableCell className={cn("text-right py-2", brilinkTotals.labaRugi < 0 ? "text-destructive" : "text-green-500")}>
+                                        {formatToRupiah(brilinkTotals.labaRugi)}
+                                    </TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        </Table>
+                    )}
+                </div>
             </div>
 
             <div>
                 <h2 className="text-lg font-semibold mb-2">B. PPOB</h2>
-                 {isLoading ? (
-                    <div className="space-y-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-12 w-full" /></div>
-                ) : (ppobReports.length === 0 && ppobBillReports.length === 0) ? (
-                    <Card><CardContent className="pt-6 text-center text-muted-foreground">Tidak ada transaksi PPOB untuk tanggal ini.</CardContent></Card>
-                ) : (
-                <Table className="text-[11px] whitespace-nowrap">
-                    <TableHeader className="sticky top-0 bg-background z-10">
-                        <TableRow>
-                            <TableHead className="w-[40px] sticky left-0 bg-background z-20 py-2">No.</TableHead>
-                            <TableHead className="sticky left-[40px] bg-background z-20 py-2">Layanan</TableHead>
-                            <TableHead className="py-2">Tujuan</TableHead>
-                            <TableHead className="py-2">Akun PPOB</TableHead>
-                            <TableHead className="text-right py-2">Harga Modal</TableHead>
-                            <TableHead className="text-right py-2">Harga Jual</TableHead>
-                            <TableHead className="text-right py-2">Cashback</TableHead>
-                            <TableHead className="text-right py-2">Laba/Rugi</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {ppobReports.map((report, index) => (
-                             <TableRow key={report.id}>
-                                <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
-                                <TableCell className="sticky left-[40px] bg-background z-10 py-2">{report.serviceName}</TableCell>
-                                <TableCell className="py-2">{report.destination}</TableCell>
-                                <TableCell className="py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
-                                <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
-                                <TableCell className="text-right py-2">{formatToRupiah(report.sellingPrice)}</TableCell>
-                                <TableCell className="text-right py-2">{formatToRupiah(0)}</TableCell>
-                                <TableCell className={cn("text-right font-semibold py-2", report.profit < 0 ? "text-destructive" : "text-green-500")}>
-                                    {formatToRupiah(report.profit)}
+                <div className="relative w-full overflow-x-auto">
+                    {isLoading ? (
+                        <div className="space-y-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-12 w-full" /></div>
+                    ) : (ppobReports.length === 0 && ppobBillReports.length === 0) ? (
+                        <Card><CardContent className="pt-6 text-center text-muted-foreground">Tidak ada transaksi PPOB untuk tanggal ini.</CardContent></Card>
+                    ) : (
+                    <Table className="text-[11px] whitespace-nowrap">
+                        <TableHeader className="sticky top-0 bg-background z-10">
+                            <TableRow>
+                                <TableHead className="w-[40px] py-2">No.</TableHead>
+                                <TableHead className="py-2">Layanan</TableHead>
+                                <TableHead className="py-2">Tujuan</TableHead>
+                                <TableHead className="py-2">Akun PPOB</TableHead>
+                                <TableHead className="text-right py-2">Harga Modal</TableHead>
+                                <TableHead className="text-right py-2">Harga Jual</TableHead>
+                                <TableHead className="text-right py-2">Cashback</TableHead>
+                                <TableHead className="text-right py-2">Laba/Rugi</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {ppobReports.map((report, index) => (
+                                <TableRow key={report.id}>
+                                    <TableCell className="py-2">{index + 1}</TableCell>
+                                    <TableCell className="py-2">{report.serviceName}</TableCell>
+                                    <TableCell className="py-2">{report.destination}</TableCell>
+                                    <TableCell className="py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah(report.sellingPrice)}</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah(0)}</TableCell>
+                                    <TableCell className={cn("text-right font-semibold py-2", report.profit < 0 ? "text-destructive" : "text-green-500")}>
+                                        {formatToRupiah(report.profit)}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {ppobBillReports.map((report, index) => (
+                            <TableRow key={report.id}>
+                                    <TableCell className="py-2">{ppobReports.length + index + 1}</TableCell>
+                                    <TableCell className="py-2">{report.serviceName}</TableCell>
+                                    <TableCell className="py-2">{report.customerName}</TableCell>
+                                    <TableCell className="py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah(report.billAmount)}</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah(report.totalAmount)}</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah(report.cashback)}</TableCell>
+                                    <TableCell className={cn("text-right font-semibold py-2", report.netProfit < 0 ? "text-destructive" : "text-green-500")}>
+                                        {formatToRupiah(report.netProfit)}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                        <TableFooter>
+                            <TableRow className="font-bold bg-muted/50">
+                                <TableCell colSpan={4}>Total</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.costPrice + ppobBillTotals.costPrice)}</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.sellingPrice + ppobBillTotals.sellingPrice)}</TableCell>
+                                <TableCell className="text-right py-2">{formatToRupiah(ppobBillTotals.cashback)}</TableCell>
+                                <TableCell className={cn("text-right py-2", totalPpobProfit < 0 ? "text-destructive" : "text-green-500")}>
+                                    {formatToRupiah(totalPpobProfit)}
                                 </TableCell>
                             </TableRow>
-                        ))}
-                        {ppobBillReports.map((report, index) => (
-                           <TableRow key={report.id}>
-                                <TableCell className="sticky left-0 bg-background z-10 py-2">{ppobReports.length + index + 1}</TableCell>
-                                <TableCell className="sticky left-[40px] bg-background z-10 py-2">{report.serviceName}</TableCell>
-                                <TableCell className="py-2">{report.customerName}</TableCell>
-                                <TableCell className="py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
-                                <TableCell className="text-right py-2">{formatToRupiah(report.billAmount)}</TableCell>
-                                <TableCell className="text-right py-2">{formatToRupiah(report.totalAmount)}</TableCell>
-                                <TableCell className="text-right py-2">{formatToRupiah(report.cashback)}</TableCell>
-                                <TableCell className={cn("text-right font-semibold py-2", report.netProfit < 0 ? "text-destructive" : "text-green-500")}>
-                                    {formatToRupiah(report.netProfit)}
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                    <TableFooter>
-                        <TableRow className="font-bold bg-muted/50">
-                            <TableCell colSpan={4} className="sticky left-0 bg-muted/50 z-10">Total</TableCell>
-                            <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.costPrice + ppobBillTotals.costPrice)}</TableCell>
-                            <TableCell className="text-right py-2">{formatToRupiah(ppobTotals.sellingPrice + ppobBillTotals.sellingPrice)}</TableCell>
-                            <TableCell className="text-right py-2">{formatToRupiah(ppobBillTotals.cashback)}</TableCell>
-                            <TableCell className={cn("text-right py-2", totalPpobProfit < 0 ? "text-destructive" : "text-green-500")}>
-                                {formatToRupiah(totalPpobProfit)}
-                            </TableCell>
-                        </TableRow>
-                    </TableFooter>
-                </Table>
-                )}
+                        </TableFooter>
+                    </Table>
+                    )}
+                </div>
             </div>
             <Card className="my-6">
                 <CardHeader>
