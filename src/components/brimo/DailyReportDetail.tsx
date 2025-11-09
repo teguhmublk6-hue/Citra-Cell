@@ -4,18 +4,16 @@
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Input } from '@/components/ui/input';
 import { DailyReport as DailyReportType } from '@/lib/data';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Separator } from '../ui/separator';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getDocs, Timestamp, doc } from 'firebase/firestore';
-import type { KasAccount } from '@/lib/data';
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface DailyReportDetailProps {
   report: DailyReportType;
@@ -31,7 +29,28 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 };
 
 export default function DailyReportDetail({ report, onDone }: DailyReportDetailProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadPDF = async () => {
+    if (!reportRef.current) return;
+    setIsDownloading(true);
+
+    const canvas = await html2canvas(reportRef.current, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'px',
+      format: [canvas.width, canvas.height]
+    });
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    const reportDate = (report.date as any).toDate ? (report.date as any).toDate() : new Date(report.date);
+    pdf.save(`Laporan-Harian-${format(reportDate, "yyyy-MM-dd")}.pdf`);
+
+    setIsDownloading(false);
+  };
 
   const groupedAccounts = useMemo(() => {
     if (!report.accountSnapshots) return {};
@@ -207,30 +226,26 @@ export default function DailyReportDetail({ report, onDone }: DailyReportDetailP
             <h1 className="text-lg font-semibold">Detail Laporan Harian</h1>
             <p className="text-sm text-muted-foreground">{format((report.date as any).toDate ? (report.date as any).toDate() : new Date(report.date), "EEEE, dd MMMM yyyy", { locale: idLocale })}</p>
         </div>
-        <Button variant="outline" size="sm" disabled>
-            <Download size={16} className="mr-2"/>
-            Unduh PDF
+        <Button variant="outline" size="sm" onClick={handleDownloadPDF} disabled={isDownloading}>
+            {isDownloading ? <Loader2 size={16} className="mr-2 animate-spin"/> : <Download size={16} className="mr-2"/>}
+            {isDownloading ? 'Mengunduh...' : 'Unduh PDF'}
         </Button>
       </header>
-      <ScrollArea className="flex-1 px-6">
-        <div className="space-y-8 py-6">
-          {isLoading ? <Skeleton className="h-96 w-full" /> : (
-            <>
-              {renderSectionA()}
-              <Separator />
-              {renderSectionB()}
-              <Separator />
-              {renderSectionC()}
-              <Separator />
-              {renderSectionD()}
-              <Separator />
-              {renderSectionE()}
-              <Separator />
-              {renderSectionF()}
-              <Separator />
-              {renderSectionG()}
-            </>
-          )}
+      <ScrollArea className="flex-1">
+        <div ref={reportRef} className="p-6 bg-background space-y-8">
+            {renderSectionA()}
+            <Separator />
+            {renderSectionB()}
+            <Separator />
+            {renderSectionC()}
+            <Separator />
+            {renderSectionD()}
+            <Separator />
+            {renderSectionE()}
+            <Separator />
+            {renderSectionF()}
+            <Separator />
+            {renderSectionG()}
         </div>
       </ScrollArea>
     </div>
