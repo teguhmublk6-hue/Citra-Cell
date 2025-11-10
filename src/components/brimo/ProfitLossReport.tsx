@@ -133,8 +133,10 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
         }
     };
     
-    fetchReports();
-  }, [firestore, dateRange]);
+    if (kasAccounts) {
+        fetchReports();
+    }
+  }, [firestore, dateRange, kasAccounts]);
 
   const handleDownloadPDF = async () => {
     setIsDownloading(true);

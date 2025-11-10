@@ -19,7 +19,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Card, CardContent } from '../ui/card';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+// Do not import html2canvas directly at the top
 
 interface BookkeepingReportProps {
   onDone: () => void;
@@ -181,13 +181,16 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
         }
     };
     
-    fetchReports();
-  }, [firestore, dateRange]);
+    if (kasAccounts) {
+        fetchReports();
+    }
+  }, [firestore, dateRange, kasAccounts]);
 
   const handleDownloadPDF = async () => {
     if (!reportRef.current) return;
     setIsDownloading(true);
 
+    const { default: html2canvas } = await import('html2canvas');
     const canvas = await html2canvas(reportRef.current, { scale: 2 });
     const imgData = canvas.toDataURL('image/png');
     

@@ -21,11 +21,20 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <FirebaseClientProvider>
-        {children}
-        <Toaster />
-      </FirebaseClientProvider>
-    </ThemeProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <FirebaseClientProvider>
+            {children}
+            <Toaster />
+          </FirebaseClientProvider>
+        </ThemeProvider>
+      </body>
+    </html>
   )
 }

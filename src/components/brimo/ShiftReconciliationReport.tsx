@@ -16,7 +16,7 @@ import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+// Do not import html2canvas directly at the top
 
 interface ShiftReconciliationReportProps {
   onDone: () => void;
@@ -77,6 +77,7 @@ export default function ShiftReconciliationReport({ onDone }: ShiftReconciliatio
     if (!reportRef.current) return;
     setIsDownloading(true);
 
+    const { default: html2canvas } = await import('html2canvas');
     const canvas = await html2canvas(reportRef.current, { scale: 2 });
     const imgData = canvas.toDataURL('image/png');
     

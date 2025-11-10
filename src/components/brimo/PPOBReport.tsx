@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '../ui/card';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+// Do not import html2canvas directly at the top
 
 interface PPOBReportProps {
   onDone: () => void;
@@ -170,6 +170,7 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
     if (!reportRef.current) return;
     setIsDownloading(true);
   
+    const { default: html2canvas } = await import('html2canvas');
     const tableContainer = reportRef.current.querySelector('.table-container') as HTMLElement;
     if (!tableContainer) {
         setIsDownloading(false);

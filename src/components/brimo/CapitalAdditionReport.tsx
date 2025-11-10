@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { KasAccount } from '@/lib/data';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+// Do not import html2canvas directly at the top
 
 interface CapitalAdditionReportProps {
   onDone: () => void;
@@ -107,6 +107,7 @@ export default function CapitalAdditionReport({ onDone }: CapitalAdditionReportP
     if (!reportRef.current) return;
     setIsDownloading(true);
 
+    const { default: html2canvas } = await import('html2canvas');
     const canvas = await html2canvas(reportRef.current, { scale: 2 });
     const imgData = canvas.toDataURL('image/png');
     

@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { Card, CardContent } from '../ui/card';
 import type { KasAccount } from '@/lib/data';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+// Do not import html2canvas directly at the top
 
 interface OperationalCostReportProps {
   onDone: () => void;
@@ -122,13 +122,16 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
         }
     };
     
-    fetchCosts();
+    if (kasAccounts) {
+      fetchCosts();
+    }
   }, [firestore, dateRange, kasAccounts]);
 
   const handleDownloadPDF = async () => {
     if (!reportRef.current) return;
     setIsDownloading(true);
 
+    const { default: html2canvas } = await import('html2canvas');
     const canvas = await html2canvas(reportRef.current, { scale: 2 });
     const imgData = canvas.toDataURL('image/png');
     
