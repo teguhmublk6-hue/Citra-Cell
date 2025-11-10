@@ -1,5 +1,5 @@
 
-const { type NextConfig } = require('next');
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
