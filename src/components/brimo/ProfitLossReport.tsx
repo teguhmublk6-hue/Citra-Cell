@@ -55,7 +55,6 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
   const [isDownloading, setIsDownloading] = useState(false);
-  const reportRef = useRef<HTMLDivElement>(null);
 
   const kasAccountsCollection = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -150,44 +149,49 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
     const dateTo = dateRange?.to ? format(dateRange.to, "d MMMM yyyy", { locale: idLocale }) : '';
     const dateTitle = dateRange?.from && dateRange?.to ? (dateFrom === dateTo ? dateFrom : `${dateFrom} - ${dateTo}`) : 'Semua Waktu';
     
-    doc.setFontSize(16);
-    doc.text('Laporan Laba/Rugi Harian', 14, 22);
+    doc.setFontSize(14);
+    doc.text('Laporan Laba/Rugi', 14, 22);
     doc.setFontSize(10);
     doc.text(dateTitle, 14, 28);
 
     let lastY = 35;
     const tableOptions = {
-        startY: lastY,
+        startY: 60,
         theme: 'grid' as const,
-        styles: { fontSize: 5, cellPadding: 1, overflow: 'linebreak' },
+        styles: { fontSize: 6, cellPadding: 1.5, overflow: 'linebreak' },
         headStyles: { fillColor: [0, 82, 155] as [number, number, number] },
-        margin: { left: 2.5, right: 2.5 }
+        margin: { left: 14, right: 14 }
     };
     
     if (brilinkReports.length > 0) {
+        doc.setFontSize(12);
+        doc.text('A. Laba/Rugi BRILink', 14, 55);
         (doc as any).autoTable({
             ...tableOptions,
             html: '#brilink-table',
-            headStyles: { fillColor: [0, 82, 155] },
         });
         lastY = (doc as any).lastAutoTable.finalY;
     }
 
     if (ppobReports.length > 0 || ppobBillReports.length > 0) {
+        const ppobStartY = brilinkReports.length > 0 ? lastY + 20 : 60;
+        doc.setFontSize(12);
+        doc.text('B. Laba/Rugi PPOB', 14, ppobStartY - 5);
         (doc as any).autoTable({
             ...tableOptions,
             html: '#ppob-table',
-            startY: lastY + 10,
+            startY: ppobStartY,
             headStyles: { fillColor: [246, 131, 34] },
         });
         lastY = (doc as any).lastAutoTable.finalY;
     }
 
     doc.setFontSize(12);
-    doc.text('Total Laba Bersih Keseluruhan', 14, lastY + 20);
+    doc.text('Total Laba Bersih Keseluruhan', 14, lastY + 15);
     doc.setFontSize(16);
-    doc.setTextColor(brilinkTotals.labaRugi + totalPpobProfit >= 0 ? 'green' : 'red');
-    doc.text(formatToRupiah(brilinkTotals.labaRugi + totalPpobProfit), 14, lastY + 28);
+    doc.setTextColor(brilinkTotals.labaRugi + totalPpobProfit >= 0 ? 40 : 255, brilinkTotals.labaRugi + totalPpobProfit >= 0 ? 167 : 0, brilinkTotals.labaRugi + totalPpobProfit >= 0 ? 69 : 0);
+    doc.text(formatToRupiah(brilinkTotals.labaRugi + totalPpobProfit), 14, lastY + 22);
+    doc.setTextColor(0, 0, 0);
 
     const pdfFilename = `Laporan-Laba-Rugi-${dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'all'}.pdf`;
     doc.save(pdfFilename);
@@ -320,7 +324,101 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
         </header>
 
         <div className="flex-1 overflow-auto">
-          <div ref={reportRef} className="p-4 space-y-6 bg-background">
+          <div className="p-4 space-y-6 bg-background">
+            {/* Div to wrap tables for PDF generation */}
+            <div id="pdf-content" className="hidden">
+              <table id="brilink-table">
+                  <thead>
+                      <tr>
+                          <th>No</th>
+                          <th>Deskripsi</th>
+                          <th>Nama</th>
+                          <th>Bank/Tujuan</th>
+                          <th>Nominal</th>
+                          <th>Admin Bank</th>
+                          <th>Jasa</th>
+                          <th>Laba/Rugi</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      {brilinkReports.map((report, index) => {
+                          const labaRugi = 'netProfit' in report ? report.netProfit : report.serviceFee;
+                          return (
+                              <tr key={report.id}>
+                                  <td>{index + 1}</td>
+                                  <td>{report.transactionType}</td>
+                                  <td>{'destinationAccountName' in report ? report.destinationAccountName : report.customerName}</td>
+                                  <td>{getBrilinkBankInfo(report)}</td>
+                                  <td>{formatToRupiah('transferAmount' in report ? report.transferAmount : ('withdrawalAmount' in report ? report.withdrawalAmount : ('topUpAmount' in report ? report.topUpAmount : ('paymentAmount' in report ? report.paymentAmount : 0))))}</td>
+                                  <td>{formatToRupiah('bankAdminFee' in report ? report.bankAdminFee : ('adminFee' in report ? report.adminFee : 0))}</td>
+                                  <td>{formatToRupiah(report.serviceFee)}</td>
+                                  <td>{formatToRupiah(labaRugi)}</td>
+                              </tr>
+                          );
+                      })}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                        <th colSpan={4}>Total</th>
+                        <th>{formatToRupiah(brilinkTotals.nominal)}</th>
+                        <th>{formatToRupiah(brilinkTotals.adminBank)}</th>
+                        <th>{formatToRupiah(brilinkTotals.jasa)}</th>
+                        <th>{formatToRupiah(brilinkTotals.labaRugi)}</th>
+                    </tr>
+                </tfoot>
+              </table>
+              <table id="ppob-table">
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>Layanan</th>
+                        <th>Tujuan</th>
+                        <th>Akun PPOB</th>
+                        <th>Harga Modal</th>
+                        <th>Harga Jual</th>
+                        <th>Cashback</th>
+                        <th>Laba/Rugi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {ppobReports.map((report, index) => (
+                        <tr key={report.id}>
+                            <td>{index + 1}</td>
+                            <td>{report.serviceName}</td>
+                            <td>{report.destination}</td>
+                            <td>{getAccountLabel(report.sourcePPOBAccountId)}</td>
+                            <td>{formatToRupiah(report.costPrice)}</td>
+                            <td>{formatToRupiah(report.sellingPrice)}</td>
+                            <td>{formatToRupiah(0)}</td>
+                            <td>{formatToRupiah(report.profit)}</td>
+                        </tr>
+                    ))}
+                    {ppobBillReports.map((report, index) => (
+                        <tr key={report.id}>
+                            <td>{ppobReports.length + index + 1}</td>
+                            <td>{report.serviceName}</td>
+                            <td>{report.customerName}</td>
+                            <td>{getAccountLabel(report.sourcePPOBAccountId)}</td>
+                            <td>{formatToRupiah(report.billAmount)}</td>
+                            <td>{formatToRupiah(report.totalAmount)}</td>
+                            <td>{formatToRupiah(report.cashback)}</td>
+                            <td>{formatToRupiah(report.netProfit)}</td>
+                        </tr>
+                    ))}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colSpan={4}>Total</th>
+                        <th>{formatToRupiah(ppobTotals.costPrice + ppobBillTotals.costPrice)}</th>
+                        <th>{formatToRupiah(ppobTotals.sellingPrice + ppobBillTotals.sellingPrice)}</th>
+                        <th>{formatToRupiah(ppobBillTotals.cashback)}</th>
+                        <th>{formatToRupiah(totalPpobProfit)}</th>
+                    </tr>
+                </tfoot>
+              </table>
+            </div>
+
+
             <div>
                 <h2 className="text-lg font-semibold mb-2">A. BRILink</h2>
                 <div className="relative w-full overflow-x-auto">
@@ -329,7 +427,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                     ) : brilinkReports.length === 0 ? (
                         <Card><CardContent className="pt-6 text-center text-muted-foreground">Tidak ada transaksi BRILink untuk tanggal ini.</CardContent></Card>
                     ) : (
-                        <Table id="brilink-table" className="text-[11px] whitespace-nowrap">
+                        <Table className="text-[11px] whitespace-nowrap">
                             <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
                                     <TableHead className="py-2">No</TableHead>
@@ -385,7 +483,7 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
                     ) : (ppobReports.length === 0 && ppobBillReports.length === 0) ? (
                         <Card><CardContent className="pt-6 text-center text-muted-foreground">Tidak ada transaksi PPOB untuk tanggal ini.</CardContent></Card>
                     ) : (
-                    <Table id="ppob-table" className="text-[11px] whitespace-nowrap">
+                    <Table className="text-[11px] whitespace-nowrap">
                         <TableHeader className="sticky top-0 bg-background z-10">
                             <TableRow>
                                 <TableHead className="w-[40px] py-2">No.</TableHead>
@@ -458,8 +556,4 @@ export default function ProfitLossReport({ onDone }: ProfitLossReportProps) {
         </div>
     </div>
   );
-    
-
-
-
-    
+}

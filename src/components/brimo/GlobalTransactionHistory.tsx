@@ -74,8 +74,8 @@ const getCollectionNameFromCategory = (category?: string): string | null => {
         case 'customer_payment':
             // This is tricky. It could be from any service.
             // We might need to make a guess or improve data model to resolve ambiguity.
-            // For now, let's check the most common ones. A better solution would be to store service type in transaction.
-            return null; // Let's not delete audit logs based on this ambiguous category alone to be safe.
+            // For now, let's not delete audit logs based on this ambiguous category alone to be safe.
+            return null;
 
         // --- PPOB Services ---
         case 'ppob_purchase':
@@ -405,5 +405,4 @@ export default function GlobalTransactionHistory() {
         </Sheet>
     </div>
   );
-
-    
+}
