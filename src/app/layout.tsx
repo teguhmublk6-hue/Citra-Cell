@@ -10,6 +10,10 @@ export const metadata: Metadata = {
   description: 'A modern financial dashboard UI.',
   manifest: '/manifest.json',
   themeColor: '#0d1117',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  }
 };
 
 export default function RootLayout({
