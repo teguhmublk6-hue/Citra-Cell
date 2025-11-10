@@ -169,8 +169,33 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
   const handleDownloadPDF = async () => {
     if (!reportRef.current) return;
     setIsDownloading(true);
-
-    const canvas = await html2canvas(reportRef.current, { scale: 2 });
+  
+    const tableContainer = reportRef.current.querySelector('.table-container') as HTMLElement;
+    if (!tableContainer) {
+        setIsDownloading(false);
+        return;
+    }
+  
+    // Temporarily make overflow visible to capture all content
+    const originalOverflow = tableContainer.style.overflow;
+    const originalWidth = tableContainer.style.width;
+    tableContainer.style.overflow = 'visible';
+    tableContainer.style.width = 'auto';
+  
+    const canvas = await html2canvas(reportRef.current, { 
+      scale: 2,
+      useCORS: true,
+      logging: true,
+      width: reportRef.current.scrollWidth,
+      height: reportRef.current.scrollHeight,
+      windowWidth: reportRef.current.scrollWidth,
+      windowHeight: reportRef.current.scrollHeight
+    });
+  
+    // Restore original styles
+    tableContainer.style.overflow = originalOverflow;
+    tableContainer.style.width = originalWidth;
+  
     const imgData = canvas.toDataURL('image/png');
     
     const pdf = new jsPDF({
@@ -279,40 +304,42 @@ export default function PPOBReport({ onDone }: PPOBReportProps) {
                         </CardContent>
                     </Card>
                 ) : (
-                    <Table className="text-[11px] whitespace-nowrap">
-                        <TableHeader className="sticky top-0 bg-background z-10">
-                            <TableRow>
-                                <TableHead className="sticky left-0 bg-background z-20 w-[50px] py-2">No</TableHead>
-                                <TableHead className="sticky left-[50px] bg-background z-20 py-2">Layanan</TableHead>
-                                <TableHead className="py-2">Akun PPOB</TableHead>
-                                <TableHead className="py-2">Tujuan</TableHead>
-                                <TableHead className="text-right py-2">Harga Modal</TableHead>
-                                <TableHead className="text-right py-2">Harga Jual</TableHead>
-                                <TableHead className="py-2">Oleh</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {reports.map((report, index) => (
-                                <TableRow key={report.id}>
-                                    <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
-                                    <TableCell className="sticky left-[50px] bg-background z-10 py-2">{report.serviceName}</TableCell>
-                                    <TableCell className="py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
-                                    <TableCell className="py-2">{report.destination}</TableCell>
-                                    <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
-                                    <TableCell className="text-right py-2">{formatToRupiah(report.sellingPrice)}</TableCell>
-                                    <TableCell className="py-2">{report.deviceName}</TableCell>
+                    <div className="table-container relative w-full overflow-x-auto">
+                        <Table className="text-[11px] whitespace-nowrap">
+                            <TableHeader className="sticky top-0 bg-background z-10">
+                                <TableRow>
+                                    <TableHead className="sticky left-0 bg-background z-20 w-[50px] py-2">No</TableHead>
+                                    <TableHead className="sticky left-[50px] bg-background z-20 py-2">Layanan</TableHead>
+                                    <TableHead className="py-2">Akun PPOB</TableHead>
+                                    <TableHead className="py-2">Tujuan</TableHead>
+                                    <TableHead className="text-right py-2">Harga Modal</TableHead>
+                                    <TableHead className="text-right py-2">Harga Jual</TableHead>
+                                    <TableHead className="py-2">Oleh</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                        <TableFooter>
-                            <TableRow className="font-bold bg-muted/50">
-                                <TableCell colSpan={4}>Total</TableCell>
-                                <TableCell className="text-right py-2">{formatToRupiah(totals.costPrice)}</TableCell>
-                                <TableCell className="text-right py-2">{formatToRupiah(totals.sellingPrice)}</TableCell>
-                                <TableCell></TableCell>
-                            </TableRow>
-                        </TableFooter>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {reports.map((report, index) => (
+                                    <TableRow key={report.id}>
+                                        <TableCell className="sticky left-0 bg-background z-10 py-2">{index + 1}</TableCell>
+                                        <TableCell className="sticky left-[50px] bg-background z-10 py-2">{report.serviceName}</TableCell>
+                                        <TableCell className="py-2">{getAccountLabel(report.sourcePPOBAccountId)}</TableCell>
+                                        <TableCell className="py-2">{report.destination}</TableCell>
+                                        <TableCell className="text-right py-2">{formatToRupiah(report.costPrice)}</TableCell>
+                                        <TableCell className="text-right py-2">{formatToRupiah(report.sellingPrice)}</TableCell>
+                                        <TableCell className="py-2">{report.deviceName}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                            <TableFooter>
+                                <TableRow className="font-bold bg-muted/50">
+                                    <TableCell colSpan={4}>Total</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah(totals.costPrice)}</TableCell>
+                                    <TableCell className="text-right py-2">{formatToRupiah(totals.sellingPrice)}</TableCell>
+                                    <TableCell></TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        </Table>
+                    </div>
                 )}
             </div>
         </div>
