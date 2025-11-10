@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: 'Brimo UI Enhancer',
   description: 'A modern financial dashboard UI.',
   manifest: '/manifest.json',
+  themeColor: '#0d1117',
 };
 
 export default function RootLayout({
@@ -25,7 +26,6 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
-        <meta name="theme-color" content="#0d1117" />
       </head>
       <body className="font-body antialiased bg-background text-foreground">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
