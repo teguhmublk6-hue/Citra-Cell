@@ -62,7 +62,7 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https://images.seeklogo.com',
+        protocol: 'https',
         hostname: 'images.seeklogo.com',
         port: '',
         pathname: '/**',
@@ -92,7 +92,7 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https://play-lh.googleusercontent.com',
+        protocol: 'https',
         hostname: 'play-lh.googleusercontent.com',
         port: '',
         pathname: '/**',
