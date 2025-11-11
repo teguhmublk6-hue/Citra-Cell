@@ -52,7 +52,6 @@ export default function ProfitLossReportClient({ onDone }: ProfitLossReportProps
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
   const [isDownloading, setIsDownloading] = useState(false);
-  const reportRef = useRef<HTMLDivElement>(null);
 
   const kasAccountsCollection = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -135,43 +134,110 @@ export default function ProfitLossReportClient({ onDone }: ProfitLossReportProps
   }, [firestore, dateRange]);
 
   const handleDownloadPDF = async () => {
-    if (!reportRef.current) return;
+    if (brilinkReports.length === 0 && ppobReports.length === 0 && ppobBillReports.length === 0) return;
     setIsDownloading(true);
 
     const { default: jsPDF } = await import('jspdf');
-    const { default: html2canvas } = await import('html2canvas');
+    const { default: autoTable } = await import('jspdf-autotable');
 
-    const canvas = await html2canvas(reportRef.current, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    
-    const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-    });
-
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const canvasWidth = canvas.width;
-    const canvasHeight = canvas.height;
-    const ratio = canvasWidth / canvasHeight;
-    const imgWidth = pdfWidth - 20; // with margin
-    const imgHeight = imgWidth / ratio;
+    const doc = new jsPDF();
+    let finalY = 0;
 
     const dateFrom = dateRange?.from ? format(dateRange.from, "d MMMM yyyy", { locale: idLocale }) : '';
     const dateTo = dateRange?.to ? format(dateRange.to, "d MMMM yyyy", { locale: idLocale }) : '';
     const dateTitle = dateRange?.from && dateRange?.to ? (dateFrom === dateTo ? dateFrom : `${dateFrom} - ${dateTo}`) : 'Semua Waktu';
     
-    pdf.setFontSize(16);
-    pdf.text('Laporan Laba/Rugi Harian', 10, 15);
-    pdf.setFontSize(10);
-    pdf.text(dateTitle, 10, 20);
+    doc.setFontSize(16);
+    doc.text('Laporan Laba/Rugi Harian', 14, 15);
+    doc.setFontSize(10);
+    doc.text(dateTitle, 14, 22);
 
-    pdf.addImage(imgData, 'PNG', 10, 25, imgWidth, imgHeight);
+    // Section A: BRILink
+    if (brilinkReports.length > 0) {
+        doc.setFontSize(12);
+        doc.text('A. BRILink', 14, 30);
+        autoTable(doc, {
+            head: [['No', 'Deskripsi', 'Nama', 'Bank/Tujuan', 'Nominal', 'Admin', 'Jasa', 'Laba/Rugi']],
+            body: brilinkReports.map((report, index) => {
+                const labaRugi = 'netProfit' in report ? report.netProfit : report.serviceFee;
+                return [
+                    index + 1,
+                    report.transactionType,
+                    'destinationAccountName' in report ? report.destinationAccountName : report.customerName,
+                    getBrilinkBankInfo(report),
+                    formatToRupiah('transferAmount' in report ? report.transferAmount : ('withdrawalAmount' in report ? report.withdrawalAmount : ('topUpAmount' in report ? report.topUpAmount : ('paymentAmount' in report ? report.paymentAmount : 0)))),
+                    formatToRupiah('bankAdminFee' in report ? report.bankAdminFee : ('adminFee' in report ? report.adminFee : 0)),
+                    formatToRupiah(report.serviceFee),
+                    formatToRupiah(labaRugi)
+                ]
+            }),
+            startY: 32,
+            theme: 'grid',
+            headStyles: { fillColor: [22, 160, 133], fontSize: 8 },
+            styles: { fontSize: 7 },
+            columnStyles: {
+                4: { halign: 'right' },
+                5: { halign: 'right' },
+                6: { halign: 'right' },
+                7: { halign: 'right' },
+            },
+            didDrawPage: (data) => { finalY = data.cursor?.y || 0; }
+        });
+    }
+
+    // Section B: PPOB
+    if (ppobReports.length > 0 || ppobBillReports.length > 0) {
+        doc.setFontSize(12);
+        doc.text('B. PPOB', 14, finalY + 10);
+        autoTable(doc, {
+            head: [['No.', 'Layanan', 'Tujuan', 'Modal', 'Jual', 'Cashback', 'Laba/Rugi']],
+            body: [
+                ...ppobReports.map((report, index) => [
+                    index + 1,
+                    report.serviceName,
+                    report.destination,
+                    formatToRupiah(report.costPrice),
+                    formatToRupiah(report.sellingPrice),
+                    formatToRupiah(0),
+                    formatToRupiah(report.profit)
+                ]),
+                ...ppobBillReports.map((report, index) => [
+                    ppobReports.length + index + 1,
+                    report.serviceName,
+                    report.customerName,
+                    formatToRupiah(report.billAmount),
+                    formatToRupiah(report.totalAmount),
+                    formatToRupiah(report.cashback),
+                    formatToRupiah(report.netProfit)
+                ])
+            ],
+            startY: finalY + 12,
+            theme: 'grid',
+            headStyles: { fillColor: [41, 128, 185], fontSize: 8 },
+            styles: { fontSize: 7 },
+            columnStyles: {
+                3: { halign: 'right' },
+                4: { halign: 'right' },
+                5: { halign: 'right' },
+                6: { halign: 'right' },
+            },
+            didDrawPage: (data) => { finalY = data.cursor?.y || 0; }
+        });
+    }
+    
+    // Totals
+    const brilinkTotalProfit = brilinkReports.reduce((sum, report) => sum + ('netProfit' in report ? report.netProfit : report.serviceFee), 0);
+    const ppobTotalProfit = ppobReports.reduce((sum, report) => sum + report.profit, 0) + ppobBillReports.reduce((sum, report) => sum + report.netProfit, 0);
+    const totalNetProfit = brilinkTotalProfit + ppobTotalProfit;
+
+    doc.setFontSize(12);
+    doc.text('Total Laba Bersih Keseluruhan:', 14, finalY + 15);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(formatToRupiah(totalNetProfit), 14, finalY + 22);
 
     const pdfFilename = `Laporan-Laba-Rugi-${dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'all'}.pdf`;
-    pdf.save(pdfFilename);
-
+    doc.save(pdfFilename);
     setIsDownloading(false);
   };
 
@@ -300,7 +366,7 @@ export default function ProfitLossReportClient({ onDone }: ProfitLossReportProps
         </header>
 
         <div className="flex-1 overflow-auto">
-          <div ref={reportRef} className="p-4 space-y-6 bg-background">
+          <div className="p-4 space-y-6 bg-background">
             <div>
                 <h2 className="text-lg font-semibold mb-2">A. BRILink</h2>
                 <div className="relative w-full overflow-x-auto">
