@@ -3,6 +3,7 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
+  output: 'export',
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -10,6 +11,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -60,7 +62,7 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https',
+        protocol: 'https://images.seeklogo.com',
         hostname: 'images.seeklogo.com',
         port: '',
         pathname: '/**',
@@ -90,7 +92,7 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https',
+        protocol: 'https://play-lh.googleusercontent.com',
         hostname: 'play-lh.googleusercontent.com',
         port: '',
         pathname: '/**',
