@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -18,8 +17,6 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '../ui/scroll-area';
 import { Card, CardContent } from '../ui/card';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 interface BookkeepingReportProps {
   onDone: () => void;
@@ -49,7 +46,6 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
   const [isDownloading, setIsDownloading] = useState(false);
-  const reportRef = useRef<HTMLDivElement>(null);
 
   const kasAccountsCollection = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -185,23 +181,103 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
   }, [firestore, dateRange]);
 
   const handleDownloadPDF = async () => {
-    if (!reportRef.current) return;
+    if (reports.length === 0 || !kasAccounts) return;
     setIsDownloading(true);
-
-    const canvas = await html2canvas(reportRef.current, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    
-    const pdf = new jsPDF({
-      orientation: 'landscape',
-      unit: 'px',
-      format: [canvas.width, canvas.height]
+  
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+  
+    const doc = new jsPDF({
+        orientation: 'landscape',
     });
+  
+    const dateFrom = dateRange?.from ? format(dateRange.from, "d MMMM yyyy", { locale: idLocale }) : '';
+    const dateTo = dateRange?.to ? format(dateRange.to, "d MMMM yyyy", { locale: idLocale }) : dateFrom;
+    const dateTitle = dateRange?.from ? (dateFrom === dateTo ? dateFrom : `${dateFrom} - ${dateTo}`) : 'Semua Waktu';
     
-    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-    const dateFrom = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'start';
-    const dateTo = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : 'end';
-    pdf.save(`Laporan-Pembukuan-${dateFrom}_${dateTo}.pdf`);
+    doc.setFontSize(16);
+    doc.text('Laporan Pembukuan Harian (BRILink)', 14, 15);
+    doc.setFontSize(10);
+    doc.text(dateTitle, 14, 22);
+  
+    const tableData = reports.map((report, index) => {
+        let nominal = 0, akunKas = '', bankTujuan = '', nama = '', oleh = '';
 
+        if (report.transactionType === 'Transfer') {
+            nominal = report.transferAmount;
+            akunKas = getAccountLabel(report.sourceKasAccountId);
+            bankTujuan = report.destinationBankName;
+            nama = report.destinationAccountName;
+            oleh = report.deviceName;
+        } else if (report.transactionType === 'Tarik Tunai') {
+            nominal = report.withdrawalAmount;
+            akunKas = getAccountLabel(report.destinationKasAccountId);
+            bankTujuan = report.customerBankSource;
+            nama = report.customerName;
+            oleh = report.deviceName;
+        } else if (report.transactionType === 'Top Up') {
+            nominal = report.topUpAmount;
+            akunKas = getAccountLabel(report.sourceKasAccountId);
+            bankTujuan = report.destinationEwallet;
+            nama = report.customerName;
+            oleh = report.deviceName;
+        } else if (report.transactionType === 'Tarik Tunai KJP') {
+            nominal = report.withdrawalAmount;
+            akunKas = getAccountLabel(report.destinationMerchantAccountId);
+            bankTujuan = 'Bank DKI';
+            nama = report.customerName;
+            oleh = report.deviceName;
+        } else if (report.transactionType === 'VA Payment') {
+            nominal = report.paymentAmount;
+            akunKas = getAccountLabel(report.sourceKasAccountId);
+            bankTujuan = report.serviceProvider;
+            nama = report.recipientName;
+            oleh = report.deviceName;
+        } else if (report.transactionType === 'Top Up E-Money') {
+            nominal = report.topUpAmount;
+            akunKas = getAccountLabel(report.sourceKasAccountId);
+            bankTujuan = report.destinationEmoney;
+            nama = 'N/A';
+            oleh = report.deviceName;
+        } else if (report.transactionType === 'Layanan EDC') {
+            nominal = report.serviceFee;
+            akunKas = getAccountLabel(report.paymentToKasTunaiAccountId);
+            bankTujuan = report.machineUsed;
+            nama = report.customerName;
+            oleh = report.deviceName;
+        } else if (report.transactionType === 'BPJS') {
+            nominal = report.totalAmount;
+            akunKas = getAccountLabel(report.sourcePPOBAccountId);
+            bankTujuan = 'BPJS Kesehatan';
+            nama = report.customerName;
+            oleh = report.deviceName;
+        }
+
+        return [
+            index + 1,
+            report.transactionType,
+            akunKas,
+            bankTujuan,
+            nama,
+            formatToRupiah(nominal),
+            oleh,
+        ];
+    });
+  
+    autoTable(doc, {
+        head: [['No', 'Deskripsi', 'Akun Kas', 'Bank/Tujuan', 'Nama', 'Nominal', 'Oleh']],
+        body: tableData,
+        startY: 30,
+        theme: 'grid',
+        headStyles: { fillColor: [22, 160, 133], fontSize: 8 },
+        styles: { fontSize: 7 },
+        columnStyles: {
+            5: { halign: 'right' }
+        }
+    });
+  
+    const pdfFilename = `Laporan-Pembukuan-${dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'all'}.pdf`;
+    doc.save(pdfFilename);
     setIsDownloading(false);
   };
 
@@ -285,7 +361,7 @@ export default function BookkeepingReport({ onDone }: BookkeepingReportProps) {
 
       
         <div className="flex-1 overflow-auto">
-            <div ref={reportRef} className="bg-background p-4">
+            <div className="bg-background p-4">
             {isLoading ? (
             <div className="px-4 space-y-2">
                 <Skeleton className="h-10 w-full" />

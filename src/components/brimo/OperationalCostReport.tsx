@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -17,8 +16,6 @@ import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '../ui/card';
 import type { KasAccount } from '@/lib/data';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 interface OperationalCostReportProps {
   onDone: () => void;
@@ -45,7 +42,6 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
   const [isDownloading, setIsDownloading] = useState(false);
-  const reportRef = useRef<HTMLDivElement>(null);
 
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -126,22 +122,53 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
   }, [firestore, dateRange, kasAccounts]);
 
   const handleDownloadPDF = async () => {
-    if (!reportRef.current) return;
+    if (costs.length === 0) return;
     setIsDownloading(true);
 
-    const canvas = await html2canvas(reportRef.current, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+
+    const doc = new jsPDF();
     
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'px',
-      format: [canvas.width, canvas.height]
+    const dateFrom = dateRange?.from ? format(dateRange.from, "d MMMM yyyy", { locale: idLocale }) : '';
+    const dateTo = dateRange?.to ? format(dateRange.to, "d MMMM yyyy", { locale: idLocale }) : dateFrom;
+    const dateTitle = dateRange?.from ? (dateFrom === dateTo ? dateFrom : `${dateFrom} - ${dateTo}`) : 'Semua Waktu';
+    
+    doc.setFontSize(16);
+    doc.text('Laporan Biaya Operasional', 14, 15);
+    doc.setFontSize(10);
+    doc.text(dateTitle, 14, 22);
+
+    const tableData = costs.map((item, index) => [
+        index + 1,
+        format(item.date, 'dd/MM/yy HH:mm'),
+        item.description,
+        item.source,
+        formatToRupiah(item.amount)
+    ]);
+
+    autoTable(doc, {
+        head: [['No', 'Tanggal', 'Deskripsi Biaya', 'Sumber', 'Jumlah']],
+        body: tableData,
+        startY: 30,
+        theme: 'grid',
+        headStyles: { fillColor: [22, 160, 133] },
+        styles: { fontSize: 8 },
+        columnStyles: {
+            4: { halign: 'right' }
+        },
+        didDrawPage: (data) => {
+            const finalY = data.cursor?.y || 0;
+            doc.setFontSize(10);
+            doc.text('Total Biaya Operasional:', 14, finalY + 10);
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text(formatToRupiah(totalCost), data.settings.margin.left + 100, finalY + 10, { align: 'right' });
+        }
     });
-    
-    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-    const dateFrom = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'start';
-    const dateTo = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : 'end';
-    pdf.save(`Laporan-Biaya-Operasional-${dateFrom}_${dateTo}.pdf`);
+
+    const pdfFilename = `Laporan-Biaya-Operasional-${dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'all'}.pdf`;
+    doc.save(pdfFilename);
 
     setIsDownloading(false);
   };
@@ -208,7 +235,7 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
         </header>
       
         <div className="flex-1 overflow-auto">
-            <div ref={reportRef} className="bg-background p-4">
+            <div className="bg-background p-4">
                 {isLoading ? (
                     <div className="px-4 space-y-2">
                         <Skeleton className="h-10 w-full" />
@@ -243,15 +270,13 @@ export default function OperationalCostReport({ onDone }: OperationalCostReportP
                                 </TableRow>
                             ))}
                         </TableBody>
+                        <TableFooter>
+                            <TableRow className="font-bold bg-muted/50">
+                                <TableCell colSpan={4}>Total Biaya Operasional</TableCell>
+                                <TableCell className="text-right py-2 text-destructive">{formatToRupiah(totalCost)}</TableCell>
+                            </TableRow>
+                        </TableFooter>
                     </Table>
-                )}
-                 {!isLoading && costs.length > 0 && (
-                    <div className="border-t bg-muted/50 p-4 mt-4">
-                        <div className="flex justify-between items-center">
-                            <p className="text-lg font-bold">Total Biaya Operasional</p>
-                            <p className="text-xl font-bold text-destructive">{formatToRupiah(totalCost)}</p>
-                        </div>
-                    </div>
                 )}
             </div>
         </div>

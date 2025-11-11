@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -16,8 +15,6 @@ import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { KasAccount } from '@/lib/data';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 interface CapitalAdditionReportProps {
   onDone: () => void;
@@ -44,7 +41,6 @@ export default function CapitalAdditionReport({ onDone }: CapitalAdditionReportP
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
   const [isDownloading, setIsDownloading] = useState(false);
-  const reportRef = useRef<HTMLDivElement>(null);
 
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -104,23 +100,53 @@ export default function CapitalAdditionReport({ onDone }: CapitalAdditionReportP
   }, [firestore, dateRange, kasAccounts]);
 
   const handleDownloadPDF = async () => {
-    if (!reportRef.current) return;
+    if (additions.length === 0) return;
     setIsDownloading(true);
 
-    const canvas = await html2canvas(reportRef.current, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'px',
-      format: [canvas.width, canvas.height]
-    });
-    
-    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-    const dateFrom = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'start';
-    const dateTo = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : 'end';
-    pdf.save(`Laporan-Tambah-Saldo-${dateFrom}_${dateTo}.pdf`);
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
 
+    const doc = new jsPDF();
+
+    const dateFrom = dateRange?.from ? format(dateRange.from, "d MMMM yyyy", { locale: idLocale }) : '';
+    const dateTo = dateRange?.to ? format(dateRange.to, "d MMMM yyyy", { locale: idLocale }) : dateFrom;
+    const dateTitle = dateRange?.from ? (dateFrom === dateTo ? dateFrom : `${dateFrom} - ${dateTo}`) : 'Semua Waktu';
+    
+    doc.setFontSize(16);
+    doc.text('Laporan Penambahan Saldo', 14, 15);
+    doc.setFontSize(10);
+    doc.text(dateTitle, 14, 22);
+  
+    const tableData = additions.map((item, index) => [
+        index + 1,
+        format(item.date, 'dd/MM/yy HH:mm'),
+        item.description,
+        item.destinationAccount,
+        formatToRupiah(item.amount),
+    ]);
+
+    autoTable(doc, {
+        head: [['No', 'Tanggal', 'Deskripsi', 'Masuk Ke Akun', 'Jumlah']],
+        body: tableData,
+        startY: 30,
+        theme: 'grid',
+        headStyles: { fillColor: [22, 160, 133] },
+        styles: { fontSize: 8 },
+        columnStyles: {
+            4: { halign: 'right' }
+        },
+        didDrawPage: (data) => {
+            const finalY = data.cursor?.y || 0;
+            doc.setFontSize(10);
+            doc.text('Total Penambahan Saldo:', 14, finalY + 10);
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text(formatToRupiah(totalAddition), data.settings.margin.left + 100, finalY + 10, { align: 'right' });
+        }
+    });
+  
+    const pdfFilename = `Laporan-Tambah-Saldo-${dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'all'}.pdf`;
+    doc.save(pdfFilename);
     setIsDownloading(false);
   };
   
@@ -186,7 +212,7 @@ export default function CapitalAdditionReport({ onDone }: CapitalAdditionReportP
         </header>
       
         <div className="flex-1 overflow-auto">
-            <div ref={reportRef} className="bg-background p-4">
+            <div className="bg-background p-4">
             {isLoading ? (
                 <div className="px-4 space-y-2">
                     <Skeleton className="h-10 w-full" />
@@ -221,15 +247,13 @@ export default function CapitalAdditionReport({ onDone }: CapitalAdditionReportP
                             </TableRow>
                         ))}
                     </TableBody>
+                    <TableFooter>
+                        <TableRow className="font-bold bg-muted/50">
+                            <TableCell colSpan={4}>Total Penambahan Saldo</TableCell>
+                            <TableCell className="text-right py-2">{formatToRupiah(totalAddition)}</TableCell>
+                        </TableRow>
+                    </TableFooter>
                 </Table>
-            )}
-             {!isLoading && additions.length > 0 && (
-                <div className="border-t bg-muted/50 p-4 mt-4">
-                    <div className="flex justify-between items-center">
-                        <p className="text-lg font-bold">Total Penambahan Saldo</p>
-                        <p className="text-xl font-bold text-green-500">{formatToRupiah(totalAddition)}</p>
-                    </div>
-                </div>
             )}
             </div>
         </div>

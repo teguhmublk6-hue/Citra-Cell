@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -15,8 +14,6 @@ import { id as idLocale } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 interface ShiftReconciliationReportProps {
   onDone: () => void;
@@ -36,7 +33,6 @@ export default function ShiftReconciliationReport({ onDone }: ShiftReconciliatio
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
   const [isDownloading, setIsDownloading] = useState(false);
-  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -74,22 +70,55 @@ export default function ShiftReconciliationReport({ onDone }: ShiftReconciliatio
   }, [firestore, dateRange]);
 
   const handleDownloadPDF = async () => {
-    if (!reportRef.current) return;
+    if (reports.length === 0) return;
     setIsDownloading(true);
 
-    const canvas = await html2canvas(reportRef.current, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    
-    const pdf = new jsPDF({
-      orientation: 'landscape',
-      unit: 'px',
-      format: [canvas.width, canvas.height]
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+
+    const doc = new jsPDF({
+        orientation: 'landscape',
     });
     
-    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-    const dateFrom = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'start';
-    const dateTo = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : 'end';
-    pdf.save(`Laporan-Rekonsiliasi-Shift-${dateFrom}_${dateTo}.pdf`);
+    const dateFrom = dateRange?.from ? format(dateRange.from, "d MMMM yyyy", { locale: idLocale }) : '';
+    const dateTo = dateRange?.to ? format(dateRange.to, "d MMMM yyyy", { locale: idLocale }) : dateFrom;
+    const dateTitle = dateRange?.from ? (dateFrom === dateTo ? dateFrom : `${dateFrom} - ${dateTo}`) : 'Semua Waktu';
+    
+    doc.setFontSize(16);
+    doc.text('Laporan Rekonsiliasi Shift', 14, 15);
+    doc.setFontSize(10);
+    doc.text(dateTitle, 14, 22);
+
+    const tableData = reports.map((item, index) => [
+        index + 1,
+        format(item.date, 'dd/MM/yy HH:mm'),
+        item.operatorName,
+        formatToRupiah(item.initialCapital),
+        formatToRupiah(item.appCashIn + item.voucherCashIn),
+        formatToRupiah(item.expectedTotalCash),
+        formatToRupiah(item.actualPhysicalCash),
+        formatToRupiah(item.difference),
+        item.notes || '-',
+    ]);
+
+    autoTable(doc, {
+        head: [['No', 'Tanggal', 'Operator', 'Modal Awal', 'Kas Masuk', 'Total Seharusnya', 'Total Fisik', 'Selisih', 'Catatan']],
+        body: tableData,
+        startY: 30,
+        theme: 'grid',
+        headStyles: { fillColor: [41, 128, 185], fontSize: 8 },
+        styles: { fontSize: 7 },
+        columnStyles: {
+            3: { halign: 'right' },
+            4: { halign: 'right' },
+            5: { halign: 'right' },
+            6: { halign: 'right' },
+            7: { halign: 'right' },
+        }
+    });
+
+    const pdfFilename = `Laporan-Rekonsiliasi-Shift-${dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'all'}.pdf`;
+    doc.save(pdfFilename);
 
     setIsDownloading(false);
   };
@@ -155,7 +184,7 @@ export default function ShiftReconciliationReport({ onDone }: ShiftReconciliatio
         </header>
       
         <div className="flex-1 overflow-auto">
-            <div ref={reportRef} className="bg-background p-4">
+            <div className="bg-background p-4">
                 {isLoading ? (
                     <div className="px-4 space-y-2">
                         <Skeleton className="h-10 w-full" />

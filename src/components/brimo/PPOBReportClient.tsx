@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
 import type { PPOBTransaction, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs, PPOBWifi } from '@/lib/types';
@@ -47,7 +47,6 @@ export default function PPOBReportClient({ onDone }: PPOBReportProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
   const [isDownloading, setIsDownloading] = useState(false);
-  const reportRef = useRef<HTMLDivElement>(null);
 
   const kasAccountsCollection = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -173,8 +172,8 @@ export default function PPOBReportClient({ onDone }: PPOBReportProps) {
     const doc = new jsPDF();
 
     const dateFrom = dateRange?.from ? format(dateRange.from, "d MMMM yyyy", { locale: idLocale }) : '';
-    const dateTo = dateRange?.to ? format(dateRange.to, "d MMMM yyyy", { locale: idLocale }) : '';
-    const dateTitle = dateRange?.from && dateRange?.to ? (dateFrom === dateTo ? dateFrom : `${dateFrom} - ${dateTo}`) : 'Semua Waktu';
+    const dateTo = dateRange?.to ? format(dateRange.to, "d MMMM yyyy", { locale: idLocale }) : dateFrom;
+    const dateTitle = dateRange?.from ? (dateFrom === dateTo ? dateFrom : `${dateFrom} - ${dateTo}`) : 'Semua Waktu';
     
     doc.setFontSize(16);
     doc.text('Laporan Transaksi PPOB', 14, 15);
@@ -220,7 +219,7 @@ export default function PPOBReportClient({ onDone }: PPOBReportProps) {
     acc.profit += report.profit;
     return acc;
   }, { costPrice: 0, sellingPrice: 0, profit: 0 });
-  
+
   return (
     <div className="h-full flex flex-col bg-background">
         <header className="p-4 space-y-4 border-b bg-background z-20">
@@ -281,7 +280,7 @@ export default function PPOBReportClient({ onDone }: PPOBReportProps) {
         </header>
       
         <div className="flex-1 overflow-auto">
-            <div ref={reportRef} className="bg-background p-4">
+            <div className="bg-background p-4">
                 {isLoading ? (
                     <div className="p-4 space-y-2">
                         <Skeleton className="h-10 w-full" />
