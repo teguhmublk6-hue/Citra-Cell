@@ -7,17 +7,11 @@ import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Separator } from '../ui/separator';
 import { ArrowLeft, Download, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-<<<<<<< HEAD
-import { useMemo, useState } from 'react';
-import { format } from 'date-fns';
-import { id as idLocale } from 'date-fns/locale';
-=======
 import { useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
->>>>>>> 47270179c625b8a38256d185cfef579e9c896adf
 
 interface DailyReportDetailClientProps {
   report: DailyReportType;
@@ -34,84 +28,6 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 
 export default function DailyReportDetailClient({ report, onDone }: DailyReportDetailClientProps) {
   const [isDownloading, setIsDownloading] = useState(false);
-<<<<<<< HEAD
-
-  const handleDownloadPDF = async () => {
-    setIsDownloading(true);
-    const { default: jsPDF } = await import('jspdf');
-
-    const doc = new jsPDF();
-    const reportDate = (report.date as any).toDate ? (report.date as any).toDate() : new Date(report.date);
-
-    doc.setFontSize(16);
-    doc.text('Laporan Harian', 14, 15);
-    doc.setFontSize(10);
-    doc.text(format(reportDate, "EEEE, dd MMMM yyyy", { locale: idLocale }), 14, 22);
-
-    let y = 30;
-    const line = (label: string, value: string, isBold = false, isNegative = false) => {
-        doc.setFont('helvetica', isBold ? 'bold' : 'normal');
-        doc.text(label, 14, y);
-        doc.text(value, 200, y, { align: 'right' });
-        if (isNegative) doc.setDrawColor(255, 0, 0); else doc.setDrawColor(0,0,0);
-        y += 7;
-    };
-    const section = (title: string) => {
-        y += 5;
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text(title, 14, y);
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        y += 7;
-    };
-
-    section('A. Saldo Akun');
-    report.accountSnapshots.forEach(acc => line(acc.label, formatToRupiah(acc.balance)));
-    line('TOTAL SALDO AKUN', formatToRupiah(report.totalAccountBalance), true);
-
-    section('B. Rotasi Saldo');
-    line('Saldo Laporan Kemarin', formatToRupiah(report.openingBalanceRotation));
-    line('Penambahan Modal', formatToRupiah(report.capitalAdditionToday));
-    line(report.liabilityBeforePayment < 0 ? "LIABILITAS (Kewajiban A)" : "Piutang Pihak A", formatToRupiah(report.liabilityBeforePayment), true, report.liabilityBeforePayment < 0);
-    line('Dana Dibayar A ke B', formatToRupiah(report.paymentToPartyB));
-    line(report.liabilityAfterPayment < 0 ? "LIABILITAS Setelah Bayar" : "Piutang Pihak A Setelah Bayar", formatToRupiah(report.liabilityAfterPayment), true, report.liabilityAfterPayment < 0);
-
-    section('C. Pembelanjaan');
-    report.spendingItems?.forEach(item => line(item.description, formatToRupiah(item.amount)));
-    line('Total Pembelanjaan', formatToRupiah(report.manualSpending), true);
-    line('LIABILITAS FINAL (Untuk Besok)', formatToRupiah(report.finalLiabilityForNextDay), true, report.finalLiabilityForNextDay < 0);
-
-    section('D. Aset Lancar (Inventaris)');
-    line('Aset Aksesoris', formatToRupiah(report.assetAccessories));
-    line('Aset Perdana', formatToRupiah(report.assetSIMCards));
-    line('Aset Voucher', formatToRupiah(report.assetVouchers));
-    line('TOTAL ASET LANCAR', formatToRupiah(report.totalCurrentAssets), true);
-
-    section('E. Laba');
-    line('Laba Kotor BRILink', formatToRupiah(report.grossProfitBrilink));
-    line('Laba Kotor PPOB', formatToRupiah(report.grossProfitPPOB));
-    line('Laba Kotor POS', formatToRupiah(report.posGrossProfit));
-    line('TOTAL LABA KOTOR', formatToRupiah(report.totalGrossProfit), true);
-    
-    section('G. Biaya Operasional');
-    line('Total Biaya Operasional', `(${formatToRupiah(report.operationalCosts)})`, false, true);
-    line('LABA BERSIH (NETT PROFIT)', formatToRupiah(report.netProfit), true, report.netProfit < 0);
-
-    section('F. Timbangan (Neraca)');
-    line('Kas Laci Kecil', formatToRupiah(report.cashInDrawer));
-    line('Kas Brankas', formatToRupiah(report.cashInSafe));
-    line('Total Kas Fisik', formatToRupiah(report.totalPhysicalCash));
-    line('Total Saldo Akun', formatToRupiah(report.totalAccountBalance));
-    line('LIABILITAS FINAL', formatToRupiah(report.finalLiabilityForNextDay), false, report.finalLiabilityForNextDay < 0);
-    line('Total Laba Kotor', `(${formatToRupiah(report.totalGrossProfit)})`, false, true);
-    line('Potongan Operasional Non Profit', `(${formatToRupiah(report.operationalNonProfit)})`, false, true);
-    line('TOTAL KESELURUHAN', formatToRupiah(report.grandTotalBalance), true, report.grandTotalBalance < 0);
-    line('Aset Lancar', formatToRupiah(report.totalCurrentAssets));
-    line('TOTAL KEKAYAAN', formatToRupiah(report.liquidAccumulation), true, report.liquidAccumulation < 0);
-
-    doc.save(`Laporan-Harian-${format(reportDate, "yyyy-MM-dd")}.pdf`);
-=======
   const reportRef = useRef<HTMLDivElement>(null);
 
   const handleDownloadPDF = async () => {
@@ -131,7 +47,6 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
     const reportDate = (report.date as any).toDate ? (report.date as any).toDate() : new Date(report.date);
     pdf.save(`Laporan-Harian-${format(reportDate, "yyyy-MM-dd")}.pdf`);
 
->>>>>>> 47270179c625b8a38256d185cfef579e9c896adf
     setIsDownloading(false);
   };
 
@@ -315,11 +230,7 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
         </Button>
       </header>
       <ScrollArea className="flex-1">
-<<<<<<< HEAD
-        <div className="p-6 bg-background space-y-8">
-=======
         <div ref={reportRef} className="p-6 bg-background space-y-8">
->>>>>>> 47270179c625b8a38256d185cfef579e9c896adf
             {renderSectionA()}
             <Separator />
             {renderSectionB()}
