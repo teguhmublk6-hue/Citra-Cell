@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, where, Timestamp, orderBy } from 'firebase/firestore';
-import type { DailyReport, Transaction, Settlement, CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal, PPOBTransaction, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs, PPOBWifi } from '@/lib/types';
+import type { DailyReport, Transaction, Settlement } from '@/lib/types';
 import type { KasAccount } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -16,9 +16,19 @@ import { id as idLocale } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '../ui/scroll-area';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Separator } from '../ui/separator';
 
 interface CombinedReportClientProps {
   onDone: () => void;
+}
+
+interface ReportData {
+    dailyReport: DailyReport | null;
+    brilinkProfit: number;
+    ppobProfit: number;
+    capitalAdditions: { date: Date, description: string, account: string, amount: number }[];
+    operationalCosts: { date: Date, description: string, amount: number }[];
 }
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
@@ -30,6 +40,7 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 
 export default function CombinedReportClient({ onDone }: CombinedReportClientProps) {
   const firestore = useFirestore();
+  const [reportData, setReportData] = useState<ReportData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
   const [isDownloading, setIsDownloading] = useState(false);
@@ -38,20 +49,98 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
   
   const getAccountLabel = (accountId?: string) => {
-    if (!accountId) return 'N/A';
-    return kasAccounts?.find(acc => acc.id === accountId)?.label || accountId;
+    if (!accountId || !kasAccounts) return 'N/A';
+    return kasAccounts.find(acc => acc.id === accountId)?.label || accountId;
   };
+  
+  useEffect(() => {
+    const fetchAllData = async () => {
+        if (!firestore || !dateRange?.from || !kasAccounts) return;
+        setIsLoading(true);
+        setReportData(null);
+
+        const dateFrom = startOfDay(dateRange.from);
+        const dateTo = endOfDay(dateRange.to || dateRange.from);
+        const tsFrom = Timestamp.fromDate(dateFrom);
+        const tsTo = Timestamp.fromDate(dateTo);
+        
+        try {
+            // 1. Daily Report
+            const dailyReportQuery = query(collection(firestore, "dailyReports"), where('date', '>=', tsFrom), where('date', '<=', tsTo), orderBy('date', 'desc'));
+            const dailyReportSnapshot = await getDocs(dailyReportQuery);
+            const dailyReport: DailyReport | null = dailyReportSnapshot.empty ? null : dailyReportSnapshot.docs[0].data() as DailyReport;
+
+            // 2. Profit/Loss Data
+            const brilinkCollections = ['customerTransfers', 'customerWithdrawals', 'customerTopUps', 'customerEmoneyTopUps', 'customerVAPayments', 'edcServices', 'customerKJPWithdrawals'];
+            const ppobCollections = ['ppobTransactions', 'ppobPlnPostpaid', 'ppobPdam', 'ppobBpjs', 'ppobWifi'];
+            
+            let brilinkProfit = 0;
+            let ppobProfit = 0;
+
+            for (const col of brilinkCollections) {
+                const q = query(collection(firestore, col), where('date', '>=', tsFrom), where('date', '<=', tsTo));
+                const snapshot = await getDocs(q);
+                snapshot.forEach(doc => { brilinkProfit += (doc.data().netProfit ?? doc.data().serviceFee ?? 0); });
+            }
+            for (const col of ppobCollections) {
+                const q = query(collection(firestore, col), where('date', '>=', tsFrom), where('date', '<=', tsTo));
+                const snapshot = await getDocs(q);
+                snapshot.forEach(doc => { ppobProfit += (doc.data().profit ?? doc.data().netProfit ?? 0); });
+            }
+
+            // 3. Capital Additions
+            let capitalAdditions: ReportData['capitalAdditions'] = [];
+            for (const account of kasAccounts) {
+                const transQuery = query(collection(firestore, 'kasAccounts', account.id, 'transactions'), where('category', '==', 'capital'), where('date', '>=', dateFrom.toISOString()), where('date', '<=', dateTo.toISOString()));
+                const transSnapshot = await getDocs(transQuery);
+                transSnapshot.forEach(docSnap => {
+                    const trx = docSnap.data() as Transaction;
+                    if (trx.type === 'credit') {
+                        capitalAdditions.push({ date: new Date(trx.date), description: trx.name, account: account.label, amount: trx.amount });
+                    }
+                });
+            }
+
+            // 4. Operational Costs
+            let operationalCosts: ReportData['operationalCosts'] = [];
+            const feeCategories = ['operational', 'operational_fee', 'transfer_fee'];
+            const settlementsQuery = query(collection(firestore, 'settlements'), where('date', '>=', tsFrom), where('date', '<=', tsTo));
+            const settlementsSnapshot = await getDocs(settlementsQuery);
+            settlementsSnapshot.forEach(docSnap => {
+                const data = docSnap.data() as Settlement;
+                if (data.mdrFee > 0) {
+                    operationalCosts.push({ date: (data.date as any).toDate(), description: `Biaya MDR Settlement dari ${getAccountLabel(data.sourceMerchantAccountId)}`, amount: data.mdrFee });
+                }
+            });
+            for (const account of kasAccounts) {
+                const transQuery = query(collection(firestore, 'kasAccounts', account.id, 'transactions'), where('category', 'in', feeCategories), where('date', '>=', dateFrom.toISOString()), where('date', '<=', dateTo.toISOString()));
+                const transSnapshot = await getDocs(transQuery);
+                transSnapshot.forEach(docSnap => {
+                    const trx = docSnap.data() as Transaction;
+                    operationalCosts.push({ date: new Date(trx.date), description: trx.name, amount: trx.amount });
+                });
+            }
+            
+            setReportData({ dailyReport, brilinkProfit, ppobProfit, capitalAdditions, operationalCosts });
+        } catch (error) {
+            console.error("Error fetching combined report data:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    fetchAllData();
+  }, [firestore, dateRange, kasAccounts]);
+
 
   const handleDownloadPDF = async () => {
-    if (!firestore || !dateRange?.from || !kasAccounts) return;
+    if (!reportData) return;
     setIsDownloading(true);
 
     const { default: jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
 
     const doc = new jsPDF();
-    const dateFrom = startOfDay(dateRange.from);
-    const dateTo = endOfDay(dateRange.to || dateRange.from);
+    const dateFrom = startOfDay(dateRange!.from!);
     const dateTitle = format(dateFrom, "EEEE, dd MMMM yyyy", { locale: idLocale });
     let finalY = 0;
 
@@ -73,16 +162,8 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     // --- 1. Daily Report V5 ---
     try {
         finalY = addReportTitle('Laporan Harian V5', 22);
-        const dailyReportQuery = query(
-            collection(firestore, "dailyReports"),
-            where('date', '>=', Timestamp.fromDate(dateFrom)),
-            where('date', '<=', Timestamp.fromDate(dateTo)),
-            orderBy('date', 'desc')
-        );
-        const dailyReportSnapshot = await getDocs(dailyReportQuery);
-        
-        if (!dailyReportSnapshot.empty) {
-            const report = dailyReportSnapshot.docs[0].data() as DailyReport;
+        if (reportData.dailyReport) {
+            const report = reportData.dailyReport;
             const sectionA_Body = report.accountSnapshots.map(acc => [acc.label, formatToRupiah(acc.balance)]);
             finalY = addGridSection('A. Saldo Akun', [['Akun', 'Saldo']], sectionA_Body, finalY);
             autoTable(doc, { body: [[{ content: 'TOTAL', styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.totalAccountBalance), styles: { fontStyle: 'bold', halign: 'right' } }]], startY: (doc as any).lastAutoTable.finalY, theme: 'grid' });
@@ -100,29 +181,14 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     doc.addPage();
     try {
         finalY = addReportTitle('Laporan Laba/Rugi', 22);
-        const brilinkCollections = ['customerTransfers', 'customerWithdrawals', 'customerTopUps', 'customerEmoneyTopUps', 'customerVAPayments', 'edcServices', 'customerKJPWithdrawals'];
-        const ppobCollections = ['ppobTransactions', 'ppobPlnPostpaid', 'ppobPdam', 'ppobBpjs', 'ppobWifi'];
-        
-        let totalBrilinkProfit = 0;
-        let totalPPOBProfit = 0;
-
-        for (const col of brilinkCollections) {
-            const q = query(collection(firestore, col), where('date', '>=', Timestamp.fromDate(dateFrom)), where('date', '<=', Timestamp.fromDate(dateTo)));
-            const snapshot = await getDocs(q);
-            snapshot.forEach(doc => { totalBrilinkProfit += (doc.data().netProfit ?? doc.data().serviceFee ?? 0); });
-        }
-        for (const col of ppobCollections) {
-            const q = query(collection(firestore, col), where('date', '>=', Timestamp.fromDate(dateFrom)), where('date', '<=', Timestamp.fromDate(dateTo)));
-            const snapshot = await getDocs(q);
-            snapshot.forEach(doc => { totalPPOBProfit += (doc.data().profit ?? doc.data().netProfit ?? 0); });
-        }
+        const { brilinkProfit, ppobProfit } = reportData;
 
         autoTable(doc, {
             head: [['Deskripsi', 'Total Laba']],
             body: [
-                ['BRILink', formatToRupiah(totalBrilinkProfit)],
-                ['PPOB', formatToRupiah(totalPPOBProfit)],
-                [{ content: 'TOTAL LABA KOTOR', styles: { fontStyle: 'bold' } }, { content: formatToRupiah(totalBrilinkProfit + totalPPOBProfit), styles: { fontStyle: 'bold' } }]
+                ['BRILink', formatToRupiah(brilinkProfit)],
+                ['PPOB', formatToRupiah(ppobProfit)],
+                [{ content: 'TOTAL LABA KOTOR', styles: { fontStyle: 'bold' } }, { content: formatToRupiah(brilinkProfit + ppobProfit), styles: { fontStyle: 'bold' } }]
             ],
             startY: finalY,
             theme: 'grid',
@@ -135,20 +201,9 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     doc.addPage();
     try {
         finalY = addReportTitle('Laporan Penambahan Saldo', 22);
-        let capitalAdditions = 0;
-        let capitalBody: any[] = [];
-
-        for (const account of kasAccounts) {
-            const transQuery = query(collection(firestore, 'kasAccounts', account.id, 'transactions'), where('category', '==', 'capital'), where('date', '>=', dateFrom.toISOString()), where('date', '<=', dateTo.toISOString()));
-            const transSnapshot = await getDocs(transQuery);
-            transSnapshot.forEach(docSnap => {
-                const trx = docSnap.data() as Transaction;
-                if (trx.type === 'credit') {
-                    capitalAdditions += trx.amount;
-                    capitalBody.push([format(new Date(trx.date), 'dd/MM HH:mm'), trx.name, account.label, formatToRupiah(trx.amount)]);
-                }
-            });
-        }
+        const { capitalAdditions } = reportData;
+        let capitalBody: any[] = capitalAdditions.length > 0 ? capitalAdditions.map(trx => [format(trx.date, 'dd/MM HH:mm'), trx.description, trx.account, formatToRupiah(trx.amount)]) : [['Tidak ada data', '', '', '']];
+        
         autoTable(doc, {
             head: [['Tanggal', 'Deskripsi', 'Ke Akun', 'Jumlah']],
             body: capitalBody,
@@ -156,7 +211,8 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
             theme: 'grid',
             columnStyles: { 3: { halign: 'right' } }
         });
-        autoTable(doc, { body: [[{ content: 'TOTAL', colSpan: 3, styles: { fontStyle: 'bold' } }, { content: formatToRupiah(capitalAdditions), styles: { fontStyle: 'bold', halign: 'right' } }]], startY: (doc as any).lastAutoTable.finalY, theme: 'grid' });
+        const totalCapitalAdditions = capitalAdditions.reduce((sum, trx) => sum + trx.amount, 0);
+        autoTable(doc, { body: [[{ content: 'TOTAL', colSpan: 3, styles: { fontStyle: 'bold' } }, { content: formatToRupiah(totalCapitalAdditions), styles: { fontStyle: 'bold', halign: 'right' } }]], startY: (doc as any).lastAutoTable.finalY, theme: 'grid' });
         finalY = (doc as any).lastAutoTable.finalY + 8;
 
     } catch (e) { console.error("Error generating Capital Addition Report part:", e); }
@@ -165,28 +221,9 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     doc.addPage();
     try {
         finalY = addReportTitle('Laporan Biaya Operasional', 22);
-        let totalCosts = 0;
-        let costBody: any[] = [];
-        const feeCategories = ['operational', 'operational_fee', 'transfer_fee'];
+        const { operationalCosts } = reportData;
+        let costBody: any[] = operationalCosts.length > 0 ? operationalCosts.map(trx => [format(trx.date, 'dd/MM HH:mm'), trx.description, formatToRupiah(trx.amount)]) : [['Tidak ada data', '', '']];
 
-        const settlementsQuery = query(collection(firestore, 'settlements'), where('date', '>=', Timestamp.fromDate(dateFrom)), where('date', '<=', Timestamp.fromDate(dateTo)));
-        const settlementsSnapshot = await getDocs(settlementsQuery);
-        settlementsSnapshot.forEach(docSnap => {
-            const data = docSnap.data() as Settlement;
-            if (data.mdrFee > 0) {
-                totalCosts += data.mdrFee;
-                costBody.push([format((data.date as any).toDate(), 'dd/MM HH:mm'), `Biaya MDR Settlement dari ${getAccountLabel(data.sourceMerchantAccountId)}`, formatToRupiah(data.mdrFee)]);
-            }
-        });
-        for (const account of kasAccounts) {
-            const transQuery = query(collection(firestore, 'kasAccounts', account.id, 'transactions'), where('category', 'in', feeCategories), where('date', '>=', dateFrom.toISOString()), where('date', '<=', dateTo.toISOString()));
-            const transSnapshot = await getDocs(transQuery);
-            transSnapshot.forEach(docSnap => {
-                const trx = docSnap.data() as Transaction;
-                totalCosts += trx.amount;
-                costBody.push([format(new Date(trx.date), 'dd/MM HH:mm'), trx.name, formatToRupiah(trx.amount)]);
-            });
-        }
         autoTable(doc, {
             head: [['Tanggal', 'Deskripsi', 'Jumlah']],
             body: costBody,
@@ -194,7 +231,8 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
             theme: 'grid',
             columnStyles: { 2: { halign: 'right' } }
         });
-         autoTable(doc, { body: [[{ content: 'TOTAL BIAYA', colSpan: 2, styles: { fontStyle: 'bold' } }, { content: formatToRupiah(totalCosts), styles: { fontStyle: 'bold', halign: 'right' } }]], startY: (doc as any).lastAutoTable.finalY, theme: 'grid' });
+        const totalCosts = operationalCosts.reduce((sum, trx) => sum + trx.amount, 0);
+        autoTable(doc, { body: [[{ content: 'TOTAL BIAYA', colSpan: 2, styles: { fontStyle: 'bold' } }, { content: formatToRupiah(totalCosts), styles: { fontStyle: 'bold', halign: 'right' } }]], startY: (doc as any).lastAutoTable.finalY, theme: 'grid' });
         finalY = (doc as any).lastAutoTable.finalY + 8;
     } catch (e) { console.error("Error generating OpCost Report part:", e); }
 
@@ -210,6 +248,10 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
 
     setIsDownloading(false);
   };
+  
+  const totalGrossProfit = (reportData?.brilinkProfit || 0) + (reportData?.ppobProfit || 0) + (reportData?.dailyReport?.posGrossProfit || 0);
+  const totalOperationalCosts = reportData?.operationalCosts.reduce((sum, item) => sum + item.amount, 0) || 0;
+  const netProfit = totalGrossProfit - totalOperationalCosts;
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -218,7 +260,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
           <Button variant="ghost" size="icon" onClick={onDone}>
             <ArrowLeft />
           </Button>
-          <h1 className="text-lg font-semibold flex-1">Unduh Laporan Gabungan</h1>
+          <h1 className="text-lg font-semibold flex-1">Laporan Gabungan</h1>
         </div>
         <Popover>
           <PopoverTrigger asChild>
@@ -227,10 +269,10 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
               {dateRange?.from ? (
                 dateRange.to ? (
                   <>
-                    {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
+                    {format(dateRange.from, "d MMMM yyyy", { locale: idLocale })} - {format(dateRange.to, "d MMMM yyyy", { locale: idLocale })}
                   </>
                 ) : (
-                  format(dateRange.from, "LLL dd, y")
+                  format(dateRange.from, "d MMMM yyyy", { locale: idLocale })
                 )
               ) : (
                 <span>Pilih rentang tanggal</span>
@@ -250,20 +292,63 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
         </Popover>
       </header>
       <ScrollArea className="flex-1 p-4">
-        <p className="text-sm text-muted-foreground mb-4">Fitur ini akan menggabungkan beberapa laporan penting ke dalam satu file PDF untuk rentang tanggal yang Anda pilih.</p>
-        <ul className="list-disc list-inside space-y-2 text-sm">
-            <li>Laporan Harian V5</li>
-            <li>Laporan Laba/Rugi</li>
-            <li>Laporan Penambahan Saldo</li>
-            <li>Laporan Biaya Operasional</li>
-        </ul>
+        {isLoading && (
+            <div className="space-y-4">
+                <Skeleton className="h-40 w-full" />
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+            </div>
+        )}
+        {!isLoading && reportData && (
+            <div className="space-y-6">
+                <Card>
+                    <CardHeader><CardTitle>Ringkasan Laba Kotor</CardTitle></CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                        <div className="flex justify-between"><span>Laba BRILink</span><span>{formatToRupiah(reportData.brilinkProfit)}</span></div>
+                        <div className="flex justify-between"><span>Laba PPOB</span><span>{formatToRupiah(reportData.ppobProfit)}</span></div>
+                        <div className="flex justify-between"><span>Laba POS (Manual)</span><span>{formatToRupiah(reportData.dailyReport?.posGrossProfit)}</span></div>
+                        <Separator className="my-2"/>
+                        <div className="flex justify-between font-bold text-base"><span>Total Laba Kotor</span><span>{formatToRupiah(totalGrossProfit)}</span></div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader><CardTitle>Ringkasan Laba Bersih</CardTitle></CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                        <div className="flex justify-between"><span>Total Laba Kotor</span><span>{formatToRupiah(totalGrossProfit)}</span></div>
+                        <div className="flex justify-between text-destructive"><span>Total Biaya Operasional</span><span>- {formatToRupiah(totalOperationalCosts)}</span></div>
+                        <Separator className="my-2"/>
+                        <div className="flex justify-between font-bold text-base"><span>Total Laba Bersih</span><span className={cn(netProfit < 0 ? "text-destructive" : "text-green-500")}>{formatToRupiah(netProfit)}</span></div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader><CardTitle>Ringkasan Penambahan Modal</CardTitle></CardHeader>
+                    <CardContent>
+                        {reportData.capitalAdditions.length > 0 ? (
+                            <ul className="space-y-2 text-sm">
+                                {reportData.capitalAdditions.map((item, i) => <li key={i} className="flex justify-between"><span>{item.description}</span><span>{formatToRupiah(item.amount)}</span></li>)}
+                            </ul>
+                        ) : <p className="text-sm text-muted-foreground">Tidak ada penambahan modal.</p>}
+                        <Separator className="my-2"/>
+                        <div className="flex justify-between font-bold text-base"><span>Total</span><span>{formatToRupiah(reportData.capitalAdditions.reduce((s, i) => s + i.amount, 0))}</span></div>
+                    </CardContent>
+                </Card>
+            </div>
+        )}
+         {!isLoading && !reportData && (
+             <div className="text-center py-20 text-muted-foreground">
+                 <p>Pilih tanggal untuk melihat laporan gabungan.</p>
+             </div>
+         )}
       </ScrollArea>
       <footer className="p-4 border-t">
-        <Button className="w-full" onClick={handleDownloadPDF} disabled={isDownloading}>
+        <Button className="w-full" onClick={handleDownloadPDF} disabled={isDownloading || isLoading || !reportData}>
           {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-          {isDownloading ? 'Menyiapkan Laporan...' : 'Unduh Laporan Gabungan'}
+          {isDownloading ? 'Menyiapkan PDF...' : 'Unduh Laporan Gabungan'}
         </Button>
       </footer>
     </div>
   );
 }
+
+
+    
