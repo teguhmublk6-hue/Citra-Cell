@@ -44,7 +44,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
   const firestore = useFirestore();
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: new Date(), to: new Date() });
   const [isDownloading, setIsDownloading] = useState(false);
 
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
@@ -70,7 +70,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
             // 1. Daily Report
             const dailyReportQuery = query(collection(firestore, "dailyReports"), where('date', '>=', tsFrom), where('date', '<=', tsTo), orderBy('date', 'desc'));
             const dailyReportSnapshot = await getDocs(dailyReportQuery);
-            const dailyReport: DailyReport | null = dailyReportSnapshot.empty ? null : dailyReportSnapshot.docs[0].data() as DailyReport;
+            const dailyReport: DailyReport | null = dailyReportSnapshot.empty ? null : { id: dailyReportSnapshot.docs[0].id, ...dailyReportSnapshot.docs[0].data() } as DailyReport;
 
             // 2. Profit/Loss Data
             const brilinkCollections = [
@@ -154,14 +154,14 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
 
 
   const handleDownloadPDF = async () => {
-    if (!reportData) return;
+    if (!reportData || !dateRange?.from) return;
     setIsDownloading(true);
 
     const { default: jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
 
-    const doc = new jsPDF({ orientation: 'landscape' });
-    const dateFrom = startOfDay(dateRange!.from!);
+    const doc = new jsPDF({ orientation: 'portrait' });
+    const dateFrom = startOfDay(dateRange.from);
     const dateTitle = format(dateFrom, "EEEE, dd MMMM yyyy", { locale: idLocale });
     let finalY = 0;
     
@@ -169,7 +169,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     const reportDate = format(new Date(), "d MMM yyyy, HH:mm:ss");
 
     const addFooter = () => {
-        const pageCount = doc.getNumberOfPages();
+        const pageCount = doc.internal.pages.length - 1; // Correct page count
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
             doc.setFontSize(8);
@@ -200,26 +200,25 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
         return (doc as any).lastAutoTable.finalY + 8;
     };
 
-    // --- PAGE 1: DAILY REPORT V7 ---
+    // --- PAGE 1: DAILY REPORT ---
     finalY = addReportTitle('DAILY REPORT V7.0 - FINAL VERSION', 15);
     if (reportData.dailyReport) {
         const report = reportData.dailyReport;
         const sectionA_Body = report.accountSnapshots.map((acc, index) => [index + 1, acc.label, formatToRupiah(acc.balance)]);
         finalY = addGridSection('A. Saldo Akun', [['No', 'Akun', 'Saldo']], sectionA_Body, finalY, { columnStyles: { 0: { cellWidth: 10 }, 2: { halign: 'right' } } });
-        // ... (Add other sections B to G similarly)
     } else {
         doc.setFontSize(10); doc.text("Tidak ada data Laporan Harian V7 untuk tanggal ini.", pageMargin, finalY); finalY += 10;
     }
 
-    // --- PAGE 2: PROFIT/LOSS REPORT ---
-    doc.addPage('landscape');
+    // --- PAGE 2: PROFIT/LOSS REPORT (LANDSCAPE) ---
+    doc.addPage(undefined, 'landscape');
     finalY = addReportTitle('Laporan Laba/Rugi', 15);
     
     const brilinkBody = reportData.brilinkProfitItems.map((item, index) => {
         const profit = 'netProfit' in item ? item.netProfit : item.serviceFee;
         const nominal = 'transferAmount' in item ? item.transferAmount : ('withdrawalAmount' in item ? item.withdrawalAmount : ('topUpAmount' in item ? item.topUpAmount : ('paymentAmount' in item ? item.paymentAmount : 0)));
         const bankAdminFee = 'bankAdminFee' in item ? item.bankAdminFee : ('adminFee' in item ? item.adminFee : 0);
-        const destinationName = 'destinationAccountName' in item ? item.destinationAccountName : item.customerName;
+        const destinationName = 'destinationAccountName' in item ? item.destinationAccountName : ('customerName' in item ? item.customerName : 'N/A');
         const destinationBank = 'destinationBankName' in item ? item.destinationBankName : ('customerBankSource' in item ? item.customerBankSource : ('destinationEwallet' in item ? item.destinationEwallet : 'N/A'));
         return [index + 1, item.transactionType, destinationName, destinationBank, formatToRupiah(nominal), formatToRupiah(bankAdminFee), formatToRupiah(item.serviceFee), formatToRupiah(profit)];
     });
@@ -230,7 +229,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
         acc.laba += 'netProfit' in item ? item.netProfit : item.serviceFee;
         return acc;
     }, { nominal: 0, admin: 0, jasa: 0, laba: 0 });
-    brilinkBody.push([{ content: 'TOTAL', colSpan: 4, styles: { fontStyle: 'bold', halign: 'center' } }, formatToRupiah(brilinkTotals.nominal), formatToRupiah(brilinkTotals.admin), formatToRupiah(brilinkTotals.jasa), { content: formatToRupiah(brilinkTotals.laba), styles: { fontStyle: 'bold' } }]);
+    brilinkBody.push([{ content: 'TOTAL', colSpan: 4, styles: { fontStyle: 'bold', halign: 'center' } }, { content: formatToRupiah(brilinkTotals.nominal), styles: { fontStyle: 'bold' } }, { content: formatToRupiah(brilinkTotals.admin), styles: { fontStyle: 'bold' } }, { content: formatToRupiah(brilinkTotals.jasa), styles: { fontStyle: 'bold' } }, { content: formatToRupiah(brilinkTotals.laba), styles: { fontStyle: 'bold' } }]);
     finalY = addGridSection('BRILink', [['No', 'Layanan', 'Nama', 'Bank/Tujuan', 'Nominal', 'Admin', 'Jasa', 'Laba']], brilinkBody, finalY, { 
         styles: { fontSize: 7, cellPadding: 1 },
         columnStyles: { 0: { cellWidth: 8 }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' } }
@@ -238,27 +237,27 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
 
     const ppobBody = reportData.ppobProfitItems.map((item, index) => {
         const profit = 'profit' in item ? item.profit : item.netProfit;
-        const cost = 'costPrice' in item ? item.costPrice : item.billAmount;
-        const sell = 'sellingPrice' in item ? item.sellingPrice : item.totalAmount;
+        const cost = 'costPrice' in item ? item.costPrice : ('billAmount' in item ? item.billAmount : 0);
+        const sell = 'sellingPrice' in item ? item.sellingPrice : ('totalAmount' in item ? item.totalAmount : 0);
         const cashback = 'cashback' in item ? item.cashback || 0 : 0;
         return [index + 1, 'serviceName' in item ? item.serviceName : 'N/A', 'destination' in item ? item.destination : ('customerName' in item ? item.customerName : 'N/A'), formatToRupiah(cost), formatToRupiah(sell), formatToRupiah(cashback), formatToRupiah(profit)];
     });
     const ppobTotals = reportData.ppobProfitItems.reduce((acc, item) => {
-        acc.cost += 'costPrice' in item ? item.costPrice : item.billAmount;
-        acc.sell += 'sellingPrice' in item ? item.sellingPrice : item.totalAmount;
+        acc.cost += 'costPrice' in item ? item.costPrice : ('billAmount' in item ? item.billAmount : 0);
+        acc.sell += 'sellingPrice' in item ? item.sellingPrice : ('totalAmount' in item ? item.totalAmount : 0);
         acc.cashback += 'cashback' in item ? item.cashback || 0 : 0;
-        acc.profit += 'profit' in item ? item.profit : item.netProfit;
+        acc.profit += 'profit' in item ? item.profit : ('netProfit' in item ? item.netProfit : 0);
         return acc;
     }, { cost: 0, sell: 0, cashback: 0, profit: 0 });
-    ppobBody.push([{ content: 'TOTAL', colSpan: 3, styles: { fontStyle: 'bold', halign: 'center' } }, formatToRupiah(ppobTotals.cost), formatToRupiah(ppobTotals.sell), formatToRupiah(ppobTotals.cashback), { content: formatToRupiah(ppobTotals.profit), styles: { fontStyle: 'bold' } }]);
+    ppobBody.push([{ content: 'TOTAL', colSpan: 3, styles: { fontStyle: 'bold', halign: 'center' } }, { content: formatToRupiah(ppobTotals.cost), styles: { fontStyle: 'bold' } }, { content: formatToRupiah(ppobTotals.sell), styles: { fontStyle: 'bold' } }, { content: formatToRupiah(ppobTotals.cashback), styles: { fontStyle: 'bold' } }, { content: formatToRupiah(ppobTotals.profit), styles: { fontStyle: 'bold' } }]);
     finalY = addGridSection('PPOB', [['No', 'Layanan', 'Tujuan', 'Modal', 'Jual', 'Cashback', 'Laba']], ppobBody, finalY, { 
         styles: { fontSize: 7, cellPadding: 1 },
         columnStyles: { 0: { cellWidth: 8 }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } }
     });
     
-    // --- PAGE 3: OPERATIONAL COSTS ---
+    // --- PAGE 3: OPERATIONAL COSTS (PORTRAIT) ---
     if (reportData.operationalCosts.length > 0) {
-        doc.addPage('landscape');
+        doc.addPage(undefined, 'portrait');
         finalY = addReportTitle('Laporan Biaya Operasional', 15);
         const opCostBody = reportData.operationalCosts.map((item, index) => [index + 1, format(item.date, 'dd/MM/yy HH:mm'), item.description, item.source, formatToRupiah(item.amount)]);
         const totalOpCost = reportData.operationalCosts.reduce((sum, item) => sum + item.amount, 0);
@@ -266,9 +265,9 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
         finalY = addGridSection('', [['No', 'Tanggal', 'Deskripsi Biaya', 'Sumber', 'Jumlah']], opCostBody, finalY, { columnStyles: { 0: { cellWidth: 10 }, 4: { halign: 'right' } } });
     }
 
-    // --- PAGE 4: CAPITAL ADDITIONS ---
+    // --- PAGE 4: CAPITAL ADDITIONS (PORTRAIT) ---
     if (reportData.capitalAdditions.length > 0) {
-        doc.addPage('landscape');
+        doc.addPage(undefined, 'portrait');
         finalY = addReportTitle('Laporan Penambahan Modal', 15);
         const capAddBody = reportData.capitalAdditions.map((item, index) => [index + 1, format(item.date, 'dd/MM/yy HH:mm'), item.description, item.account, formatToRupiah(item.amount)]);
         const totalCapAdd = reportData.capitalAdditions.reduce((sum, item) => sum + item.amount, 0);
@@ -283,7 +282,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     setIsDownloading(false);
   };
   
-  const totalGrossProfit = (reportData?.brilinkProfitItems.reduce((s, i) => s + ('netProfit' in i ? i.netProfit : i.serviceFee), 0) || 0) + (reportData?.ppobProfitItems.reduce((s, i) => s + ('profit' in i ? i.profit : i.netProfit), 0) || 0);
+  const totalGrossProfit = (reportData?.brilinkProfitItems.reduce((s, i) => s + ('netProfit' in i ? i.netProfit : i.serviceFee), 0) || 0) + (reportData?.ppobProfitItems.reduce((s, i) => s + ('profit' in i ? i.profit : ('netProfit' in i ? i.netProfit : 0)), 0) || 0);
   const totalOperationalCosts = reportData?.operationalCosts.reduce((sum, item) => sum + item.amount, 0) || 0;
   const netProfit = totalGrossProfit - totalOperationalCosts;
   const totalCapitalAdditions = reportData?.capitalAdditions.reduce((s, i) => s + i.amount, 0) || 0;
@@ -338,7 +337,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
             <div className="space-y-6">
                  <Accordion type="multiple" defaultValue={['daily-report', 'profit-loss', 'operational-cost', 'capital-addition']} className="w-full">
                     <AccordionItem value="daily-report">
-                        <AccordionTrigger className="text-lg font-bold">DAILY REPORT V7.0 - FINAL VERSION</AccordionTrigger>
+                        <AccordionTrigger className="text-lg font-bold">DAILY REPORT V7.0</AccordionTrigger>
                         <AccordionContent className="space-y-4 pt-4">
                             {reportData.dailyReport ? (
                                 <>
@@ -348,7 +347,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
                                     <div className="font-bold flex justify-between border-t pt-2"><span className="pl-2">TOTAL</span><span>{formatToRupiah(reportData.dailyReport.totalAccountBalance)}</span></div>
                                   </div>
                                 </>
-                            ) : <p className="text-sm text-muted-foreground text-center py-4">Tidak ada data Laporan Harian V7.</p>}
+                            ) : <p className="text-sm text-muted-foreground text-center py-4">Tidak ada data Laporan Harian.</p>}
                         </AccordionContent>
                     </AccordionItem>
                     <AccordionItem value="profit-loss">
@@ -360,7 +359,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
                              </div>
                              <h3 className="font-semibold mt-4">PPOB</h3>
                              <div className="text-sm space-y-2">
-                                {reportData.ppobProfitItems.map(item => <div key={item.id} className="flex justify-between"><span className="pl-2">{'serviceName' in item ? item.serviceName : 'PPOB'}</span><span>{formatToRupiah('profit' in item ? item.profit : item.netProfit)}</span></div>)}
+                                {reportData.ppobProfitItems.map(item => <div key={item.id} className="flex justify-between"><span className="pl-2">{'serviceName' in item ? item.serviceName : 'PPOB'}</span><span>{formatToRupiah('profit' in item ? item.profit : ('netProfit' in item ? item.netProfit : 0))}</span></div>)}
                              </div>
                              <div className="flex justify-between font-bold text-base border-t pt-2 mt-2"><span>Total Laba Kotor</span><span>{formatToRupiah(totalGrossProfit)}</span></div>
                         </AccordionContent>
@@ -413,5 +412,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     </div>
   );
 }
+
+    
 
     
