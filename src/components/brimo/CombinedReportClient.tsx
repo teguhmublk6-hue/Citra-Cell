@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon, ArrowLeft, Download, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format, startOfDay, endOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
@@ -44,7 +44,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
   const firestore = useFirestore();
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: new Date(), to: new Date() });
   const [isDownloading, setIsDownloading] = useState(false);
 
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
@@ -61,8 +61,8 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
         setIsLoading(true);
         setReportData(null);
 
-        const dateFrom = startOfDay(dateRange.from);
-        const dateTo = endOfDay(dateRange.to || dateRange.from);
+        const dateFrom = new Date(dateRange.from.setHours(0, 0, 0, 0));
+        const dateTo = dateRange.to ? new Date(dateRange.to.setHours(23, 59, 59, 999)) : new Date(dateRange.from.setHours(23, 59, 59, 999));
         const tsFrom = Timestamp.fromDate(dateFrom);
         const tsTo = Timestamp.fromDate(dateTo);
         
@@ -161,7 +161,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     const { default: autoTable } = await import('jspdf-autotable');
 
     const doc = new jsPDF({ orientation: 'portrait' });
-    const dateFrom = startOfDay(dateRange.from);
+    const dateFrom = new Date(dateRange.from.setHours(0,0,0,0));
     const dateTitle = format(dateFrom, "EEEE, dd MMMM yyyy", { locale: idLocale });
     let finalY = 0;
     
@@ -169,7 +169,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     const reportDate = format(new Date(), "d MMM yyyy, HH:mm:ss");
 
     const addFooter = () => {
-        const pageCount = doc.internal.pages.length - 1; // Correct page count
+        const pageCount = doc.internal.pages.length - 1; 
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
             doc.setFontSize(8);
@@ -219,21 +219,16 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     if (reportData.dailyReport) {
         const report = reportData.dailyReport;
         
-        // A. Saldo Akun
         const sectionA_Body = report.accountSnapshots.map((acc, index) => [index + 1, acc.label, formatToRupiah(acc.balance)]);
         finalY = addGridSection('A. Saldo Akun', [['No', 'Akun', 'Saldo']], sectionA_Body, finalY, { columnStyles: { 0: { cellWidth: 10 }, 2: { halign: 'right' } } });
-        finalY = (doc as any).lastAutoTable.finalY + 4;
 
-        // B. Rotasi Saldo
         const sectionB_Body = [['Saldo Laporan Kemarin', formatToRupiah(report.openingBalanceRotation)], ['Penambahan Modal', formatToRupiah(report.capitalAdditionToday)], [{ content: report.liabilityBeforePayment < 0 ? "LIABILITAS (Kewajiban A)" : "Piutang Pihak A", styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.liabilityBeforePayment), styles: { fontStyle: 'bold' } }], ['Dana Dibayar A ke B', formatToRupiah(report.paymentToPartyB)], [{ content: report.liabilityAfterPayment < 0 ? "LIABILITAS Setelah Bayar" : "Piutang Pihak A Setelah Bayar", styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.liabilityAfterPayment), styles: { fontStyle: 'bold' } }]];
         finalY = addSection('B. Rotasi Saldo', sectionB_Body, finalY);
 
-        // C. Pembelanjaan
         const spendingBody = report.spendingItems?.length > 0 ? report.spendingItems.map(item => [item.description, formatToRupiah(item.amount)]) : [['- Tidak ada pembelanjaan -', '']];
         const sectionC_Body = [...spendingBody, [{ content: 'Total Pembelanjaan', styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.manualSpending), styles: { fontStyle: 'bold' } }], [{ content: 'LIABILITAS FINAL (Untuk Besok)', styles: { fontStyle: 'bold', fillColor: '#fef2f2', textColor: '#ef4444' } }, { content: formatToRupiah(report.finalLiabilityForNextDay), styles: { fontStyle: 'bold', fillColor: '#fef2f2', textColor: '#ef4444' } }]];
         finalY = addGridSection('C. Pembelanjaan', [['Deskripsi', 'Jumlah']], sectionC_Body, finalY, { columnStyles: { 1: { halign: 'right' }} });
 
-        // D, E, F, G...
         const sectionD_Body = [['Aset Aksesoris', formatToRupiah(report.assetAccessories)], ['Aset Perdana', formatToRupiah(report.assetSIMCards)], ['Aset Voucher', formatToRupiah(report.assetVouchers)], [{content: 'TOTAL ASET LANCAR', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.totalCurrentAssets), styles: {fontStyle: 'bold'}}] ];
         finalY = addSection('D. Aset Lancar (Inventaris)', sectionD_Body, finalY);
 
@@ -272,6 +267,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     brilinkBody.push([{ content: 'TOTAL', colSpan: 4, styles: { fontStyle: 'bold', halign: 'center' } }, { content: formatToRupiah(brilinkTotals.nominal), styles: { fontStyle: 'bold', halign: 'right' } }, { content: formatToRupiah(brilinkTotals.admin), styles: { fontStyle: 'bold', halign: 'right' } }, { content: formatToRupiah(brilinkTotals.jasa), styles: { fontStyle: 'bold', halign: 'right' } }, { content: formatToRupiah(brilinkTotals.laba), styles: { fontStyle: 'bold', halign: 'right' } }]);
     finalY = addGridSection('BRILink', [['No', 'Layanan', 'Nama', 'Bank/Tujuan', 'Nominal', 'Admin', 'Jasa', 'Laba']], brilinkBody, finalY, { 
         styles: { fontSize: 7, cellPadding: 1 },
+        margin: { left: pageMargin, right: pageMargin },
         columnStyles: { 0: { cellWidth: 8 }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' } }
     });
 
@@ -292,6 +288,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     ppobBody.push([{ content: 'TOTAL', colSpan: 3, styles: { fontStyle: 'bold', halign: 'center' } }, { content: formatToRupiah(ppobTotals.cost), styles: { fontStyle: 'bold', halign: 'right' } }, { content: formatToRupiah(ppobTotals.sell), styles: { fontStyle: 'bold', halign: 'right' } }, { content: formatToRupiah(ppobTotals.cashback), styles: { fontStyle: 'bold', halign: 'right' } }, { content: formatToRupiah(ppobTotals.profit), styles: { fontStyle: 'bold', halign: 'right' } }]);
     finalY = addGridSection('PPOB', [['No', 'Layanan', 'Tujuan', 'Modal', 'Jual', 'Cashback', 'Laba']], ppobBody, finalY, { 
         styles: { fontSize: 7, cellPadding: 1 },
+        margin: { left: pageMargin, right: pageMargin },
         columnStyles: { 0: { cellWidth: 8 }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } }
     });
     
