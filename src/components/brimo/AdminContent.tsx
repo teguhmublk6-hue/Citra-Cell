@@ -3,7 +3,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, FileText, MessageSquareQuote, DollarSign, Trash2, Tags, Briefcase, TrendingUp, UserCheck, BookOpenCheck } from 'lucide-react';
+import { ChevronRight, FileText, MessageSquareQuote, DollarSign, Trash2, Tags, Briefcase, TrendingUp, UserCheck, BookOpenCheck, Combine } from 'lucide-react';
 
 interface AdminContentProps {
   onProfitLossReportClick: () => void;
@@ -18,12 +18,23 @@ interface AdminContentProps {
   onResetAllAccountsClick: () => void;
   onDailyReportClick: () => void;
   onDailyReportHistoryClick: () => void;
+  onCombinedReportClick: () => void;
 }
 
-export default function AdminContent({ onProfitLossReportClick, onOperationalCostReportClick, onCapitalAdditionReportClick, onShiftReconciliationClick, onShiftReconciliationReportClick, onSetMotivationClick, onManageKasAccountsClick, onManagePPOBPricingClick, onResetReportsClick, onResetAllAccountsClick, onDailyReportClick, onDailyReportHistoryClick }: AdminContentProps) {
+export default function AdminContent({ onProfitLossReportClick, onOperationalCostReportClick, onCapitalAdditionReportClick, onShiftReconciliationClick, onShiftReconciliationReportClick, onSetMotivationClick, onManageKasAccountsClick, onManagePPOBPricingClick, onResetReportsClick, onResetAllAccountsClick, onDailyReportClick, onDailyReportHistoryClick, onCombinedReportClick }: AdminContentProps) {
   return (
     <div className="px-4 py-4">
       <div className="space-y-2">
+           <button
+              onClick={onCombinedReportClick}
+              className="flex items-center justify-between p-4 bg-primary/10 text-primary rounded-xl w-full hover:bg-primary/20 transition-colors"
+          >
+              <div className="flex items-center gap-4">
+                <Combine size={20} />
+                <span className="font-medium">Unduh Laporan Gabungan</span>
+              </div>
+              <ChevronRight size={20} />
+          </button>
            <button 
               onClick={onDailyReportClick}
               className="flex items-center justify-between p-4 bg-card-foreground/5 rounded-xl w-full hover:bg-card-foreground/10 transition-colors"

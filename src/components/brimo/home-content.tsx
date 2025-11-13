@@ -86,6 +86,7 @@ import ShiftReconciliationReport from './ShiftReconciliationReport';
 import DailyReport from './DailyReport';
 import DailyReportHistory from './DailyReportHistory';
 import DailyReportDetail from './DailyReportDetail';
+import CombinedReport from './CombinedReport';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -127,6 +128,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const [isDailyReportVisible, setIsDailyReportVisible] = useState(false);
   const [isDailyReportHistoryVisible, setIsDailyReportHistoryVisible] = useState(false);
   const [selectedDailyReport, setSelectedDailyReport] = useState<DailyReportType | null>(null);
+  const [isCombinedReportVisible, setIsCombinedReportVisible] = useState(false);
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isDeleteReportsDialogOpen, setIsDeleteReportsDialogOpen] = useState(false);
   const [isDeleteAllAccountsDialogOpen, setIsDeleteAllAccountsDialogOpen] = useState(false);
@@ -366,6 +368,10 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     setIsDailyReportHistoryVisible(false); // Hide history to show detail
   };
 
+  const handleCombinedReportClick = () => {
+    setIsCombinedReportVisible(true);
+  };
+
   const handleShiftReconciliationReportClick = () => {
     setIsShiftReconciliationReportVisible(true);
   }
@@ -580,6 +586,10 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     if (selectedDailyReport) {
         return <DailyReportDetail report={selectedDailyReport} onDone={() => setSelectedDailyReport(null)} />;
     }
+
+    if (isCombinedReportVisible) {
+        return <CombinedReport onDone={() => setIsCombinedReportVisible(false)} />;
+    }
     
     if (isSettingsVisible) {
         return <SettingsContent onBack={() => setIsSettingsVisible(false)} />;
@@ -691,6 +701,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                 onResetAllAccountsClick={handleResetAllAccountsClick}
                 onDailyReportClick={handleDailyReportClick}
                 onDailyReportHistoryClick={handleDailyReportHistoryClick}
+                onCombinedReportClick={handleCombinedReportClick}
               />
             </div>
           </div>
@@ -875,5 +886,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     </>
   );
 }
+
 
 
