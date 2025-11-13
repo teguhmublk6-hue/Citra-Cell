@@ -187,27 +187,27 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
         return startY + 14;
     };
     
-    const addSection = (title: string, body: any[], startY: number): number => {
+    const addSection = (title: string, body: any[], startY: number, fontSize: number = 10): number => {
         doc.setFontSize(12);
         doc.text(title, pageMargin, startY);
         autoTable(doc, {
             body: body,
             startY: startY + 2,
             theme: 'plain',
-            styles: { fontSize: 10, cellPadding: 1.5, },
+            styles: { fontSize, cellPadding: 1.5 },
             columnStyles: { 1: { halign: 'right' } },
             margin: { left: pageMargin, right: pageMargin }
         });
         return (doc as any).lastAutoTable.finalY + 8;
     };
     
-    const addGridSection = (title: string, head: any[], body: any[], startY: number, options?: any): number => {
+    const addGridSection = (title: string, head: any[], body: any[], startY: number, options?: any, fontSize: number = 10): number => {
         doc.setFontSize(12);
         doc.text(title, pageMargin, startY);
         autoTable(doc, { 
             head, body, startY: startY + 2, theme: 'grid', 
-            headStyles: { fillColor: '#f1f5f9', textColor: '#000', fontSize: 9, cellPadding: 1.5 }, 
-            styles: { fontSize: 8, cellPadding: 1.5, ...options?.styles },
+            headStyles: { fillColor: '#f1f5f9', textColor: '#000', fontSize: fontSize, cellPadding: 1.5 }, 
+            styles: { fontSize, cellPadding: 1.5, ...options?.styles },
             columnStyles: options?.columnStyles,
             margin: { left: pageMargin, right: pageMargin }
         });
@@ -220,26 +220,26 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
         const report = reportData.dailyReport;
         
         const sectionA_Body = report.accountSnapshots.map((acc, index) => [index + 1, acc.label, formatToRupiah(acc.balance)]);
-        finalY = addGridSection('A. Saldo Akun', [['No', 'Akun', 'Saldo']], sectionA_Body, finalY, { columnStyles: { 0: { cellWidth: 10 }, 2: { halign: 'right' } } });
+        finalY = addGridSection('A. Saldo Akun', [['No', 'Akun', 'Saldo']], sectionA_Body, finalY, { columnStyles: { 0: { cellWidth: 10 }, 2: { halign: 'right' } } }, 10);
 
         const sectionB_Body = [['Saldo Laporan Kemarin', formatToRupiah(report.openingBalanceRotation)], ['Penambahan Modal', formatToRupiah(report.capitalAdditionToday)], [{ content: report.liabilityBeforePayment < 0 ? "LIABILITAS (Kewajiban A)" : "Piutang Pihak A", styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.liabilityBeforePayment), styles: { fontStyle: 'bold' } }], ['Dana Dibayar A ke B', formatToRupiah(report.paymentToPartyB)], [{ content: report.liabilityAfterPayment < 0 ? "LIABILITAS Setelah Bayar" : "Piutang Pihak A Setelah Bayar", styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.liabilityAfterPayment), styles: { fontStyle: 'bold' } }]];
-        finalY = addSection('B. Rotasi Saldo', sectionB_Body, finalY);
+        finalY = addSection('B. Rotasi Saldo', sectionB_Body, finalY, 10);
 
         const spendingBody = report.spendingItems?.length > 0 ? report.spendingItems.map(item => [item.description, formatToRupiah(item.amount)]) : [['- Tidak ada pembelanjaan -', '']];
         const sectionC_Body = [...spendingBody, [{ content: 'Total Pembelanjaan', styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.manualSpending), styles: { fontStyle: 'bold' } }], [{ content: 'LIABILITAS FINAL (Untuk Besok)', styles: { fontStyle: 'bold', fillColor: '#fef2f2', textColor: '#ef4444' } }, { content: formatToRupiah(report.finalLiabilityForNextDay), styles: { fontStyle: 'bold', fillColor: '#fef2f2', textColor: '#ef4444' } }]];
-        finalY = addGridSection('C. Pembelanjaan', [['Deskripsi', 'Jumlah']], sectionC_Body, finalY, { columnStyles: { 1: { halign: 'right' }} });
+        finalY = addGridSection('C. Pembelanjaan', [['Deskripsi', 'Jumlah']], sectionC_Body, finalY, { columnStyles: { 1: { halign: 'right' }} }, 10);
 
         const sectionD_Body = [['Aset Aksesoris', formatToRupiah(report.assetAccessories)], ['Aset Perdana', formatToRupiah(report.assetSIMCards)], ['Aset Voucher', formatToRupiah(report.assetVouchers)], [{content: 'TOTAL ASET LANCAR', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.totalCurrentAssets), styles: {fontStyle: 'bold'}}] ];
-        finalY = addSection('D. Aset Lancar (Inventaris)', sectionD_Body, finalY);
+        finalY = addSection('D. Aset Lancar (Inventaris)', sectionD_Body, finalY, 10);
 
         const sectionE_Body = [['Laba Kotor BRILink', formatToRupiah(report.grossProfitBrilink)], ['Laba Kotor PPOB', formatToRupiah(report.grossProfitPPOB)], ['Laba Kotor POS', formatToRupiah(report.posGrossProfit)], [{content: 'TOTAL LABA KOTOR', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.totalGrossProfit), styles: {fontStyle: 'bold'}}] ];
-        finalY = addSection('E. Laba', sectionE_Body, finalY);
+        finalY = addSection('E. Laba', sectionE_Body, finalY, 10);
 
         const sectionF_Body = [['Kas Laci Kecil', formatToRupiah(report.cashInDrawer)], ['Kas Brankas', formatToRupiah(report.cashInSafe)], [{content: 'Total Kas Fisik', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.totalPhysicalCash), styles: {fontStyle: 'bold'}}], ['Total Saldo Akun', formatToRupiah(report.totalAccountBalance)], ['LIABILITAS FINAL', formatToRupiah(report.finalLiabilityForNextDay)], [{content: 'Total Laba Kotor', styles: {textColor: '#ef4444'}}, {content: `- ${formatToRupiah(report.totalGrossProfit)}`, styles: {textColor: '#ef4444'}}], [{content: 'Potongan Non Profit', styles: {textColor: '#ef4444'}}, {content: `- ${formatToRupiah(report.operationalNonProfit)}`, styles: {textColor: '#ef4444'}}], [{content: 'TOTAL KESELURUHAN', styles: {fontStyle: 'bold', textColor: '#22c55e'}}, {content: formatToRupiah(report.grandTotalBalance), styles: {fontStyle: 'bold', textColor: '#22c55e'}}], ['Aset Lancar', formatToRupiah(report.totalCurrentAssets)], [{content: 'TOTAL KEKAYAAN', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.liquidAccumulation), styles: {fontStyle: 'bold'}}] ];
-        finalY = addSection('F. Timbangan (Neraca)', sectionF_Body, finalY);
+        finalY = addSection('F. Timbangan (Neraca)', sectionF_Body, finalY, 10);
 
         const sectionG_Body = [['Total Biaya Operasional', formatToRupiah(report.operationalCosts)], [{content: 'LABA BERSIH (NETT PROFIT)', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.netProfit), styles: {fontStyle: 'bold'}}] ];
-        finalY = addSection('G. Biaya Operasional', sectionG_Body, finalY);
+        finalY = addSection('G. Biaya Operasional', sectionG_Body, finalY, 10);
 
     } else {
         doc.setFontSize(10); doc.text("Tidak ada data Laporan Harian untuk tanggal ini.", pageMargin, finalY); finalY += 10;
@@ -453,3 +453,5 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     </div>
   );
 }
+
+    
