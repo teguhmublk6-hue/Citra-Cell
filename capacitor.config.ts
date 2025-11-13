@@ -1,13 +1,13 @@
-
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.brimo.app',
-  appName: 'Brimo App',
+  appId: 'com.brimo.enhancer',
+  appName: 'Brimo UI Enhancer',
   webDir: 'out',
   server: {
     androidScheme: 'https'
-  }
+  },
+  bundledWebRuntime: false,
 };
 
 export default config;

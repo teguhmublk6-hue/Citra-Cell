@@ -7,9 +7,17 @@ import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Separator } from '../ui/separator';
 import { ArrowLeft, Download, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+<<<<<<< HEAD
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+=======
+import { useMemo, useRef, useState } from 'react';
+import { format } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+>>>>>>> 47270179c625b8a38256d185cfef579e9c896adf
 
 interface DailyReportDetailClientProps {
   report: DailyReportType;
@@ -26,6 +34,7 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 
 export default function DailyReportDetailClient({ report, onDone }: DailyReportDetailClientProps) {
   const [isDownloading, setIsDownloading] = useState(false);
+<<<<<<< HEAD
 
   const handleDownloadPDF = async () => {
     setIsDownloading(true);
@@ -102,6 +111,27 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
     line('TOTAL KEKAYAAN', formatToRupiah(report.liquidAccumulation), true, report.liquidAccumulation < 0);
 
     doc.save(`Laporan-Harian-${format(reportDate, "yyyy-MM-dd")}.pdf`);
+=======
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadPDF = async () => {
+    if (!reportRef.current) return;
+    setIsDownloading(true);
+
+    const canvas = await html2canvas(reportRef.current, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'px',
+      format: [canvas.width, canvas.height]
+    });
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    const reportDate = (report.date as any).toDate ? (report.date as any).toDate() : new Date(report.date);
+    pdf.save(`Laporan-Harian-${format(reportDate, "yyyy-MM-dd")}.pdf`);
+
+>>>>>>> 47270179c625b8a38256d185cfef579e9c896adf
     setIsDownloading(false);
   };
 
@@ -285,7 +315,11 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
         </Button>
       </header>
       <ScrollArea className="flex-1">
+<<<<<<< HEAD
         <div className="p-6 bg-background space-y-8">
+=======
+        <div ref={reportRef} className="p-6 bg-background space-y-8">
+>>>>>>> 47270179c625b8a38256d185cfef579e9c896adf
             {renderSectionA()}
             <Separator />
             {renderSectionB()}
