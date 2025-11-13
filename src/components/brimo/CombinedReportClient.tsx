@@ -25,7 +25,7 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
     if (value === null || value === undefined || value === '' || isNaN(Number(value))) return 'Rp 0';
     const num = Number(String(value).replace(/[^0-9-]/g, ''));
     const isNegative = num < 0;
-    return `${isNegative ? '-' : ''}Rp ${Math.abs(num).toLocaleString('id-ID')}`;
+    return `${isNegative ? '-Rp ' : 'Rp '}${Math.abs(num).toLocaleString('id-ID')}`;
 };
 
 export default function CombinedReportClient({ onDone }: CombinedReportClientProps) {
@@ -36,9 +36,14 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
 
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
+  
+  const getAccountLabel = (accountId?: string) => {
+    if (!accountId) return 'N/A';
+    return kasAccounts?.find(acc => acc.id === accountId)?.label || accountId;
+  };
 
   const handleDownloadPDF = async () => {
-    if (!firestore || !dateRange?.from) return;
+    if (!firestore || !dateRange?.from || !kasAccounts) return;
     setIsDownloading(true);
 
     const { default: jsPDF } = await import('jspdf');
@@ -48,16 +53,21 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     const dateFrom = startOfDay(dateRange.from);
     const dateTo = endOfDay(dateRange.to || dateRange.from);
     const dateTitle = format(dateFrom, "EEEE, dd MMMM yyyy", { locale: idLocale });
+    let finalY = 0;
 
-    let finalY = 22;
-    
-    // Helper to add title
-    const addReportTitle = (title: string, startY: number) => {
+    const addReportTitle = (title: string, startY: number): number => {
         doc.setFontSize(18);
         doc.text(title, 14, startY);
         doc.setFontSize(10);
         doc.text(dateTitle, 14, startY + 7);
         return startY + 15;
+    };
+    
+    const addGridSection = (title: string, head: any[], body: any[], startY: number): number => {
+        doc.setFontSize(12);
+        doc.text(title, 14, startY);
+        autoTable(doc, { head, body, startY: startY + 2, theme: 'grid', headStyles: { fillColor: '#f1f5f9', textColor: '#000', fontSize: 9 }, styles: { fontSize: 10 }, columnStyles: { 1: { halign: 'right' } } });
+        return (doc as any).lastAutoTable.finalY + 8;
     };
 
     // --- 1. Daily Report V5 ---
@@ -73,17 +83,10 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
         
         if (!dailyReportSnapshot.empty) {
             const report = dailyReportSnapshot.docs[0].data() as DailyReport;
-            // The logic from DailyReportDetailClient's PDF generation
-            const addGridSection = (title: string, head: any[], body: any[], startY: number): number => {
-                doc.setFontSize(12);
-                doc.text(title, 14, startY);
-                autoTable(doc, { head, body, startY: startY + 2, theme: 'grid', headStyles: { fillColor: '#f1f5f9', textColor: '#000' }, styles: { fontSize: 9 } });
-                return (doc as any).lastAutoTable.finalY + 4;
-            };
-
             const sectionA_Body = report.accountSnapshots.map(acc => [acc.label, formatToRupiah(acc.balance)]);
             finalY = addGridSection('A. Saldo Akun', [['Akun', 'Saldo']], sectionA_Body, finalY);
-            // ... (add all other sections A-G for the daily report here)
+            autoTable(doc, { body: [[{ content: 'TOTAL', styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.totalAccountBalance), styles: { fontStyle: 'bold', halign: 'right' } }]], startY: (doc as any).lastAutoTable.finalY, theme: 'grid' });
+            finalY = (doc as any).lastAutoTable.finalY + 8;
         } else {
             doc.setFontSize(10);
             doc.text("Tidak ada data Laporan Harian V5 untuk tanggal ini.", 14, finalY);
@@ -97,21 +100,104 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     doc.addPage();
     try {
         finalY = addReportTitle('Laporan Laba/Rugi', 22);
-        // ... (insert data fetching and table generation for Profit/Loss here)
-        doc.text("Data Laporan Laba/Rugi akan ditampilkan di sini.", 14, finalY);
-        finalY += 10;
+        const brilinkCollections = ['customerTransfers', 'customerWithdrawals', 'customerTopUps', 'customerEmoneyTopUps', 'customerVAPayments', 'edcServices', 'customerKJPWithdrawals'];
+        const ppobCollections = ['ppobTransactions', 'ppobPlnPostpaid', 'ppobPdam', 'ppobBpjs', 'ppobWifi'];
+        
+        let totalBrilinkProfit = 0;
+        let totalPPOBProfit = 0;
 
+        for (const col of brilinkCollections) {
+            const q = query(collection(firestore, col), where('date', '>=', Timestamp.fromDate(dateFrom)), where('date', '<=', Timestamp.fromDate(dateTo)));
+            const snapshot = await getDocs(q);
+            snapshot.forEach(doc => { totalBrilinkProfit += (doc.data().netProfit ?? doc.data().serviceFee ?? 0); });
+        }
+        for (const col of ppobCollections) {
+            const q = query(collection(firestore, col), where('date', '>=', Timestamp.fromDate(dateFrom)), where('date', '<=', Timestamp.fromDate(dateTo)));
+            const snapshot = await getDocs(q);
+            snapshot.forEach(doc => { totalPPOBProfit += (doc.data().profit ?? doc.data().netProfit ?? 0); });
+        }
+
+        autoTable(doc, {
+            head: [['Deskripsi', 'Total Laba']],
+            body: [
+                ['BRILink', formatToRupiah(totalBrilinkProfit)],
+                ['PPOB', formatToRupiah(totalPPOBProfit)],
+                [{ content: 'TOTAL LABA KOTOR', styles: { fontStyle: 'bold' } }, { content: formatToRupiah(totalBrilinkProfit + totalPPOBProfit), styles: { fontStyle: 'bold' } }]
+            ],
+            startY: finalY,
+            theme: 'grid',
+            columnStyles: { 1: { halign: 'right' } }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 8;
     } catch (e) { console.error("Error generating P/L Report part:", e); }
     
     // --- 3. Capital Addition Report ---
     doc.addPage();
     try {
         finalY = addReportTitle('Laporan Penambahan Saldo', 22);
-        // ... (insert data fetching and table generation for Capital Additions here)
-        doc.text("Data Laporan Penambahan Saldo akan ditampilkan di sini.", 14, finalY);
-        finalY += 10;
+        let capitalAdditions = 0;
+        let capitalBody: any[] = [];
+
+        for (const account of kasAccounts) {
+            const transQuery = query(collection(firestore, 'kasAccounts', account.id, 'transactions'), where('category', '==', 'capital'), where('date', '>=', dateFrom.toISOString()), where('date', '<=', dateTo.toISOString()));
+            const transSnapshot = await getDocs(transQuery);
+            transSnapshot.forEach(docSnap => {
+                const trx = docSnap.data() as Transaction;
+                if (trx.type === 'credit') {
+                    capitalAdditions += trx.amount;
+                    capitalBody.push([format(new Date(trx.date), 'dd/MM HH:mm'), trx.name, account.label, formatToRupiah(trx.amount)]);
+                }
+            });
+        }
+        autoTable(doc, {
+            head: [['Tanggal', 'Deskripsi', 'Ke Akun', 'Jumlah']],
+            body: capitalBody,
+            startY: finalY,
+            theme: 'grid',
+            columnStyles: { 3: { halign: 'right' } }
+        });
+        autoTable(doc, { body: [[{ content: 'TOTAL', colSpan: 3, styles: { fontStyle: 'bold' } }, { content: formatToRupiah(capitalAdditions), styles: { fontStyle: 'bold', halign: 'right' } }]], startY: (doc as any).lastAutoTable.finalY, theme: 'grid' });
+        finalY = (doc as any).lastAutoTable.finalY + 8;
 
     } catch (e) { console.error("Error generating Capital Addition Report part:", e); }
+
+    // --- 4. Operational Cost Report ---
+    doc.addPage();
+    try {
+        finalY = addReportTitle('Laporan Biaya Operasional', 22);
+        let totalCosts = 0;
+        let costBody: any[] = [];
+        const feeCategories = ['operational', 'operational_fee', 'transfer_fee'];
+
+        const settlementsQuery = query(collection(firestore, 'settlements'), where('date', '>=', Timestamp.fromDate(dateFrom)), where('date', '<=', Timestamp.fromDate(dateTo)));
+        const settlementsSnapshot = await getDocs(settlementsQuery);
+        settlementsSnapshot.forEach(docSnap => {
+            const data = docSnap.data() as Settlement;
+            if (data.mdrFee > 0) {
+                totalCosts += data.mdrFee;
+                costBody.push([format((data.date as any).toDate(), 'dd/MM HH:mm'), `Biaya MDR Settlement dari ${getAccountLabel(data.sourceMerchantAccountId)}`, formatToRupiah(data.mdrFee)]);
+            }
+        });
+        for (const account of kasAccounts) {
+            const transQuery = query(collection(firestore, 'kasAccounts', account.id, 'transactions'), where('category', 'in', feeCategories), where('date', '>=', dateFrom.toISOString()), where('date', '<=', dateTo.toISOString()));
+            const transSnapshot = await getDocs(transQuery);
+            transSnapshot.forEach(docSnap => {
+                const trx = docSnap.data() as Transaction;
+                totalCosts += trx.amount;
+                costBody.push([format(new Date(trx.date), 'dd/MM HH:mm'), trx.name, formatToRupiah(trx.amount)]);
+            });
+        }
+        autoTable(doc, {
+            head: [['Tanggal', 'Deskripsi', 'Jumlah']],
+            body: costBody,
+            startY: finalY,
+            theme: 'grid',
+            columnStyles: { 2: { halign: 'right' } }
+        });
+         autoTable(doc, { body: [[{ content: 'TOTAL BIAYA', colSpan: 2, styles: { fontStyle: 'bold' } }, { content: formatToRupiah(totalCosts), styles: { fontStyle: 'bold', halign: 'right' } }]], startY: (doc as any).lastAutoTable.finalY, theme: 'grid' });
+        finalY = (doc as any).lastAutoTable.finalY + 8;
+    } catch (e) { console.error("Error generating OpCost Report part:", e); }
+
 
     // --- Finalize PDF ---
     const pdfOutput = doc.output('datauristring');
