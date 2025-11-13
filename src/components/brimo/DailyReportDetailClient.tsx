@@ -56,7 +56,7 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
             body: body,
             startY: startY + 2,
             theme: 'plain',
-            styles: { fontSize: 9 },
+            styles: { fontSize: 10 },
             columnStyles: { 1: { halign: 'right' } }
         });
         return (doc as any).lastAutoTable.finalY + 8;
@@ -71,7 +71,7 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
             startY: startY + 2,
             theme: 'grid',
             headStyles: { fillColor: [241, 245, 249], textColor: [0,0,0], fontSize: 9 },
-            styles: { fontSize: 9 },
+            styles: { fontSize: 10 },
             columnStyles: { 1: { halign: 'right' } }
         });
         return (doc as any).lastAutoTable.finalY + 8;
@@ -80,9 +80,16 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
     // A. Saldo Akun
     const sectionA_Body = [
         ...report.accountSnapshots.map(acc => [acc.label, formatToRupiah(acc.balance)]),
-        [{ content: 'TOTAL SALDO AKUN', styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.totalAccountBalance), styles: { fontStyle: 'bold', halign: 'right' } }]
     ];
-    finalY = addSection('A. Saldo Akun', sectionA_Body, finalY);
+    finalY = addGridSection('A. Saldo Akun', [['Akun', 'Saldo']], sectionA_Body, finalY);
+    autoTable(doc, {
+      body: [[{ content: 'TOTAL SALDO AKUN', styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.totalAccountBalance), styles: { fontStyle: 'bold', halign: 'right' } }]],
+      startY: (doc as any).lastAutoTable.finalY,
+      theme: 'grid',
+      styles: { fontSize: 10 }
+    });
+    finalY = (doc as any).lastAutoTable.finalY + 8;
+
 
     // B. Rotasi Saldo
     const sectionB_Body = [
@@ -103,7 +110,7 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
         [{ content: 'Total Pembelanjaan', styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.manualSpending), styles: { fontStyle: 'bold' } }],
         [{ content: 'LIABILITAS FINAL (Untuk Besok)', styles: { fontStyle: 'bold', fillColor: '#fef2f2', textColor: '#ef4444' } }, { content: formatToRupiah(report.finalLiabilityForNextDay), styles: { fontStyle: 'bold', fillColor: '#fef2f2', textColor: '#ef4444' } }],
     ];
-    finalY = addGridSection('C. Pembelanjaan', [], sectionC_Body, finalY);
+    finalY = addGridSection('C. Pembelanjaan', [['Deskripsi', 'Jumlah']], sectionC_Body, finalY);
 
     // D. Aset Lancar
     const sectionD_Body = [
@@ -218,7 +225,7 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
                     <span>{formatToRupiah(report.openingBalanceRotation)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Permintaan Penambahan Modal</span>
+                    <span className="text-muted-foreground">Penambahan Modal</span>
                     <span>{formatToRupiah(report.capitalAdditionToday)}</span>
                 </div>
                 <div className="flex justify-between items-center font-bold">
