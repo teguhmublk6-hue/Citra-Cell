@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from '@/components/ui/button';
@@ -10,8 +11,6 @@ import { cn } from '@/lib/utils';
 import { useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 interface DailyReportDetailClientProps {
   report: DailyReportType;
@@ -34,6 +33,9 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
     if (!reportRef.current) return;
     setIsDownloading(true);
 
+    const { default: jsPDF } = await import('jspdf');
+    const { default: html2canvas } = await import('html2canvas');
+
     const canvas = await html2canvas(reportRef.current, { scale: 2 });
     const imgData = canvas.toDataURL('image/png');
     
@@ -44,8 +46,13 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
     });
     
     pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-    const reportDate = (report.date as any).toDate ? (report.date as any).toDate() : new Date(report.date);
-    pdf.save(`Laporan-Harian-${format(reportDate, "yyyy-MM-dd")}.pdf`);
+    const pdfOutput = doc.output('datauristring');
+    const pdfWindow = window.open();
+    if (pdfWindow) {
+        pdfWindow.document.write(`<iframe width='100%' height='100%' src='${pdfOutput}'></iframe>`);
+    } else {
+        alert('Gagal membuka jendela baru. Mohon izinkan pop-up untuk situs ini.');
+    }
 
     setIsDownloading(false);
   };

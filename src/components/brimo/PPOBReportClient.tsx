@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -203,8 +204,13 @@ export default function PPOBReportClient({ onDone }: PPOBReportProps) {
         }
     });
 
-    const pdfFilename = `Laporan-PPOB-${dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'all'}.pdf`;
-    doc.save(pdfFilename);
+    const pdfOutput = doc.output('datauristring');
+    const pdfWindow = window.open();
+    if (pdfWindow) {
+        pdfWindow.document.write(`<iframe width='100%' height='100%' src='${pdfOutput}'></iframe>`);
+    } else {
+        alert('Gagal membuka jendela baru. Mohon izinkan pop-up untuk situs ini.');
+    }
     setIsDownloading(false);
   };
 

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -141,12 +142,17 @@ export default function CapitalAdditionReportClient({ onDone }: CapitalAdditionR
             doc.text('Total Penambahan Saldo:', 14, finalY + 10);
             doc.setFontSize(12);
             doc.setFont('helvetica', 'bold');
-            doc.text(formatToRupiah(totalAddition), data.settings.margin.left + 100, finalY + 10, { align: 'right' });
+            doc.text(formatToRupiah(totalAddition), (doc as any).internal.pageSize.getWidth() - 14, finalY + 10, { align: 'right' });
         }
     });
   
-    const pdfFilename = `Laporan-Tambah-Saldo-${dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : 'all'}.pdf`;
-    doc.save(pdfFilename);
+    const pdfOutput = doc.output('datauristring');
+    const pdfWindow = window.open();
+    if (pdfWindow) {
+        pdfWindow.document.write(`<iframe width='100%' height='100%' src='${pdfOutput}'></iframe>`);
+    } else {
+        alert('Gagal membuka jendela baru. Mohon izinkan pop-up untuk situs ini.');
+    }
     setIsDownloading(false);
   };
   
