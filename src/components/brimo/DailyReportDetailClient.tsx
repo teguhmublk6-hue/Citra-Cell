@@ -30,22 +30,125 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
   const reportRef = useRef<HTMLDivElement>(null);
 
   const handleDownloadPDF = async () => {
-    if (!reportRef.current) return;
+    if (!report) return;
     setIsDownloading(true);
 
     const { default: jsPDF } = await import('jspdf');
-    const { default: html2canvas } = await import('html2canvas');
+    const { default: autoTable } = await import('jspdf-autotable');
 
-    const canvas = await html2canvas(reportRef.current, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'px',
-      format: [canvas.width, canvas.height]
+    const doc = new jsPDF();
+    let finalY = 14; // Initial Y position
+
+    // === HEADER ===
+    const reportDate = (report.date as any).toDate ? (report.date as any).toDate() : new Date(report.date);
+    const dateTitle = format(reportDate, "EEEE, dd MMMM yyyy", { locale: idLocale });
+    doc.setFontSize(16);
+    doc.text('Detail Laporan Harian', 14, finalY);
+    finalY += 8;
+    doc.setFontSize(10);
+    doc.text(dateTitle, 14, finalY);
+    finalY += 10;
+
+    // === SECTION A: Saldo Akun ===
+    doc.setFontSize(12);
+    doc.text('A. Saldo Akun', 14, finalY);
+    finalY += 2;
+    autoTable(doc, {
+      body: [
+        ...report.accountSnapshots.map(acc => [acc.label, formatToRupiah(acc.balance)]),
+        [{ content: 'TOTAL SALDO AKUN', styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.totalAccountBalance), styles: { fontStyle: 'bold', halign: 'right' } }]
+      ],
+      startY: finalY,
+      theme: 'plain',
+      styles: { fontSize: 9 },
     });
+    finalY = (doc as any).lastAutoTable.finalY + 10;
     
-    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    // === SECTION B: Rotasi Saldo ===
+    doc.text('B. Rotasi Saldo', 14, finalY);
+    finalY += 2;
+    autoTable(doc, {
+      body: [
+        ['Saldo Laporan Kemarin', formatToRupiah(report.openingBalanceRotation)],
+        ['Penambahan Modal', formatToRupiah(report.capitalAdditionToday)],
+        [{ content: report.liabilityBeforePayment < 0 ? "LIABILITAS (Kewajiban A)" : "Piutang Pihak A", styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.liabilityBeforePayment), styles: { fontStyle: 'bold' } }],
+        ['Dana Dibayar A ke B', formatToRupiah(report.paymentToPartyB)],
+        [{ content: report.liabilityAfterPayment < 0 ? "LIABILITAS Setelah Bayar" : "Piutang Pihak A Setelah Bayar", styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.liabilityAfterPayment), styles: { fontStyle: 'bold' } }],
+      ],
+      startY: finalY,
+      theme: 'plain',
+      styles: { fontSize: 9 },
+      columnStyles: { 1: { halign: 'right' } }
+    });
+    finalY = (doc as any).lastAutoTable.finalY + 10;
+    
+    // === SECTION C: Pembelanjaan ===
+    doc.text('C. Pembelanjaan', 14, finalY);
+    finalY += 2;
+    const spendingBody = report.spendingItems?.length > 0
+      ? report.spendingItems.map(item => [item.description, formatToRupiah(item.amount)])
+      : [['- Tidak ada pembelanjaan -', '']];
+    autoTable(doc, {
+      body: [
+        ...spendingBody,
+        [{ content: 'Total Pembelanjaan', styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.manualSpending), styles: { fontStyle: 'bold' } }],
+        [{ content: 'LIABILITAS FINAL (Untuk Besok)', styles: { fontStyle: 'bold', fillColor: '#fef2f2', textColor: '#ef4444' } }, { content: formatToRupiah(report.finalLiabilityForNextDay), styles: { fontStyle: 'bold', fillColor: '#fef2f2', textColor: '#ef4444' } }],
+      ],
+      startY: finalY,
+      theme: 'grid',
+      headStyles: { fillColor: [241, 245, 249] },
+      styles: { fontSize: 9 },
+      columnStyles: { 1: { halign: 'right' } }
+    });
+    finalY = (doc as any).lastAutoTable.finalY + 10;
+    
+    // Use jspdf's page split functionality for second half
+    if (finalY > 260) { // Check if we need a new page
+        doc.addPage();
+        finalY = 20;
+    }
+
+    // === SECTION D, E, F, G ===
+    let startYForSecondColumn = finalY;
+    
+    doc.text('D. Aset Lancar (Inventaris)', 14, startYForSecondColumn);
+    startYForSecondColumn += 2;
+    autoTable(doc, { body: [['Aset Aksesoris', formatToRupiah(report.assetAccessories)], ['Aset Perdana', formatToRupiah(report.assetSIMCards)], ['Aset Voucher', formatToRupiah(report.assetVouchers)], [{content: 'TOTAL ASET LANCAR', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.totalCurrentAssets), styles: {fontStyle: 'bold'}}]], startY: startYForSecondColumn, theme: 'plain', styles: { fontSize: 9 }, columnStyles: { 1: { halign: 'right' } } });
+    startYForSecondColumn = (doc as any).lastAutoTable.finalY + 10;
+    
+    doc.text('E. Laba', 14, startYForSecondColumn);
+    startYForSecondColumn += 2;
+    autoTable(doc, { body: [['Laba Kotor BRILink', formatToRupiah(report.grossProfitBrilink)], ['Laba Kotor PPOB', formatToRupiah(report.grossProfitPPOB)], ['Laba Kotor POS', formatToRupiah(report.posGrossProfit)], [{content: 'TOTAL LABA KOTOR', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.totalGrossProfit), styles: {fontStyle: 'bold'}}]], startY: startYForSecondColumn, theme: 'plain', styles: { fontSize: 9 }, columnStyles: { 1: { halign: 'right' } } });
+    startYForSecondColumn = (doc as any).lastAutoTable.finalY + 10;
+    
+    doc.text('G. Biaya Operasional', 14, startYForSecondColumn);
+    startYForSecondColumn += 2;
+    autoTable(doc, { body: [['Total Biaya Operasional', formatToRupiah(report.operationalCosts)], [{content: 'LABA BERSIH (NETT PROFIT)', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.netProfit), styles: {fontStyle: 'bold'}}]], startY: startYForSecondColumn, theme: 'plain', styles: { fontSize: 9 }, columnStyles: { 1: { halign: 'right' } } });
+    startYForSecondColumn = (doc as any).lastAutoTable.finalY + 10;
+    
+    // === Section F - Timbangan ===
+    doc.text('F. Timbangan (Neraca)', 105, finalY, { align: 'left' });
+    finalY += 2;
+    autoTable(doc, { 
+      body: [
+        ['Kas Laci Kecil', formatToRupiah(report.cashInDrawer)],
+        ['Kas Brankas', formatToRupiah(report.cashInSafe)],
+        [{content: 'Total Kas Fisik', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.totalPhysicalCash), styles: {fontStyle: 'bold'}}],
+        ['Total Saldo Akun', formatToRupiah(report.totalAccountBalance)],
+        ['LIABILITAS FINAL', formatToRupiah(report.finalLiabilityForNextDay)],
+        [{content: 'Total Laba Kotor', styles: {textColor: '#ef4444'}}, {content: `- ${formatToRupiah(report.totalGrossProfit)}`, styles: {textColor: '#ef4444'}}],
+        [{content: 'Potongan Non Profit', styles: {textColor: '#ef4444'}}, {content: `- ${formatToRupiah(report.operationalNonProfit)}`, styles: {textColor: '#ef4444'}}],
+        [{content: 'TOTAL KESELURUHAN', styles: {fontStyle: 'bold', textColor: '#22c55e'}}, {content: formatToRupiah(report.grandTotalBalance), styles: {fontStyle: 'bold', textColor: '#22c55e'}}],
+        ['Aset Lancar', formatToRupiah(report.totalCurrentAssets)],
+        [{content: 'TOTAL KEKAYAAN', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.liquidAccumulation), styles: {fontStyle: 'bold'}}],
+      ], 
+      startY: finalY, 
+      theme: 'plain', 
+      styles: { fontSize: 9 }, 
+      columnStyles: { 1: { halign: 'right' } },
+      margin: { left: 105 }
+    });
+
     const pdfOutput = doc.output('datauristring');
     const pdfWindow = window.open();
     if (pdfWindow) {
@@ -244,13 +347,16 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
             <Separator />
             {renderSectionC()}
             <Separator />
-            {renderSectionD()}
-            <Separator />
-            {renderSectionE()}
-            <Separator />
-            {renderSectionF()}
-            <Separator />
-            {renderSectionG()}
+            <div className="grid md:grid-cols-2 gap-8">
+              <div>
+                {renderSectionD()}
+                <Separator className="my-8" />
+                {renderSectionE()}
+                <Separator className="my-8" />
+                {renderSectionG()}
+              </div>
+              {renderSectionF()}
+            </div>
         </div>
       </ScrollArea>
     </div>
