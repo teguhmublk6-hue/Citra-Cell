@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '../ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Separator } from '../ui/separator';
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '../ui/table';
 
 interface CombinedReportClientProps {
   onDone: () => void;
@@ -72,7 +73,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
 
             // 2. Profit/Loss Data
             const brilinkCollections = ['customerTransfers', 'customerWithdrawals', 'customerTopUps', 'customerEmoneyTopUps', 'customerVAPayments', 'edcServices', 'customerKJPWithdrawals'];
-            const ppobCollections = ['ppobTransactions', 'ppobPlnPostpaid', 'ppobPdam', 'ppobBpjs', 'ppobWifi'];
+            const ppobCollections = ['ppobTransactions', 'ppobPlnPostpaid', 'ppobPdam', 'ppobBpjs', 'ppobWifi', 'ppobPaketTelpon'];
             
             let brilinkProfit = 0;
             let ppobProfit = 0;
@@ -128,6 +129,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
             setIsLoading(false);
         }
     };
+    
     fetchAllData();
   }, [firestore, dateRange, kasAccounts]);
 
@@ -152,10 +154,10 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
         return startY + 15;
     };
     
-    const addGridSection = (title: string, head: any[], body: any[], startY: number): number => {
+    const addGridSection = (title: string, head: any[], body: any[], startY: number, columnStyles?: any): number => {
         doc.setFontSize(12);
         doc.text(title, 14, startY);
-        autoTable(doc, { head, body, startY: startY + 2, theme: 'grid', headStyles: { fillColor: '#f1f5f9', textColor: '#000', fontSize: 9 }, styles: { fontSize: 10 }, columnStyles: { 1: { halign: 'right' } } });
+        autoTable(doc, { head, body, startY: startY + 2, theme: 'grid', headStyles: { fillColor: '#f1f5f9', textColor: '#000', fontSize: 9 }, styles: { fontSize: 9 }, columnStyles: columnStyles || { 1: { halign: 'right' } } });
         return (doc as any).lastAutoTable.finalY + 8;
     };
 
@@ -166,7 +168,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
             const report = reportData.dailyReport;
             const sectionA_Body = report.accountSnapshots.map(acc => [acc.label, formatToRupiah(acc.balance)]);
             finalY = addGridSection('A. Saldo Akun', [['Akun', 'Saldo']], sectionA_Body, finalY);
-            autoTable(doc, { body: [[{ content: 'TOTAL', styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.totalAccountBalance), styles: { fontStyle: 'bold', halign: 'right' } }]], startY: (doc as any).lastAutoTable.finalY, theme: 'grid' });
+            autoTable(doc, { body: [[{ content: 'TOTAL', styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.totalAccountBalance), styles: { fontStyle: 'bold', halign: 'right' } }]], startY: (doc as any).lastAutoTable.finalY, theme: 'grid', styles: {fontSize: 9} });
             finalY = (doc as any).lastAutoTable.finalY + 8;
         } else {
             doc.setFontSize(10);
@@ -192,6 +194,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
             ],
             startY: finalY,
             theme: 'grid',
+            styles: {fontSize: 9},
             columnStyles: { 1: { halign: 'right' } }
         });
         finalY = (doc as any).lastAutoTable.finalY + 8;
@@ -204,15 +207,9 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
         const { capitalAdditions } = reportData;
         let capitalBody: any[] = capitalAdditions.length > 0 ? capitalAdditions.map(trx => [format(trx.date, 'dd/MM HH:mm'), trx.description, trx.account, formatToRupiah(trx.amount)]) : [['Tidak ada data', '', '', '']];
         
-        autoTable(doc, {
-            head: [['Tanggal', 'Deskripsi', 'Ke Akun', 'Jumlah']],
-            body: capitalBody,
-            startY: finalY,
-            theme: 'grid',
-            columnStyles: { 3: { halign: 'right' } }
-        });
+        finalY = addGridSection('Penambahan Saldo', [['Tanggal', 'Deskripsi', 'Ke Akun', 'Jumlah']], capitalBody, finalY, { 3: { halign: 'right' } });
         const totalCapitalAdditions = capitalAdditions.reduce((sum, trx) => sum + trx.amount, 0);
-        autoTable(doc, { body: [[{ content: 'TOTAL', colSpan: 3, styles: { fontStyle: 'bold' } }, { content: formatToRupiah(totalCapitalAdditions), styles: { fontStyle: 'bold', halign: 'right' } }]], startY: (doc as any).lastAutoTable.finalY, theme: 'grid' });
+        autoTable(doc, { body: [[{ content: 'TOTAL', colSpan: 3, styles: { fontStyle: 'bold' } }, { content: formatToRupiah(totalCapitalAdditions), styles: { fontStyle: 'bold', halign: 'right' } }]], startY: (doc as any).lastAutoTable.finalY, theme: 'grid', styles: {fontSize: 9} });
         finalY = (doc as any).lastAutoTable.finalY + 8;
 
     } catch (e) { console.error("Error generating Capital Addition Report part:", e); }
@@ -224,15 +221,9 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
         const { operationalCosts } = reportData;
         let costBody: any[] = operationalCosts.length > 0 ? operationalCosts.map(trx => [format(trx.date, 'dd/MM HH:mm'), trx.description, formatToRupiah(trx.amount)]) : [['Tidak ada data', '', '']];
 
-        autoTable(doc, {
-            head: [['Tanggal', 'Deskripsi', 'Jumlah']],
-            body: costBody,
-            startY: finalY,
-            theme: 'grid',
-            columnStyles: { 2: { halign: 'right' } }
-        });
+        finalY = addGridSection('Biaya Operasional', [['Tanggal', 'Deskripsi', 'Jumlah']], costBody, finalY, { 2: { halign: 'right' } });
         const totalCosts = operationalCosts.reduce((sum, trx) => sum + trx.amount, 0);
-        autoTable(doc, { body: [[{ content: 'TOTAL BIAYA', colSpan: 2, styles: { fontStyle: 'bold' } }, { content: formatToRupiah(totalCosts), styles: { fontStyle: 'bold', halign: 'right' } }]], startY: (doc as any).lastAutoTable.finalY, theme: 'grid' });
+        autoTable(doc, { body: [[{ content: 'TOTAL BIAYA', colSpan: 2, styles: { fontStyle: 'bold' } }, { content: formatToRupiah(totalCosts), styles: { fontStyle: 'bold', halign: 'right' } }]], startY: (doc as any).lastAutoTable.finalY, theme: 'grid', styles: {fontSize: 9} });
         finalY = (doc as any).lastAutoTable.finalY + 8;
     } catch (e) { console.error("Error generating OpCost Report part:", e); }
 
@@ -267,7 +258,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
             <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
               <CalendarIcon className="mr-2 h-4 w-4" />
               {dateRange?.from ? (
-                dateRange.to ? (
+                dateRange.to && dateRange.from !== dateRange.to ? (
                   <>
                     {format(dateRange.from, "d MMMM yyyy", { locale: idLocale })} - {format(dateRange.to, "d MMMM yyyy", { locale: idLocale })}
                   </>
@@ -302,17 +293,44 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
         {!isLoading && reportData && (
             <div className="space-y-6">
                 <Card>
-                    <CardHeader><CardTitle>Ringkasan Laba Kotor</CardTitle></CardHeader>
+                    <CardHeader><CardTitle className="text-base">Laporan Harian V5</CardTitle></CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                        {reportData.dailyReport ? (
+                            <Table>
+                                <TableBody>
+                                    <TableRow><TableCell>Total Saldo Akun</TableCell><TableCell className="text-right">{formatToRupiah(reportData.dailyReport.totalAccountBalance)}</TableCell></TableRow>
+                                    <TableRow><TableCell>Liabilitas Final (Untuk Besok)</TableCell><TableCell className="text-right">{formatToRupiah(reportData.dailyReport.finalLiabilityForNextDay)}</TableCell></TableRow>
+                                    <TableRow><TableCell>Total Aset Lancar</TableCell><TableCell className="text-right">{formatToRupiah(reportData.dailyReport.totalCurrentAssets)}</TableCell></TableRow>
+                                    <TableRow><TableCell>Total Kas Fisik</TableCell><TableCell className="text-right">{formatToRupiah(reportData.dailyReport.totalPhysicalCash)}</TableCell></TableRow>
+                                </TableBody>
+                            </Table>
+                        ) : <p className="text-sm text-muted-foreground text-center py-4">Tidak ada data Laporan Harian V5.</p>}
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader><CardTitle className="text-base">Laporan Laba/Rugi</CardTitle></CardHeader>
                     <CardContent className="space-y-2 text-sm">
                         <div className="flex justify-between"><span>Laba BRILink</span><span>{formatToRupiah(reportData.brilinkProfit)}</span></div>
                         <div className="flex justify-between"><span>Laba PPOB</span><span>{formatToRupiah(reportData.ppobProfit)}</span></div>
                         <div className="flex justify-between"><span>Laba POS (Manual)</span><span>{formatToRupiah(reportData.dailyReport?.posGrossProfit)}</span></div>
                         <Separator className="my-2"/>
-                        <div className="flex justify-between font-bold text-base"><span>Total Laba Kotor</span><span>{formatToRupiah(totalGrossProfit)}</span></div>
+                        <div className="flex justify-between font-bold"><span>Total Laba Kotor</span><span>{formatToRupiah(totalGrossProfit)}</span></div>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader><CardTitle>Ringkasan Laba Bersih</CardTitle></CardHeader>
+                    <CardHeader><CardTitle className="text-base">Laporan Biaya Operasional</CardTitle></CardHeader>
+                     <CardContent>
+                        {reportData.operationalCosts.length > 0 ? (
+                            <ul className="space-y-2 text-sm">
+                                {reportData.operationalCosts.map((item, i) => <li key={i} className="flex justify-between"><span>{item.description}</span><span className="text-destructive">- {formatToRupiah(item.amount)}</span></li>)}
+                            </ul>
+                        ) : <p className="text-sm text-muted-foreground text-center py-4">Tidak ada biaya operasional.</p>}
+                        <Separator className="my-2"/>
+                        <div className="flex justify-between font-bold"><span>Total Biaya</span><span className="text-destructive">{formatToRupiah(totalOperationalCosts)}</span></div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader><CardTitle className="text-base">Ringkasan Laba Bersih</CardTitle></CardHeader>
                     <CardContent className="space-y-2 text-sm">
                         <div className="flex justify-between"><span>Total Laba Kotor</span><span>{formatToRupiah(totalGrossProfit)}</span></div>
                         <div className="flex justify-between text-destructive"><span>Total Biaya Operasional</span><span>- {formatToRupiah(totalOperationalCosts)}</span></div>
@@ -321,15 +339,15 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader><CardTitle>Ringkasan Penambahan Modal</CardTitle></CardHeader>
+                    <CardHeader><CardTitle className="text-base">Laporan Penambahan Modal</CardTitle></CardHeader>
                     <CardContent>
                         {reportData.capitalAdditions.length > 0 ? (
                             <ul className="space-y-2 text-sm">
-                                {reportData.capitalAdditions.map((item, i) => <li key={i} className="flex justify-between"><span>{item.description}</span><span>{formatToRupiah(item.amount)}</span></li>)}
+                                {reportData.capitalAdditions.map((item, i) => <li key={i} className="flex justify-between"><span>{item.description} ({item.account})</span><span>{formatToRupiah(item.amount)}</span></li>)}
                             </ul>
-                        ) : <p className="text-sm text-muted-foreground">Tidak ada penambahan modal.</p>}
+                        ) : <p className="text-sm text-muted-foreground text-center py-4">Tidak ada penambahan modal.</p>}
                         <Separator className="my-2"/>
-                        <div className="flex justify-between font-bold text-base"><span>Total</span><span>{formatToRupiah(reportData.capitalAdditions.reduce((s, i) => s + i.amount, 0))}</span></div>
+                        <div className="flex justify-between font-bold"><span>Total Tambah Modal</span><span>{formatToRupiah(reportData.capitalAdditions.reduce((s, i) => s + i.amount, 0))}</span></div>
                     </CardContent>
                 </Card>
             </div>
@@ -349,6 +367,3 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     </div>
   );
 }
-
-
-    
