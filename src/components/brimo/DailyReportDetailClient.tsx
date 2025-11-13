@@ -37,7 +37,7 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
     const { default: autoTable } = await import('jspdf-autotable');
 
     const doc = new jsPDF();
-    let finalY = 14; // Initial Y position
+    let finalY = 14; 
 
     // === HEADER ===
     const reportDate = (report.date as any).toDate ? (report.date as any).toDate() : new Date(report.date);
@@ -49,88 +49,82 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
     doc.text(dateTitle, 14, finalY);
     finalY += 10;
 
-    // === SECTION A: Saldo Akun ===
-    doc.setFontSize(12);
-    doc.text('A. Saldo Akun', 14, finalY);
-    finalY += 2;
-    autoTable(doc, {
-      body: [
+    const addSection = (title: string, body: any[], startY: number): number => {
+        doc.setFontSize(12);
+        doc.text(title, 14, startY);
+        autoTable(doc, {
+            body: body,
+            startY: startY + 2,
+            theme: 'plain',
+            styles: { fontSize: 9 },
+            columnStyles: { 1: { halign: 'right' } }
+        });
+        return (doc as any).lastAutoTable.finalY + 8;
+    };
+    
+    const addGridSection = (title: string, head: any[], body: any[], startY: number): number => {
+        doc.setFontSize(12);
+        doc.text(title, 14, startY);
+        autoTable(doc, {
+            head: head,
+            body: body,
+            startY: startY + 2,
+            theme: 'grid',
+            headStyles: { fillColor: [241, 245, 249], textColor: [0,0,0], fontSize: 9 },
+            styles: { fontSize: 9 },
+            columnStyles: { 1: { halign: 'right' } }
+        });
+        return (doc as any).lastAutoTable.finalY + 8;
+    };
+
+    // A. Saldo Akun
+    const sectionA_Body = [
         ...report.accountSnapshots.map(acc => [acc.label, formatToRupiah(acc.balance)]),
         [{ content: 'TOTAL SALDO AKUN', styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.totalAccountBalance), styles: { fontStyle: 'bold', halign: 'right' } }]
-      ],
-      startY: finalY,
-      theme: 'plain',
-      styles: { fontSize: 9 },
-    });
-    finalY = (doc as any).lastAutoTable.finalY + 10;
-    
-    // === SECTION B: Rotasi Saldo ===
-    doc.text('B. Rotasi Saldo', 14, finalY);
-    finalY += 2;
-    autoTable(doc, {
-      body: [
+    ];
+    finalY = addSection('A. Saldo Akun', sectionA_Body, finalY);
+
+    // B. Rotasi Saldo
+    const sectionB_Body = [
         ['Saldo Laporan Kemarin', formatToRupiah(report.openingBalanceRotation)],
         ['Penambahan Modal', formatToRupiah(report.capitalAdditionToday)],
         [{ content: report.liabilityBeforePayment < 0 ? "LIABILITAS (Kewajiban A)" : "Piutang Pihak A", styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.liabilityBeforePayment), styles: { fontStyle: 'bold' } }],
         ['Dana Dibayar A ke B', formatToRupiah(report.paymentToPartyB)],
         [{ content: report.liabilityAfterPayment < 0 ? "LIABILITAS Setelah Bayar" : "Piutang Pihak A Setelah Bayar", styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.liabilityAfterPayment), styles: { fontStyle: 'bold' } }],
-      ],
-      startY: finalY,
-      theme: 'plain',
-      styles: { fontSize: 9 },
-      columnStyles: { 1: { halign: 'right' } }
-    });
-    finalY = (doc as any).lastAutoTable.finalY + 10;
-    
-    // === SECTION C: Pembelanjaan ===
-    doc.text('C. Pembelanjaan', 14, finalY);
-    finalY += 2;
+    ];
+    finalY = addSection('B. Rotasi Saldo', sectionB_Body, finalY);
+
+    // C. Pembelanjaan
     const spendingBody = report.spendingItems?.length > 0
       ? report.spendingItems.map(item => [item.description, formatToRupiah(item.amount)])
       : [['- Tidak ada pembelanjaan -', '']];
-    autoTable(doc, {
-      body: [
+    const sectionC_Body = [
         ...spendingBody,
         [{ content: 'Total Pembelanjaan', styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.manualSpending), styles: { fontStyle: 'bold' } }],
         [{ content: 'LIABILITAS FINAL (Untuk Besok)', styles: { fontStyle: 'bold', fillColor: '#fef2f2', textColor: '#ef4444' } }, { content: formatToRupiah(report.finalLiabilityForNextDay), styles: { fontStyle: 'bold', fillColor: '#fef2f2', textColor: '#ef4444' } }],
-      ],
-      startY: finalY,
-      theme: 'grid',
-      headStyles: { fillColor: [241, 245, 249] },
-      styles: { fontSize: 9 },
-      columnStyles: { 1: { halign: 'right' } }
-    });
-    finalY = (doc as any).lastAutoTable.finalY + 10;
-    
-    // Use jspdf's page split functionality for second half
-    if (finalY > 260) { // Check if we need a new page
-        doc.addPage();
-        finalY = 20;
-    }
+    ];
+    finalY = addGridSection('C. Pembelanjaan', [], sectionC_Body, finalY);
 
-    // === SECTION D, E, F, G ===
-    let startYForSecondColumn = finalY;
+    // D. Aset Lancar
+    const sectionD_Body = [
+        ['Aset Aksesoris', formatToRupiah(report.assetAccessories)], 
+        ['Aset Perdana', formatToRupiah(report.assetSIMCards)], 
+        ['Aset Voucher', formatToRupiah(report.assetVouchers)], 
+        [{content: 'TOTAL ASET LANCAR', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.totalCurrentAssets), styles: {fontStyle: 'bold'}}]
+    ];
+    finalY = addSection('D. Aset Lancar (Inventaris)', sectionD_Body, finalY);
+
+    // E. Laba
+    const sectionE_Body = [
+        ['Laba Kotor BRILink', formatToRupiah(report.grossProfitBrilink)], 
+        ['Laba Kotor PPOB', formatToRupiah(report.grossProfitPPOB)], 
+        ['Laba Kotor POS', formatToRupiah(report.posGrossProfit)], 
+        [{content: 'TOTAL LABA KOTOR', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.totalGrossProfit), styles: {fontStyle: 'bold'}}]
+    ];
+    finalY = addSection('E. Laba', sectionE_Body, finalY);
     
-    doc.text('D. Aset Lancar (Inventaris)', 14, startYForSecondColumn);
-    startYForSecondColumn += 2;
-    autoTable(doc, { body: [['Aset Aksesoris', formatToRupiah(report.assetAccessories)], ['Aset Perdana', formatToRupiah(report.assetSIMCards)], ['Aset Voucher', formatToRupiah(report.assetVouchers)], [{content: 'TOTAL ASET LANCAR', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.totalCurrentAssets), styles: {fontStyle: 'bold'}}]], startY: startYForSecondColumn, theme: 'plain', styles: { fontSize: 9 }, columnStyles: { 1: { halign: 'right' } } });
-    startYForSecondColumn = (doc as any).lastAutoTable.finalY + 10;
-    
-    doc.text('E. Laba', 14, startYForSecondColumn);
-    startYForSecondColumn += 2;
-    autoTable(doc, { body: [['Laba Kotor BRILink', formatToRupiah(report.grossProfitBrilink)], ['Laba Kotor PPOB', formatToRupiah(report.grossProfitPPOB)], ['Laba Kotor POS', formatToRupiah(report.posGrossProfit)], [{content: 'TOTAL LABA KOTOR', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.totalGrossProfit), styles: {fontStyle: 'bold'}}]], startY: startYForSecondColumn, theme: 'plain', styles: { fontSize: 9 }, columnStyles: { 1: { halign: 'right' } } });
-    startYForSecondColumn = (doc as any).lastAutoTable.finalY + 10;
-    
-    doc.text('G. Biaya Operasional', 14, startYForSecondColumn);
-    startYForSecondColumn += 2;
-    autoTable(doc, { body: [['Total Biaya Operasional', formatToRupiah(report.operationalCosts)], [{content: 'LABA BERSIH (NETT PROFIT)', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.netProfit), styles: {fontStyle: 'bold'}}]], startY: startYForSecondColumn, theme: 'plain', styles: { fontSize: 9 }, columnStyles: { 1: { halign: 'right' } } });
-    startYForSecondColumn = (doc as any).lastAutoTable.finalY + 10;
-    
-    // === Section F - Timbangan ===
-    doc.text('F. Timbangan (Neraca)', 105, finalY, { align: 'left' });
-    finalY += 2;
-    autoTable(doc, { 
-      body: [
+    // F. Timbangan
+     const sectionF_Body = [
         ['Kas Laci Kecil', formatToRupiah(report.cashInDrawer)],
         ['Kas Brankas', formatToRupiah(report.cashInSafe)],
         [{content: 'Total Kas Fisik', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.totalPhysicalCash), styles: {fontStyle: 'bold'}}],
@@ -141,13 +135,15 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
         [{content: 'TOTAL KESELURUHAN', styles: {fontStyle: 'bold', textColor: '#22c55e'}}, {content: formatToRupiah(report.grandTotalBalance), styles: {fontStyle: 'bold', textColor: '#22c55e'}}],
         ['Aset Lancar', formatToRupiah(report.totalCurrentAssets)],
         [{content: 'TOTAL KEKAYAAN', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.liquidAccumulation), styles: {fontStyle: 'bold'}}],
-      ], 
-      startY: finalY, 
-      theme: 'plain', 
-      styles: { fontSize: 9 }, 
-      columnStyles: { 1: { halign: 'right' } },
-      margin: { left: 105 }
-    });
+    ];
+    finalY = addSection('F. Timbangan (Neraca)', sectionF_Body, finalY);
+
+    // G. Biaya Operasional
+    const sectionG_Body = [
+        ['Total Biaya Operasional', formatToRupiah(report.operationalCosts)], 
+        [{content: 'LABA BERSIH (NETT PROFIT)', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.netProfit), styles: {fontStyle: 'bold'}}]
+    ];
+    finalY = addSection('G. Biaya Operasional', sectionG_Body, finalY);
 
     const pdfOutput = doc.output('datauristring');
     const pdfWindow = window.open();
@@ -347,16 +343,13 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
             <Separator />
             {renderSectionC()}
             <Separator />
-            <div className="grid md:grid-cols-2 gap-8">
-              <div>
-                {renderSectionD()}
-                <Separator className="my-8" />
-                {renderSectionE()}
-                <Separator className="my-8" />
-                {renderSectionG()}
-              </div>
-              {renderSectionF()}
-            </div>
+            {renderSectionD()}
+            <Separator />
+            {renderSectionE()}
+            <Separator />
+            {renderSectionF()}
+            <Separator />
+            {renderSectionG()}
         </div>
       </ScrollArea>
     </div>
