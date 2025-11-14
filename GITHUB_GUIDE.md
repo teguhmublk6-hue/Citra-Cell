@@ -1,15 +1,23 @@
 # Panduan Mengunggah Proyek ke GitHub
 
-Dokumen ini memberikan panduan langkah demi langkah untuk mengunggah (upload) kode proyek Anda dari komputer lokal ke sebuah repositori baru di GitHub.
+Dokumen ini memberikan panduan lengkap untuk mengunggah kode proyek Anda dari komputer lokal ke sebuah repositori baru di GitHub.
 
 ## Prasyarat
 
 1.  **Akun GitHub**: Anda harus memiliki akun di [GitHub.com](https://github.com/).
-2.  **Git Terinstal**: Pastikan `git` sudah terinstal di komputer Anda. Anda bisa memeriksanya dengan membuka terminal (Command Prompt, PowerShell, atau Terminal) dan menjalankan perintah:
-    ```bash
-    git --version
-    ```
-    Jika muncul nomor versi, berarti `git` sudah siap. Jika belum, Anda bisa mengunduhnya dari [git-scm.com](https://git-scm.com/downloads).
+2.  **Git Terinstal**: Pastikan `git` sudah terinstal di komputer Anda. Anda bisa memeriksanya dengan membuka terminal dan menjalankan perintah `git --version`. Jika belum terinstal, unduh dari [git-scm.com](https://git-scm.com/downloads).
+
+---
+
+## Langkah 0: Unduh Kode Proyek ke Komputer Anda
+
+Karena Anda saat ini berada di lingkungan pengembangan web, Anda tidak memiliki file-file ini secara langsung.
+
+1.  **Cari Tombol "Download"**: Cari tombol atau menu **"Download ZIP"** atau **"Export"** di antarmuka yang sedang Anda gunakan. Ini akan mengunduh semua file proyek sebagai satu file ZIP.
+2.  **Ekstrak File ZIP**: Setelah terunduh, temukan file ZIP tersebut di folder "Downloads" komputer Anda, lalu ekstrak isinya. Anda sekarang akan memiliki folder proyek yang sesungguhnya di komputer Anda.
+3.  **Buka Terminal di Folder Proyek**: Buka aplikasi terminal Anda (Command Prompt, PowerShell, atau Terminal di Mac/Linux) dan navigasikan ke dalam folder yang baru saja Anda ekstrak.
+
+Setelah Anda berada di dalam folder proyek melalui terminal, Anda dapat melanjutkan ke langkah berikutnya.
 
 ---
 
@@ -28,7 +36,7 @@ Dokumen ini memberikan panduan langkah demi langkah untuk mengunggah (upload) ko
 
 ## Langkah 2: Unggah Kode dari Komputer Anda
 
-Sekarang, buka terminal di dalam folder proyek Anda (folder yang berisi semua file aplikasi ini) dan jalankan perintah-perintah berikut secara berurutan.
+Jalankan perintah-perintah berikut secara berurutan di dalam terminal Anda (yang sudah terbuka di dalam folder proyek).
 
 ### 1. Inisialisasi Git
 
