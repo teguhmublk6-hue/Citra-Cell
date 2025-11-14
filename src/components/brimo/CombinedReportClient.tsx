@@ -17,6 +17,9 @@ import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '../ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { useToast } from '@/hooks/use-toast';
+
 
 interface CombinedReportClientProps {
   onDone: () => void;
@@ -42,6 +45,7 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 
 export default function CombinedReportClient({ onDone }: CombinedReportClientProps) {
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: new Date(), to: new Date() });
@@ -156,6 +160,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
   const handleDownloadPDF = async () => {
     if (!reportData || !dateRange?.from) return;
     setIsDownloading(true);
+    toast({title: 'Membuat PDF...', description: 'Mohon tunggu sebentar.'});
 
     const { default: jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
@@ -314,12 +319,30 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     
     addFooter();
 
-    const pdfOutput = doc.output('datauristring');
-    const pdfWindow = window.open();
-    if (pdfWindow) {
-        pdfWindow.document.write(`<iframe width='100%' height='100%' src='${pdfOutput}'></iframe>`);
-    } else {
-        alert('Gagal membuka jendela baru. Mohon izinkan pop-up untuk situs ini.');
+    try {
+        const pdfOutput = doc.output('data:application/pdf;base64');
+        const base64Data = pdfOutput.split(',')[1];
+        const fileName = `Laporan-Gabungan-${format(dateFrom, "ddMMyy")}.pdf`;
+
+        await Filesystem.writeFile({
+            path: fileName,
+            data: base64Data,
+            directory: Directory.Documents,
+            recursive: true
+        });
+
+        toast({
+            title: 'Unduh Berhasil',
+            description: `${fileName} telah disimpan di folder Dokumen/Downloads Anda.`,
+        });
+
+    } catch (e) {
+        console.error('Error saving file', e);
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Menyimpan File',
+            description: 'Tidak dapat menyimpan PDF. Pastikan aplikasi memiliki izin penyimpanan.',
+        });
     }
     
     setIsDownloading(false);
@@ -449,7 +472,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
       <footer className="p-4 border-t">
         <Button className="w-full" onClick={handleDownloadPDF} disabled={isDownloading || isLoading || !reportData}>
           {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-          {isDownloading ? 'Menyiapkan PDF...' : 'Unduh Laporan Gabungan'}
+          {isDownloading ? 'Menyimpan PDF...' : 'Unduh Laporan Gabungan'}
         </Button>
       </footer>
     </div>
