@@ -313,8 +313,14 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     }
     
     addFooter();
-    const fileName = `Laporan-Gabungan-${format(dateFrom, "ddMMyy")}.pdf`;
-    doc.save(fileName);
+
+    const pdfOutput = doc.output('datauristring');
+    const pdfWindow = window.open();
+    if (pdfWindow) {
+        pdfWindow.document.write(`<iframe width='100%' height='100%' src='${pdfOutput}'></iframe>`);
+    } else {
+        alert('Gagal membuka jendela baru. Mohon izinkan pop-up untuk situs ini.');
+    }
     
     setIsDownloading(false);
   };
