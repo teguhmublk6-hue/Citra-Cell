@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -329,7 +330,9 @@ export default function DailyReportClient({ onDone }: DailyReportClientProps) {
                     <Input
                         type="text"
                         value={formatToRupiah(openingBalanceInput)}
-                        onChange={(e) => setOpeningBalanceInput(String(parseRupiah(e.target.value)))}
+                        onChange={(e) => setOpeningBalanceInput(e.target.value)}
+                        onBlur={(e) => setOpeningBalanceInput(formatToRupiah(parseRupiah(e.target.value)))}
+                        onFocus={(e) => e.target.select()}
                         className="text-base"
                         inputMode="text"
                     />
@@ -550,3 +553,5 @@ export default function DailyReportClient({ onDone }: DailyReportClientProps) {
     </div>
   );
 }
+
+    
