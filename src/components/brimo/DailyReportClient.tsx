@@ -35,11 +35,11 @@ type CostItem = {
 };
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
-  if (value === null || value === undefined || value === '' || isNaN(Number(value))) return 'Rp 0';
-  const num = Number(value);
+  if (value === null || value === undefined || value === '' || (typeof value === 'string' && value.trim() === '-')) return '';
+  const num = Number(String(value).replace(/[^0-9-]/g, ''));
+  if (isNaN(num)) return '';
   const isNegative = num < 0;
-  const formattedNum = Math.abs(num).toLocaleString('id-ID');
-  return `${isNegative ? '-Rp ' : 'Rp '}${formattedNum}`;
+  return `${isNegative ? '-Rp ' : 'Rp '}${Math.abs(num).toLocaleString('id-ID')}`;
 };
 
 const parseRupiah = (value: string | undefined | null): number => {
@@ -329,12 +329,20 @@ export default function DailyReportClient({ onDone }: DailyReportClientProps) {
                     <label className="text-xs text-muted-foreground">Saldo Laporan Kemarin (Hutang/Piutang)</label>
                     <Input
                         type="text"
-                        value={formatToRupiah(openingBalanceInput)}
-                        onChange={(e) => setOpeningBalanceInput(e.target.value)}
-                        onBlur={(e) => setOpeningBalanceInput(formatToRupiah(parseRupiah(e.target.value)))}
+                        value={openingBalanceInput}
+                        onChange={(e) => {
+                            const rawValue = e.target.value;
+                            // Allow typing '-', 'Rp', and numbers
+                            const sanitized = rawValue.replace(/[^\d-]/g, '');
+                            setOpeningBalanceInput(sanitized);
+                        }}
+                        onBlur={(e) => {
+                             const numValue = parseRupiah(e.target.value);
+                             setOpeningBalanceInput(String(numValue));
+                        }}
                         onFocus={(e) => e.target.select()}
                         className="text-base"
-                        inputMode="text"
+                        placeholder="Rp 0 atau -Rp 0"
                     />
                 </div>
                 <div className="flex justify-between items-center">
@@ -349,10 +357,10 @@ export default function DailyReportClient({ onDone }: DailyReportClientProps) {
                     <label className="text-xs text-muted-foreground">Dana Dibayar A ke B (Manual)</label>
                      <Input 
                         type="text" 
-                        value={paymentToPartyBInput} 
+                        value={formatToRupiah(paymentToPartyBInput)} 
                         onFocus={e => e.target.select()}
                         onBlur={e => setPaymentToPartyBInput(formatToRupiah(parseRupiah(e.target.value)))}
-                        onChange={e => setPaymentToPartyBInput(e.target.value)}
+                        onChange={(e) => setPaymentToPartyBInput(e.target.value)}
                         className="text-base"
                         inputMode="text"
                      />
@@ -422,15 +430,15 @@ export default function DailyReportClient({ onDone }: DailyReportClientProps) {
       <div className="space-y-2">
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Aksesoris</label>
-            <Input type="text" inputMode="text" value={assetAccessoriesInput} onChange={(e) => setAssetAccessoriesInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setAssetAccessoriesInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
+            <Input type="text" inputMode="text" value={formatToRupiah(assetAccessoriesInput)} onChange={(e) => setAssetAccessoriesInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setAssetAccessoriesInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
         </div>
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Perdana</label>
-            <Input type="text" inputMode="text" value={assetSIMCardsInput} onChange={(e) => setAssetSIMCardsInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setAssetSIMCardsInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
+            <Input type="text" inputMode="text" value={formatToRupiah(assetSIMCardsInput)} onChange={(e) => setAssetSIMCardsInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setAssetSIMCardsInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
         </div>
         <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nilai Aset Voucher</label>
-            <Input type="text" inputMode="text" value={assetVouchersInput} onChange={(e) => setAssetVouchersInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setAssetVouchersInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
+            <Input type="text" inputMode="text" value={formatToRupiah(assetVouchersInput)} onChange={(e) => setAssetVouchersInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setAssetVouchersInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
         </div>
       </div>
        <div className="mt-2 pt-2 border-t font-bold flex justify-between text-base">
@@ -448,7 +456,7 @@ export default function DailyReportClient({ onDone }: DailyReportClientProps) {
             <div className="flex justify-between items-center"><span>Laba Kotor PPOB</span> <span className="font-medium">{formatToRupiah(grossProfitPPOB)}</span></div>
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Laba Kotor POS (Manual)</label>
-                <Input type="text" inputMode="text" value={posGrossProfitInput} onChange={(e) => setPosGrossProfitInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setPosGrossProfitInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
+                <Input type="text" inputMode="text" value={formatToRupiah(posGrossProfitInput)} onChange={(e) => setPosGrossProfitInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setPosGrossProfitInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
             </div>
              <div className="flex justify-between items-center font-bold border-t pt-2"><span>TOTAL LABA KOTOR</span> <span>{formatToRupiah(totalGrossProfit)}</span></div>
         </div>
@@ -461,11 +469,11 @@ export default function DailyReportClient({ onDone }: DailyReportClientProps) {
         <div className="space-y-2">
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Kas Laci Kecil (Manual)</label>
-                <Input type="text" inputMode="text" value={cashInDrawerInput} onChange={(e) => setCashInDrawerInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setCashInDrawerInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
+                <Input type="text" inputMode="text" value={formatToRupiah(cashInDrawerInput)} onChange={(e) => setCashInDrawerInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setCashInDrawerInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
             </div>
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Kas Brankas (Manual)</label>
-                <Input type="text" inputMode="text" value={cashInSafeInput} onChange={(e) => setCashInSafeInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setCashInSafeInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
+                <Input type="text" inputMode="text" value={formatToRupiah(cashInSafeInput)} onChange={(e) => setCashInSafeInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setCashInSafeInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base" />
             </div>
         </div>
         <div className="space-y-3 text-sm mt-4">
@@ -475,7 +483,7 @@ export default function DailyReportClient({ onDone }: DailyReportClientProps) {
             <div className="flex justify-between text-destructive"><span>Total Laba Kotor</span> <span className="font-medium">- {formatToRupiah(totalGrossProfit)}</span></div>
             <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Potongan Operasional Non Profit (Manual)</label>
-                <Input type="text" inputMode="text" value={operationalNonProfitInput} onChange={(e) => setOperationalNonProfitInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setOperationalNonProfitInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base text-destructive" />
+                <Input type="text" inputMode="text" value={formatToRupiah(operationalNonProfitInput)} onChange={(e) => setOperationalNonProfitInput(e.target.value)} onFocus={(e) => e.target.select()} onBlur={e => setOperationalNonProfitInput(formatToRupiah(parseRupiah(e.target.value)))} className="text-base text-destructive" />
             </div>
 
             <div className="flex justify-between font-bold border-t pt-2 text-green-500"><span>TOTAL KESELURUHAN</span> <span>{formatToRupiah(grandTotalBalance)}</span></div>
