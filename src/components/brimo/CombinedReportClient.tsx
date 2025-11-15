@@ -321,6 +321,9 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
 
     try {
         const pdfOutput = doc.output('data:application/pdf;base64');
+        if (!pdfOutput) {
+            throw new Error("Gagal membuat data PDF.");
+        }
         const base64Data = pdfOutput.split(',')[1];
         const fileName = `Laporan-Gabungan-${format(dateFrom, "ddMMyy")}.pdf`;
 
