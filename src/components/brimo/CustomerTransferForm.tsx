@@ -148,7 +148,6 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
 
   const onSubmit = async (values: CustomerTransferFormValues) => {
     setIsSaving(true);
-    const { toast } = useToast();
 
     if (!firestore || !kasAccounts) {
       toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
