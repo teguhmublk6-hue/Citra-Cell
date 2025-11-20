@@ -107,6 +107,8 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
   const [isSaving, setIsSaving] = useState(false);
   const [bankPopoverOpen, setBankPopoverOpen] = useState(false);
   const [bankSearch, setBankSearch] = useState('');
+  const [sourcePopoverOpen, setSourcePopoverOpen] = useState(false);
+  const [paymentPopoverOpen, setPaymentPopoverOpen] = useState(false);
 
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -285,20 +287,59 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
               control={form.control}
               name="sourceAccountId"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Akun Kas Asal (Pengirim)</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih akun pengirim" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {sourceKasAccounts?.map(acc => (
-                        <SelectItem key={acc.id} value={acc.id}>{acc.label} ({formatToRupiah(acc.balance)})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                   <Popover open={sourcePopoverOpen} onOpenChange={setSourcePopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value
+                            ? sourceKasAccounts?.find(
+                                (acc) => acc.id === field.value
+                              )?.label
+                            : "Pilih akun pengirim"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
+                      <Command>
+                        <CommandInput placeholder="Cari akun..." />
+                        <CommandEmpty>Akun tidak ditemukan.</CommandEmpty>
+                        <CommandGroup>
+                           <ScrollArea className="h-72">
+                          {sourceKasAccounts?.map((acc) => (
+                            <CommandItem
+                              value={acc.label}
+                              key={acc.id}
+                              onSelect={() => {
+                                form.setValue("sourceAccountId", acc.id)
+                                setSourcePopoverOpen(false)
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  acc.id === field.value
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                              {acc.label} ({formatToRupiah(acc.balance)})
+                            </CommandItem>
+                          ))}
+                          </ScrollArea>
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}
@@ -436,21 +477,60 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
                     control={form.control}
                     name="paymentToKasTransferAccountId"
                     render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Akun Penerima Bayaran</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Pilih akun penerima" />
-                            </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                            {kasAccounts?.map(acc => (
-                                <SelectItem key={acc.id} value={acc.id}>{acc.label}</SelectItem>
-                            ))}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
+                       <FormItem className="flex flex-col">
+                          <FormLabel>Akun Penerima Bayaran</FormLabel>
+                          <Popover open={paymentPopoverOpen} onOpenChange={setPaymentPopoverOpen}>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  className={cn(
+                                    "w-full justify-between",
+                                    !field.value && "text-muted-foreground"
+                                  )}
+                                >
+                                  {field.value
+                                    ? kasAccounts?.find(
+                                        (acc) => acc.id === field.value
+                                      )?.label
+                                    : "Pilih akun penerima"}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
+                              <Command>
+                                <CommandInput placeholder="Cari akun..." />
+                                <CommandEmpty>Akun tidak ditemukan.</CommandEmpty>
+                                <CommandGroup>
+                                   <ScrollArea className="h-72">
+                                  {kasAccounts?.map((acc) => (
+                                    <CommandItem
+                                      value={acc.label}
+                                      key={acc.id}
+                                      onSelect={() => {
+                                        form.setValue("paymentToKasTransferAccountId", acc.id)
+                                        setPaymentPopoverOpen(false)
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          acc.id === field.value
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        )}
+                                      />
+                                      {acc.label}
+                                    </CommandItem>
+                                  ))}
+                                  </ScrollArea>
+                                </CommandGroup>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
                         </FormItem>
                     )}
                 />
@@ -469,20 +549,59 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
                         control={form.control}
                         name="paymentToKasTransferAccountId"
                         render={({ field }) => (
-                            <FormItem>
+                           <FormItem className="flex flex-col">
                             <FormLabel>Akun Penerima Sisa Bayaran (Transfer)</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                             <Popover open={paymentPopoverOpen} onOpenChange={setPaymentPopoverOpen}>
+                                <PopoverTrigger asChild>
                                 <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Pilih akun penerima" />
-                                </SelectTrigger>
+                                    <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className={cn(
+                                        "w-full justify-between",
+                                        !field.value && "text-muted-foreground"
+                                    )}
+                                    >
+                                    {field.value
+                                        ? kasAccounts?.find(
+                                            (acc) => acc.id === field.value
+                                        )?.label
+                                        : "Pilih akun penerima"}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
                                 </FormControl>
-                                <SelectContent>
-                                {kasAccounts?.map(acc => (
-                                    <SelectItem key={acc.id} value={acc.id}>{acc.label}</SelectItem>
-                                ))}
-                                </SelectContent>
-                            </Select>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
+                                <Command>
+                                    <CommandInput placeholder="Cari akun..." />
+                                    <CommandEmpty>Akun tidak ditemukan.</CommandEmpty>
+                                    <CommandGroup>
+                                        <ScrollArea className="h-72">
+                                    {kasAccounts?.map((acc) => (
+                                        <CommandItem
+                                        value={acc.label}
+                                        key={acc.id}
+                                        onSelect={() => {
+                                            form.setValue("paymentToKasTransferAccountId", acc.id)
+                                            setPaymentPopoverOpen(false)
+                                        }}
+                                        >
+                                        <Check
+                                            className={cn(
+                                            "mr-2 h-4 w-4",
+                                            acc.id === field.value
+                                                ? "opacity-100"
+                                                : "opacity-0"
+                                            )}
+                                        />
+                                        {acc.label}
+                                        </CommandItem>
+                                    ))}
+                                    </ScrollArea>
+                                    </CommandGroup>
+                                </Command>
+                                </PopoverContent>
+                            </Popover>
                             <FormMessage />
                             </FormItem>
                         )}

@@ -58,6 +58,7 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [bankPopoverOpen, setBankPopoverOpen] = useState(false);
+  const [destinationPopoverOpen, setDestinationPopoverOpen] = useState(false);
 
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -282,20 +283,59 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
               control={form.control}
               name="destinationAccountId"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Dana Masuk Ke Akun</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih akun penerima" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {destinationKasAccounts?.map(acc => (
-                        <SelectItem key={acc.id} value={acc.id}>{acc.label} ({formatToRupiah(acc.balance)})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={destinationPopoverOpen} onOpenChange={setDestinationPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value
+                            ? destinationKasAccounts?.find(
+                                (acc) => acc.id === field.value
+                              )?.label
+                            : "Pilih akun penerima"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
+                      <Command>
+                        <CommandInput placeholder="Cari akun..." />
+                        <CommandEmpty>Akun tidak ditemukan.</CommandEmpty>
+                        <CommandGroup>
+                           <ScrollArea className="h-72">
+                          {destinationKasAccounts?.map((acc) => (
+                            <CommandItem
+                              value={acc.label}
+                              key={acc.id}
+                              onSelect={() => {
+                                form.setValue("destinationAccountId", acc.id)
+                                setDestinationPopoverOpen(false)
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  acc.id === field.value
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                              {acc.label} ({formatToRupiah(acc.balance)})
+                            </CommandItem>
+                          ))}
+                          </ScrollArea>
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}
