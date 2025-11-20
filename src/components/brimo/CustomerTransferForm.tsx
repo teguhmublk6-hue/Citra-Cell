@@ -160,6 +160,7 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
     },
   });
   
+  // Automatically open the source account selection popover on mount
   useEffect(() => {
     const timer = setTimeout(() => setSourcePopoverOpen(true), 100);
     return () => clearTimeout(timer);
@@ -168,30 +169,33 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
   const paymentMethod = form.watch('paymentMethod');
   const transferAmount = form.watch('transferAmount');
   const sourceAccountId = form.watch('sourceAccountId');
+  const destinationBank = form.watch('destinationBank');
 
-  useEffect(() => {
-    if (transferAmount !== undefined) {
-      const fee = calculateServiceFee(transferAmount);
-      form.setValue('serviceFee', fee, { shouldValidate: true });
-    }
-  }, [transferAmount, form]);
-  
+  // Autofill destination bank and handle focus
   useEffect(() => {
     const selectedSourceAccount = kasAccounts?.find(acc => acc.id === sourceAccountId);
     if (selectedSourceAccount) {
       const mappedBank = sourceToBankMap[selectedSourceAccount.label];
       if (mappedBank) {
         form.setValue('destinationBank', mappedBank, { shouldValidate: true });
-        setSourcePopoverOpen(false);
-        setBankPopoverOpen(false);
-        // Use a timeout to ensure the DOM is updated before focusing
-        setTimeout(() => {
-            inputRefs.destinationAccountName.current?.focus();
-        }, 100);
+        setSourcePopoverOpen(false); // Close the popover
+        setBankPopoverOpen(false);   // Ensure bank popover is also closed
       }
     }
   }, [sourceAccountId, kasAccounts, form]);
   
+  // New useEffect to handle focusing after popover closes.
+  useEffect(() => {
+    if (!sourcePopoverOpen && sourceAccountId && destinationBank) {
+      // The popover is closed, and we have the necessary data, now we can focus.
+      const timer = setTimeout(() => {
+        inputRefs.destinationAccountName.current?.focus();
+      }, 100); // A small delay ensures the input is rendered and visible.
+      return () => clearTimeout(timer);
+    }
+  }, [sourcePopoverOpen, sourceAccountId, destinationBank]);
+
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, nextFieldRef?: React.RefObject<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -718,3 +722,4 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
     </Form>
   );
 }
+
