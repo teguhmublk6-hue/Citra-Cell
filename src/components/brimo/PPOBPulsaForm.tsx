@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, runTransaction, addDoc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
@@ -20,9 +20,10 @@ import { PPOBPulsaFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { Loader2 } from 'lucide-react';
 
 interface PPOBPulsaFormProps {
-  onReview: (data: PPOBPulsaFormValues) => void;
+  onTransactionComplete: () => void;
   onDone: () => void;
 }
 
@@ -47,17 +48,20 @@ const providers = [
     { name: 'Smartfren', prefixes: ['0881', '0882', '0883', '0884', '0885', '0886', '0887', '0888', '0889'] },
 ];
 
-export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) {
+export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPulsaFormProps) {
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [detectedProvider, setDetectedProvider] = useState<string | null>(null);
   const [isManualDenom, setIsManualDenom] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
   
   const pricingDocRef = useMemoFirebase(() => doc(firestore, 'appConfig', 'ppobPricing'), [firestore]);
   const { data: ppobPricingData } = useDoc<{ data: any }>(pricingDocRef);
+
 
   const refinedSchema = PPOBPulsaFormSchema.superRefine((data, ctx) => {
     if (data.paymentMethod === 'Transfer' && !data.paymentToKasTransferAccountId) {
@@ -68,7 +72,7 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
         if (!data.splitTunaiAmount || data.splitTunaiAmount <= 0) {
              ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Jumlah tunai harus diisi.', path: ['splitTunaiAmount'] });
         } else if (data.splitTunaiAmount >= totalPayment) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Jumlah tunai harus lebih kecil dari total bayar.', path: ['splitTunaiAmount'] });
+             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Jumlah tunai harus lebih kecil dari total bayar.', path: ['splitTunaiAmount'] });
         }
         if (!data.paymentToKasTransferAccountId) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Akun penerima sisa bayaran harus dipilih.', path: ['paymentToKasTransferAccountId'] });
@@ -84,7 +88,7 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
         denomination: '',
         costPrice: undefined,
         sellingPrice: undefined,
-        paymentMethod: undefined,
+        paymentMethod: 'Tunai',
         paymentToKasTransferAccountId: '',
         splitTunaiAmount: undefined,
     },
@@ -132,7 +136,130 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
 
   const ppobAccounts = useMemo(() => kasAccounts?.filter(acc => acc.type === 'PPOB'), [kasAccounts]);
 
-  const onSubmit = (values: PPOBPulsaFormValues) => { onReview(values); };
+  const onSubmit = async (values: PPOBPulsaFormValues) => {
+    setIsSaving(true);
+    
+    if (!firestore || !sourcePPOBAccount || !kasAccounts) {
+        toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
+        setIsSaving(false);
+        return;
+    }
+
+    const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
+    const paymentTransferAccount = kasAccounts.find(acc => acc.id === values.paymentToKasTransferAccountId);
+    const { costPrice, sellingPrice, paymentMethod, splitTunaiAmount } = values;
+
+    if (!laciAccount && (paymentMethod === 'Tunai' || paymentMethod === 'Split')) {
+        toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
+        setIsSaving(false);
+        return;
+    }
+    
+    if (sourcePPOBAccount.balance < costPrice) {
+        toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${sourcePPOBAccount.label} tidak mencukupi.` });
+        setIsSaving(false);
+        return;
+    }
+
+    toast({ title: "Memproses...", description: "Menyimpan transaksi pulsa." });
+
+    const now = new Date();
+    const nowISO = now.toISOString();
+    const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
+    const profit = sellingPrice - costPrice;
+    const splitTransferAmount = sellingPrice - (splitTunaiAmount || 0);
+    
+    try {
+        const auditDocRef = await addDoc(collection(firestore, 'ppobTransactions'), {
+            date: now,
+            serviceName: 'Pulsa',
+            destination: values.phoneNumber,
+            description: `Pulsa ${values.denomination}`,
+            costPrice: values.costPrice,
+            sellingPrice: values.sellingPrice,
+            profit,
+            sourcePPOBAccountId: values.sourcePPOBAccountId,
+            paymentMethod: values.paymentMethod,
+            paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? sellingPrice : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
+            paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? values.paymentToKasTransferAccountId : null,
+            paymentToKasTransferAmount: paymentMethod === 'Transfer' ? sellingPrice : (paymentMethod === 'Split' ? splitTransferAmount : 0),
+            deviceName
+        });
+        const auditId = auditDocRef.id;
+
+        await runTransaction(firestore, async (transaction) => {
+            const sourcePPOBAccountRef = doc(firestore, 'kasAccounts', sourcePPOBAccount.id);
+            const laciAccountRef = laciAccount ? doc(firestore, 'kasAccounts', laciAccount.id) : null;
+            const paymentAccRef = paymentTransferAccount ? doc(firestore, 'kasAccounts', paymentTransferAccount.id) : null;
+
+            const [sourceDoc, laciDoc, paymentDoc] = await Promise.all([
+                transaction.get(sourcePPOBAccountRef),
+                laciAccountRef ? transaction.get(laciAccountRef) : Promise.resolve(null),
+                paymentAccRef ? transaction.get(paymentAccRef) : Promise.resolve(null),
+            ]);
+
+            if (!sourceDoc.exists()) throw new Error("Akun sumber PPOB tidak ditemukan.");
+            
+            const currentSourcePPOBBalance = sourceDoc.data().balance;
+            if (currentSourcePPOBBalance < costPrice) throw new Error(`Saldo ${sourcePPOBAccount.label} tidak mencukupi.`);
+            
+            transaction.update(sourcePPOBAccountRef, { balance: currentSourcePPOBBalance - costPrice });
+            const debitTxRef = doc(collection(sourcePPOBAccountRef, 'transactions'));
+            transaction.set(debitTxRef, {
+                kasAccountId: sourcePPOBAccount.id, type: 'debit', name: `Beli Pulsa ${values.denomination}`, account: values.phoneNumber, date: nowISO, amount: costPrice, balanceBefore: currentSourcePPOBBalance, balanceAfter: currentSourcePPOBBalance - costPrice, category: 'ppob_purchase', deviceName, auditId
+            });
+            
+            switch (paymentMethod) {
+                case 'Tunai':
+                    if (!laciAccountRef || !laciDoc || !laciDoc.exists()) throw new Error("Akun Laci tidak ditemukan.");
+                    const currentLaciBalance = laciDoc.data().balance;
+                    transaction.update(laciAccountRef, { balance: currentLaciBalance + sellingPrice });
+                    const creditTunaiRef = doc(collection(laciAccountRef, 'transactions'));
+                    transaction.set(creditTunaiRef, {
+                         kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Pulsa ${values.denomination}`, account: values.phoneNumber, date: nowISO, amount: sellingPrice, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + sellingPrice, category: 'customer_payment_ppob', deviceName, auditId
+                    });
+                    break;
+                case 'Transfer':
+                    if (!paymentAccRef || !paymentDoc || !paymentDoc.exists()) throw new Error("Akun penerima pembayaran tidak valid.");
+                    const currentPaymentBalance = paymentDoc.data().balance;
+                    transaction.update(paymentAccRef, { balance: currentPaymentBalance + sellingPrice });
+                    const creditTransferRef = doc(collection(paymentAccRef, 'transactions'));
+                    transaction.set(creditTransferRef, {
+                        kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Pulsa ${values.denomination}`, account: values.phoneNumber, date: nowISO, amount: sellingPrice, balanceBefore: currentPaymentBalance, balanceAfter: currentPaymentBalance + sellingPrice, category: 'customer_payment_ppob', deviceName, auditId
+                    });
+                    break;
+                case 'Split':
+                    if (!laciAccountRef || !laciDoc || !laciDoc.exists()) throw new Error("Akun Laci tidak ditemukan.");
+                    if (!paymentAccRef || !paymentDoc || !paymentDoc.exists()) throw new Error("Akun penerima pembayaran split tidak valid.");
+                    if (!splitTunaiAmount) throw new Error("Jumlah tunai split tidak valid.");
+
+                    const currentLaciSplitBalance = laciDoc.data().balance;
+                    transaction.update(laciAccountRef, { balance: currentLaciSplitBalance + splitTunaiAmount });
+                    const creditSplitTunaiRef = doc(collection(laciAccountRef, 'transactions'));
+                    transaction.set(creditSplitTunaiRef, {
+                         kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Tunai Pulsa`, account: values.phoneNumber, date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciSplitBalance, balanceAfter: currentLaciSplitBalance + splitTunaiAmount, category: 'customer_payment_ppob', deviceName, auditId
+                    });
+
+                    const currentPaymentSplitBalance = paymentDoc.data().balance;
+                    transaction.update(paymentAccRef, { balance: currentPaymentSplitBalance + splitTransferAmount });
+                    const creditSplitTransferRef = doc(collection(paymentAccRef, 'transactions'));
+                    transaction.set(creditSplitTransferRef, {
+                        kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Pulsa`, account: values.phoneNumber, date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentSplitBalance, balanceAfter: currentPaymentSplitBalance + splitTransferAmount, category: 'customer_payment_ppob', deviceName, auditId
+                    });
+                    break;
+            }
+        });
+
+        toast({ title: "Sukses", description: "Transaksi Pulsa berhasil disimpan." });
+        onTransactionComplete();
+
+    } catch (error: any) {
+        console.error("Error saving PPOB Pulsa transaction: ", error);
+        toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
+    } finally {
+        setIsSaving(false);
+    }
+  };
   
   const handleDenomClick = (denom: string) => {
     form.setValue('denomination', denom, { shouldValidate: true });
@@ -312,8 +439,10 @@ export default function PPOBPulsaForm({ onReview, onDone }: PPOBPulsaFormProps) 
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full">Batal</Button>
-          <Button type="submit" className="w-full" disabled={currentStep !== 2}>Review</Button>
+          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>Batal</Button>
+          <Button type="submit" className="w-full" disabled={isSaving || currentStep !== 2}>
+             {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
+          </Button>
         </div>
       </form>
     </Form>

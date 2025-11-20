@@ -130,7 +130,7 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
         transferAmount: undefined,
         bankAdminFee: 0,
         serviceFee: undefined,
-        paymentMethod: undefined,
+        paymentMethod: 'Tunai',
         paymentToKasTransferAccountId: '',
         splitTunaiAmount: undefined,
     },

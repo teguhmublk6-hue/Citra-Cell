@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, runTransaction, addDoc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
@@ -18,9 +18,11 @@ import { PPOBTokenListrikFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
 import Image from 'next/image';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 interface PPOBTokenListrikFormProps {
-  onReview: (data: PPOBTokenListrikFormValues) => void;
+  onTransactionComplete: () => void;
   onDone: () => void;
 }
 
@@ -36,8 +38,10 @@ const parseRupiah = (value: string | undefined | null): number => {
     return Number(String(value).replace(/[^0-9]/g, ''));
 }
 
-export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenListrikFormProps) {
+export default function PPOBTokenListrikForm({ onTransactionComplete, onDone }: PPOBTokenListrikFormProps) {
   const firestore = useFirestore();
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [isManualDenom, setIsManualDenom] = useState(false);
   
@@ -72,7 +76,7 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
         denomination: '',
         costPrice: undefined,
         sellingPrice: undefined,
-        paymentMethod: undefined,
+        paymentMethod: 'Tunai',
         paymentToKasTransferAccountId: '',
         splitTunaiAmount: undefined,
     },
@@ -112,7 +116,130 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
     return kasAccounts?.filter(acc => acc.type === 'PPOB' && ['Mitra Shopee', 'Mitra Bukalapak'].includes(acc.label));
   }, [kasAccounts]);
 
-  const onSubmit = (values: PPOBTokenListrikFormValues) => { onReview(values); };
+  const onSubmit = async (values: PPOBTokenListrikFormValues) => {
+    setIsSaving(true);
+    
+    if (!firestore || !sourcePPOBAccount || !kasAccounts) {
+        toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
+        setIsSaving(false);
+        return;
+    }
+
+    const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
+    const paymentTransferAccount = kasAccounts.find(acc => acc.id === values.paymentToKasTransferAccountId);
+    const { costPrice, sellingPrice, paymentMethod, splitTunaiAmount } = values;
+
+    if (!laciAccount && (paymentMethod === 'Tunai' || paymentMethod === 'Split')) {
+        toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
+        setIsSaving(false);
+        return;
+    }
+
+    if (sourcePPOBAccount.balance < costPrice) {
+        toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${sourcePPOBAccount.label} tidak mencukupi.` });
+        setIsSaving(false);
+        return;
+    }
+
+    toast({ title: "Memproses...", description: "Menyimpan transaksi Token Listrik." });
+
+    const now = new Date();
+    const nowISO = now.toISOString();
+    const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
+    const profit = sellingPrice - costPrice;
+    const splitTransferAmount = sellingPrice - (splitTunaiAmount || 0);
+    
+    try {
+        const auditDocRef = await addDoc(collection(firestore, 'ppobTransactions'), {
+            date: now,
+            serviceName: 'Token Listrik',
+            destination: values.customerName,
+            description: `Token ${values.denomination} an. ${values.customerName}`,
+            costPrice: values.costPrice,
+            sellingPrice: values.sellingPrice,
+            profit,
+            sourcePPOBAccountId: values.sourcePPOBAccountId,
+            paymentMethod: values.paymentMethod,
+            paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? sellingPrice : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
+            paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? values.paymentToKasTransferAccountId : null,
+            paymentToKasTransferAmount: paymentMethod === 'Transfer' ? sellingPrice : (paymentMethod === 'Split' ? splitTransferAmount : 0),
+            deviceName
+        });
+        const auditId = auditDocRef.id;
+
+        await runTransaction(firestore, async (transaction) => {
+            const sourcePPOBAccountRef = doc(firestore, 'kasAccounts', sourcePPOBAccount.id);
+            const laciAccountRef = laciAccount ? doc(firestore, 'kasAccounts', laciAccount.id) : null;
+            const paymentAccRef = paymentTransferAccount ? doc(firestore, 'kasAccounts', paymentTransferAccount.id) : null;
+
+            const [sourceDoc, laciDoc, paymentDoc] = await Promise.all([
+                transaction.get(sourcePPOBAccountRef),
+                laciAccountRef ? transaction.get(laciAccountRef) : Promise.resolve(null),
+                paymentAccRef ? transaction.get(paymentAccRef) : Promise.resolve(null),
+            ]);
+
+            if (!sourceDoc.exists()) throw new Error("Akun sumber PPOB tidak ditemukan.");
+            
+            const currentSourcePPOBBalance = sourceDoc.data().balance;
+            if (currentSourcePPOBBalance < costPrice) throw new Error(`Saldo ${sourcePPOBAccount.label} tidak mencukupi.`);
+            
+            transaction.update(sourcePPOBAccountRef, { balance: currentSourcePPOBBalance - costPrice });
+            const debitTxRef = doc(collection(sourcePPOBAccountRef, 'transactions'));
+            transaction.set(debitTxRef, {
+                kasAccountId: sourcePPOBAccount.id, type: 'debit', name: `Beli Token Listrik ${values.denomination}`, account: values.customerName, date: nowISO, amount: costPrice, balanceBefore: currentSourcePPOBBalance, balanceAfter: currentSourcePPOBBalance - costPrice, category: 'ppob_purchase', deviceName, auditId
+            });
+            
+            switch (paymentMethod) {
+                case 'Tunai':
+                    if (!laciAccountRef || !laciDoc || !laciDoc.exists()) throw new Error("Akun Laci tidak ditemukan.");
+                    const currentLaciBalance = laciDoc.data().balance;
+                    transaction.update(laciAccountRef, { balance: currentLaciBalance + sellingPrice });
+                    const creditTunaiRef = doc(collection(laciAccountRef, 'transactions'));
+                    transaction.set(creditTunaiRef, {
+                         kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Token ${values.denomination}`, account: values.customerName, date: nowISO, amount: sellingPrice, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + sellingPrice, category: 'customer_payment_ppob', deviceName, auditId
+                    });
+                    break;
+                case 'Transfer':
+                    if (!paymentAccRef || !paymentDoc || !paymentDoc.exists()) throw new Error("Akun penerima pembayaran tidak valid.");
+                    const currentPaymentBalance = paymentDoc.data().balance;
+                    transaction.update(paymentAccRef, { balance: currentPaymentBalance + sellingPrice });
+                    const creditTransferRef = doc(collection(paymentAccRef, 'transactions'));
+                    transaction.set(creditTransferRef, {
+                        kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Token ${values.denomination}`, account: values.customerName, date: nowISO, amount: sellingPrice, balanceBefore: currentPaymentBalance, balanceAfter: currentPaymentBalance + sellingPrice, category: 'customer_payment_ppob', deviceName, auditId
+                    });
+                    break;
+                case 'Split':
+                     if (!laciAccountRef || !laciDoc || !laciDoc.exists()) throw new Error("Akun Laci tidak ditemukan.");
+                    if (!paymentAccRef || !paymentDoc || !paymentDoc.exists()) throw new Error("Akun penerima pembayaran split tidak valid.");
+                    if (!splitTunaiAmount) throw new Error("Jumlah tunai split tidak valid.");
+
+                    const currentLaciSplitBalance = laciDoc.data().balance;
+                    transaction.update(laciAccountRef, { balance: currentLaciSplitBalance + splitTunaiAmount });
+                    const creditSplitTunaiRef = doc(collection(laciAccountRef, 'transactions'));
+                    transaction.set(creditSplitTunaiRef, {
+                         kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Tunai Token`, account: values.customerName, date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciSplitBalance, balanceAfter: currentLaciSplitBalance + splitTunaiAmount, category: 'customer_payment_ppob', deviceName, auditId
+                    });
+
+                    const currentPaymentSplitBalance = paymentDoc.data().balance;
+                    transaction.update(paymentAccRef, { balance: currentPaymentSplitBalance + splitTransferAmount });
+                    const creditSplitTransferRef = doc(collection(paymentAccRef, 'transactions'));
+                    transaction.set(creditSplitTransferRef, {
+                        kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Token`, account: values.customerName, date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentSplitBalance, balanceAfter: currentPaymentSplitBalance + splitTransferAmount, category: 'customer_payment_ppob', deviceName, auditId
+                    });
+                    break;
+            }
+        });
+
+        toast({ title: "Sukses", description: "Transaksi Token Listrik berhasil disimpan." });
+        onTransactionComplete();
+
+    } catch (error: any) {
+        console.error("Error saving PPOB Token Listrik transaction: ", error);
+        toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
+    } finally {
+        setIsSaving(false);
+    }
+  };
   
   const handleDenomClick = (denom: string) => {
     form.setValue('denomination', denom, { shouldValidate: true });
@@ -291,8 +418,10 @@ export default function PPOBTokenListrikForm({ onReview, onDone }: PPOBTokenList
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full">Batal</Button>
-          <Button type="submit" className="w-full" disabled={currentStep !== 2}>Review</Button>
+          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>Batal</Button>
+          <Button type="submit" className="w-full" disabled={isSaving || currentStep !== 2}>
+            {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
+          </Button>
         </div>
       </form>
     </Form>

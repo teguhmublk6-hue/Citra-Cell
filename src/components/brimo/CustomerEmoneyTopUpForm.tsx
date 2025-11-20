@@ -85,7 +85,7 @@ export default function CustomerEmoneyTopUpForm({ onTransactionComplete, onDone 
         destinationEmoney: '',
         topUpAmount: undefined,
         serviceFee: undefined,
-        paymentMethod: undefined,
+        paymentMethod: 'Tunai',
         paymentToKasTransferAccountId: '',
         splitTunaiAmount: undefined,
     },
@@ -107,7 +107,6 @@ export default function CustomerEmoneyTopUpForm({ onTransactionComplete, onDone 
 
   const onSubmit = async (values: CustomerEmoneyTopUpFormValues) => {
     setIsSaving(true);
-    const { toast } = useToast();
 
     if (!firestore || !kasAccounts) {
       toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });

@@ -70,7 +70,7 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
         withdrawalAmount: undefined,
         serviceFee: undefined,
         destinationAccountId: '',
-        feePaymentMethod: undefined,
+        feePaymentMethod: 'Dipotong',
     },
   });
 
@@ -90,7 +90,6 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
 
   const onSubmit = async (values: CustomerWithdrawalFormValues) => {
     setIsSaving(true);
-    const { toast } = useToast();
     
     if (!firestore || !kasAccounts) {
         toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });

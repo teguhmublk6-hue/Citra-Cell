@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { collection, doc, runTransaction, addDoc, getDocs, query, where } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
@@ -18,9 +18,11 @@ import { PPOBPdamFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
 import Image from 'next/image';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 interface PPOBPdamFormProps {
-  onReview: (data: PPOBPdamFormValues) => void;
+  onTransactionComplete: () => void;
   onDone: () => void;
 }
 
@@ -37,8 +39,10 @@ const parseRupiah = (value: string | undefined | null): number => {
 }
 
 
-export default function PPOBPdamForm({ onReview, onDone }: PPOBPdamFormProps) {
+export default function PPOBPdamForm({ onTransactionComplete, onDone }: PPOBPdamFormProps) {
   const firestore = useFirestore();
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
@@ -52,7 +56,7 @@ export default function PPOBPdamForm({ onReview, onDone }: PPOBPdamFormProps) {
         billAmount: undefined,
         totalAmount: undefined,
         cashback: 0,
-        paymentMethod: undefined,
+        paymentMethod: 'Tunai',
         paymentToKasTransferAccountId: '',
         splitTunaiAmount: undefined,
     },
@@ -94,7 +98,139 @@ export default function PPOBPdamForm({ onReview, onDone }: PPOBPdamFormProps) {
   };
 
 
-  const onSubmit = (values: PPOBPdamFormValues) => { onReview(values); };
+  const onSubmit = async (values: PPOBPdamFormValues) => {
+    setIsSaving(true);
+    
+    if (!firestore || !sourcePPOBAccount || !kasAccounts) {
+        toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
+        setIsSaving(false);
+        return;
+    }
+
+    const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
+    const paymentTransferAccount = kasAccounts.find(acc => acc.id === values.paymentToKasTransferAccountId);
+    const { billAmount, totalAmount, cashback, paymentMethod, splitTunaiAmount } = values;
+
+    if (!laciAccount && (paymentMethod === 'Tunai' || paymentMethod === 'Split')) {
+        toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
+        setIsSaving(false);
+        return;
+    }
+
+    if (sourcePPOBAccount.balance < billAmount) {
+        toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${sourcePPOBAccount.label} tidak mencukupi.` });
+        setIsSaving(false);
+        return;
+    }
+
+    toast({ title: "Memproses...", description: "Menyimpan transaksi PDAM." });
+
+    const now = new Date();
+    const nowISO = now.toISOString();
+    const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
+    const netProfit = (totalAmount - billAmount) + (cashback || 0);
+    const splitTransferAmount = totalAmount - (splitTunaiAmount || 0);
+    
+    try {
+        const auditDocRef = await addDoc(collection(firestore, 'ppobPdam'), {
+            date: now,
+            customerName: values.customerName,
+            billAmount: values.billAmount,
+            totalAmount: values.totalAmount,
+            cashback: values.cashback || 0,
+            netProfit,
+            sourcePPOBAccountId: values.sourcePPOBAccountId,
+            paymentMethod: values.paymentMethod,
+            paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? totalAmount : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
+            paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? values.paymentToKasTransferAccountId : null,
+            paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalAmount : (paymentMethod === 'Split' ? splitTransferAmount : 0),
+            deviceName
+        });
+        const auditId = auditDocRef.id;
+
+        await runTransaction(firestore, async (transaction) => {
+            const sourcePPOBAccountRef = doc(firestore, 'kasAccounts', sourcePPOBAccount.id);
+            const laciAccountRef = laciAccount ? doc(firestore, 'kasAccounts', laciAccount.id) : null;
+            const paymentAccRef = paymentTransferAccount ? doc(firestore, 'kasAccounts', paymentTransferAccount.id) : null;
+
+            const [sourceDoc, laciDoc, paymentDoc] = await Promise.all([
+                transaction.get(sourcePPOBAccountRef),
+                laciAccountRef ? transaction.get(laciAccountRef) : Promise.resolve(null),
+                paymentAccRef ? transaction.get(paymentAccRef) : Promise.resolve(null),
+            ]);
+
+            if (!sourceDoc.exists()) throw new Error("Akun sumber PPOB tidak ditemukan.");
+            
+            const currentSourcePPOBBalance = sourceDoc.data().balance;
+            if (currentSourcePPOBBalance < billAmount) throw new Error(`Saldo ${sourcePPOBAccount.label} tidak mencukupi.`);
+            
+            const balanceAfterDebit = currentSourcePPOBBalance - billAmount;
+            const finalSourceBalance = cashback ? balanceAfterDebit + cashback : balanceAfterDebit;
+            transaction.update(sourcePPOBAccountRef, { balance: finalSourceBalance });
+
+            const debitTxRef = doc(collection(sourcePPOBAccountRef, 'transactions'));
+            transaction.set(debitTxRef, {
+                kasAccountId: sourcePPOBAccount.id, type: 'debit', name: `Bayar Tagihan PDAM`, account: values.customerName, date: nowISO, amount: billAmount, balanceBefore: currentSourcePPOBBalance, balanceAfter: balanceAfterDebit, category: 'ppob_pdam_payment', deviceName, auditId
+            });
+
+            if (cashback && cashback > 0) {
+                 const cashbackTxRef = doc(collection(sourcePPOBAccountRef, 'transactions'));
+                 transaction.set(cashbackTxRef, {
+                    kasAccountId: sourcePPOBAccount.id, type: 'credit', name: `Cashback Tagihan PDAM`, account: sourcePPOBAccount.label, date: nowISO, amount: cashback, balanceBefore: balanceAfterDebit, balanceAfter: finalSourceBalance, category: 'ppob_pdam_cashback', deviceName, auditId
+                 });
+            }
+            
+            switch (paymentMethod) {
+                case 'Tunai':
+                    if (!laciAccountRef || !laciDoc || !laciDoc.exists()) throw new Error("Akun Laci tidak ditemukan.");
+                    const currentLaciBalance = laciDoc.data().balance;
+                    transaction.update(laciAccountRef, { balance: currentLaciBalance + totalAmount });
+                    const creditTunaiRef = doc(collection(laciAccountRef, 'transactions'));
+                    transaction.set(creditTunaiRef, {
+                         kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Tagihan PDAM`, account: values.customerName, date: nowISO, amount: totalAmount, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + totalAmount, category: 'ppob_pdam_payment', deviceName, auditId
+                    });
+                    break;
+                case 'Transfer':
+                    if (!paymentAccRef || !paymentDoc || !paymentDoc.exists()) throw new Error("Akun penerima pembayaran tidak valid.");
+                    const currentPaymentBalance = paymentDoc.data().balance;
+                    transaction.update(paymentAccRef, { balance: currentPaymentBalance + totalAmount });
+                    const creditTransferRef = doc(collection(paymentAccRef, 'transactions'));
+                    transaction.set(creditTransferRef, {
+                        kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Tagihan PDAM`, account: values.customerName, date: nowISO, amount: totalAmount, balanceBefore: currentPaymentBalance, balanceAfter: currentPaymentBalance + totalAmount, category: 'ppob_pdam_payment', deviceName, auditId
+                    });
+                    break;
+                case 'Split':
+                    if (!laciAccountRef || !laciDoc || !laciDoc.exists()) throw new Error("Akun Laci tidak ditemukan.");
+                    if (!paymentAccRef || !paymentDoc || !paymentDoc.exists()) throw new Error("Akun penerima pembayaran split tidak valid.");
+                    if (!splitTunaiAmount) throw new Error("Jumlah tunai split tidak valid.");
+
+                    const currentLaciSplitBalance = laciDoc.data().balance;
+                    transaction.update(laciAccountRef, { balance: currentLaciSplitBalance + splitTunaiAmount });
+                    const creditSplitTunaiRef = doc(collection(laciAccountRef, 'transactions'));
+                    transaction.set(creditSplitTunaiRef, {
+                         kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Tunai Tagihan PDAM`, account: values.customerName, date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciSplitBalance, balanceAfter: currentLaciSplitBalance + splitTunaiAmount, category: 'ppob_pdam_payment', deviceName, auditId
+                    });
+
+                    const currentPaymentSplitBalance = paymentDoc.data().balance;
+                    transaction.update(paymentAccRef, { balance: currentPaymentSplitBalance + splitTransferAmount });
+                    const creditSplitTransferRef = doc(collection(paymentAccRef, 'transactions'));
+                    transaction.set(creditSplitTransferRef, {
+                        kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Tagihan PDAM`, account: values.customerName, date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentSplitBalance, balanceAfter: currentPaymentSplitBalance + splitTransferAmount, category: 'ppob_pdam_payment', deviceName, auditId
+                    });
+                    break;
+            }
+        });
+
+        toast({ title: "Sukses", description: "Transaksi PDAM berhasil disimpan." });
+        onTransactionComplete();
+
+    } catch (error: any) {
+        console.error("Error saving PPOB PDAM transaction: ", error);
+        toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
+    } finally {
+        setIsSaving(false);
+    }
+  };
   
   return (
     <Form {...form}>
@@ -258,8 +394,10 @@ export default function PPOBPdamForm({ onReview, onDone }: PPOBPdamFormProps) {
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full">Batal</Button>
-          <Button type="submit" className="w-full" disabled={currentStep !== 2}>Review</Button>
+          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>Batal</Button>
+          <Button type="submit" className="w-full" disabled={isSaving || currentStep !== 2}>
+            {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
+          </Button>
         </div>
       </form>
     </Form>

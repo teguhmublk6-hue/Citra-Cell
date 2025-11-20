@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { collection, doc, runTransaction, addDoc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
@@ -17,9 +17,10 @@ import vaProviderData from '@/lib/va-providers.json';
 import { useState, useEffect, useMemo } from 'react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Check, ChevronsUpDown } from 'lucide-react';
+import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CustomerVAPaymentFormValues } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
 
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
@@ -77,7 +78,7 @@ const refinedSchema = baseSchema.superRefine((data, ctx) => {
 
 
 interface CustomerVAPaymentFormProps {
-  onReview: (data: CustomerVAPaymentFormValues) => void;
+  onTransactionComplete: () => void;
   onDone: () => void;
 }
 
@@ -105,8 +106,10 @@ const calculateServiceFee = (amount: number): number => {
 };
 
 
-export default function CustomerVAPaymentForm({ onReview, onDone }: CustomerVAPaymentFormProps) {
+export default function CustomerVAPaymentForm({ onTransactionComplete, onDone }: CustomerVAPaymentFormProps) {
   const firestore = useFirestore();
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
   const [providerPopoverOpen, setProviderPopoverOpen] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState("");
 
@@ -130,7 +133,7 @@ export default function CustomerVAPaymentForm({ onReview, onDone }: CustomerVAPa
         paymentAmount: undefined,
         adminFee: 0,
         serviceFee: undefined,
-        paymentMethod: undefined,
+        paymentMethod: 'Tunai',
         paymentToKasTransferAccountId: '',
         splitTunaiAmount: undefined,
     },
@@ -146,8 +149,147 @@ export default function CustomerVAPaymentForm({ onReview, onDone }: CustomerVAPa
     }
   }, [paymentAmount, form]);
 
-  const onSubmit = (values: CustomerVAPaymentFormValues) => {
-    onReview(values);
+  const onSubmit = async (values: CustomerVAPaymentFormValues) => {
+    setIsSaving(true);
+    
+    if (!firestore || !kasAccounts) {
+      toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
+      setIsSaving(false);
+      return;
+    }
+    
+    const sourceAccount = kasAccounts.find(acc => acc.id === values.sourceAccountId);
+    const paymentTransferAccount = kasAccounts.find(acc => acc.id === values.paymentToKasTransferAccountId);
+    const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
+    const { paymentAmount, serviceFee, adminFee, paymentMethod, splitTunaiAmount } = values;
+    const totalPaymentByCustomer = paymentAmount + serviceFee;
+    const totalDebitFromSource = paymentAmount + (adminFee || 0);
+    const netProfit = serviceFee - (adminFee || 0);
+    const splitTransferAmount = totalPaymentByCustomer - (splitTunaiAmount || 0);
+
+    if (!sourceAccount) {
+      toast({ variant: "destructive", title: "Error", description: "Akun sumber tidak ditemukan." });
+      setIsSaving(false);
+      return;
+    }
+    if (!laciAccount && (paymentMethod === 'Tunai' || paymentMethod === 'Split')) {
+        toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
+        setIsSaving(false);
+        return;
+    }
+
+    if (sourceAccount.balance < totalDebitFromSource) {
+        toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Saldo ${sourceAccount.label} tidak mencukupi untuk pembayaran ini.` });
+        setIsSaving(false);
+        return;
+    }
+
+    toast({ title: "Memproses...", description: "Menyimpan transaksi pembayaran VA." });
+
+    const now = new Date();
+    const nowISO = now.toISOString();
+    const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
+    
+    try {
+        const auditDocRef = await addDoc(collection(firestore, 'customerVAPayments'), {
+            date: now,
+            sourceKasAccountId: values.sourceAccountId,
+            serviceProvider: values.serviceProvider,
+            recipientName: values.recipientName,
+            paymentAmount: values.paymentAmount,
+            adminFee: values.adminFee || 0,
+            serviceFee: values.serviceFee,
+            netProfit,
+            paymentMethod: values.paymentMethod,
+            paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
+            paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? values.paymentToKasTransferAccountId : null,
+            paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTransferAmount : 0),
+            deviceName
+        });
+        const auditId = auditDocRef.id;
+
+        await runTransaction(firestore, async (transaction) => {
+            const sourceAccountRef = doc(firestore, 'kasAccounts', sourceAccount.id);
+            const laciAccountRef = laciAccount ? doc(firestore, 'kasAccounts', laciAccount.id) : null;
+            const paymentAccRef = paymentTransferAccount ? doc(firestore, 'kasAccounts', paymentTransferAccount.id) : null;
+
+            const [sourceDoc, laciDoc, paymentDoc] = await Promise.all([
+                transaction.get(sourceAccountRef),
+                laciAccountRef ? transaction.get(laciAccountRef) : Promise.resolve(null),
+                paymentAccRef ? transaction.get(paymentAccRef) : Promise.resolve(null),
+            ]);
+
+            if (!sourceDoc.exists()) throw new Error("Akun sumber tidak ditemukan.");
+            
+            const currentSourceBalance = sourceDoc.data().balance;
+            if (currentSourceBalance < totalDebitFromSource) {
+                throw new Error(`Saldo ${sourceAccount.label} tidak mencukupi.`);
+            }
+            
+            transaction.update(sourceAccountRef, { balance: currentSourceBalance - totalDebitFromSource });
+
+            const debitPrincipalRef = doc(collection(sourceAccountRef, 'transactions'));
+            transaction.set(debitPrincipalRef, {
+                kasAccountId: sourceAccount.id, type: 'debit', name: `Bayar VA ${values.serviceProvider} an. ${values.recipientName}`, account: values.serviceProvider, date: nowISO, amount: paymentAmount, balanceBefore: currentSourceBalance, balanceAfter: currentSourceBalance - totalDebitFromSource, category: 'customer_va_payment_debit', deviceName, auditId
+            });
+
+            if (adminFee && adminFee > 0) {
+                const debitFeeRef = doc(collection(sourceAccountRef, 'transactions'));
+                transaction.set(debitFeeRef, {
+                    kasAccountId: sourceAccount.id, type: 'debit', name: `Biaya Admin VA an. ${values.recipientName}`, account: 'Biaya VA', date: nowISO, amount: adminFee, balanceBefore: currentSourceBalance - paymentAmount, balanceAfter: currentSourceBalance - totalDebitFromSource, category: 'customer_va_payment_fee', deviceName, auditId
+                });
+            }
+            
+            switch (paymentMethod) {
+                case 'Tunai':
+                     if (!laciAccountRef || !laciDoc || !laciDoc.exists()) throw new Error("Akun Laci tidak ditemukan.");
+                    const currentLaciBalance = laciDoc.data().balance;
+                    transaction.update(laciAccountRef, { balance: currentLaciBalance + totalPaymentByCustomer });
+                    const creditTunaiRef = doc(collection(laciAccountRef, 'transactions'));
+                    transaction.set(creditTunaiRef, {
+                         kasAccountId: laciAccount.id, type: 'credit', name: `Bayar VA an. ${values.recipientName}`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName, auditId
+                    });
+                    break;
+                case 'Transfer':
+                    if (!paymentAccRef || !paymentDoc || !paymentDoc.exists()) throw new Error("Akun penerima pembayaran tidak valid.");
+                    const currentPaymentBalance = paymentDoc.data().balance;
+                    transaction.update(paymentAccRef, { balance: currentPaymentBalance + totalPaymentByCustomer });
+                    const creditTransferRef = doc(collection(paymentAccRef, 'transactions'));
+                    transaction.set(creditTransferRef, {
+                        kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar VA an. ${values.recipientName}`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentPaymentBalance, balanceAfter: currentPaymentBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName, auditId
+                    });
+                    break;
+                case 'Split':
+                    if (!laciAccountRef || !laciDoc || !laciDoc.exists()) throw new Error("Akun Laci tidak ditemukan.");
+                    if (!paymentAccRef || !paymentDoc || !paymentDoc.exists()) throw new Error("Akun penerima pembayaran split tidak valid.");
+                    if (!splitTunaiAmount) throw new Error("Jumlah tunai split tidak valid.");
+
+                    const currentLaciSplitBalance = laciDoc.data().balance;
+                    transaction.update(laciAccountRef, { balance: currentLaciSplitBalance + splitTunaiAmount });
+                    const creditSplitTunaiRef = doc(collection(laciAccountRef, 'transactions'));
+                    transaction.set(creditSplitTunaiRef, {
+                         kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Tunai VA an. ${values.recipientName}`, account: 'Pelanggan', date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciSplitBalance, balanceAfter: currentLaciSplitBalance + splitTunaiAmount, category: 'customer_payment', deviceName, auditId
+                    });
+
+                    const currentPaymentSplitBalance = paymentDoc.data().balance;
+                    transaction.update(paymentAccRef, { balance: currentPaymentSplitBalance + splitTransferAmount });
+                    const creditSplitTransferRef = doc(collection(paymentAccRef, 'transactions'));
+                    transaction.set(creditSplitTransferRef, {
+                        kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer VA an. ${values.recipientName}`, account: 'Pelanggan', date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentSplitBalance, balanceAfter: currentPaymentSplitBalance + splitTransferAmount, category: 'customer_payment', deviceName, auditId
+                    });
+                    break;
+            }
+        });
+
+        toast({ title: "Sukses", description: "Transaksi berhasil disimpan." });
+        onTransactionComplete();
+
+    } catch (error: any) {
+        console.error("Error saving VA payment:", error);
+        toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   const filteredProviders = vaProviderData.filter(provider =>
@@ -383,11 +525,11 @@ export default function CustomerVAPaymentForm({ onReview, onDone }: CustomerVAPa
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full">
+          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>
             Batal
           </Button>
-          <Button type="submit" className="w-full">
-            Review
+          <Button type="submit" className="w-full" disabled={isSaving}>
+            {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
           </Button>
         </div>
       </form>
