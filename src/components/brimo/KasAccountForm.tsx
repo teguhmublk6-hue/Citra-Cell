@@ -13,8 +13,12 @@ import { collection, doc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { accountTypes } from '@/lib/data';
 import { setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { cn } from '@/lib/utils';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '../ui/command';
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
 
@@ -57,6 +61,7 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
     return collection(firestore, 'kasAccounts');
   }, [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -169,20 +174,59 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
                     control={form.control}
                     name="settlementDestinationAccountId"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="flex flex-col">
                         <FormLabel>Akun Tujuan Settlement</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Pilih akun tujuan" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {kasAccounts?.filter(acc => acc.id !== account?.id).map(acc => (
-                              <SelectItem key={acc.id} value={acc.id}>{acc.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className={cn(
+                                  "w-full justify-between",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value
+                                  ? kasAccounts?.find(
+                                      (acc) => acc.id === field.value
+                                    )?.label
+                                  : "Pilih akun tujuan"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
+                            <Command>
+                              <CommandInput placeholder="Cari akun..." />
+                              <CommandEmpty>Akun tidak ditemukan.</CommandEmpty>
+                              <CommandGroup>
+                                <ScrollArea className="h-72">
+                                {kasAccounts?.filter(acc => acc.id !== account?.id).map((acc) => (
+                                  <CommandItem
+                                    value={acc.label}
+                                    key={acc.id}
+                                    onSelect={() => {
+                                      form.setValue("settlementDestinationAccountId", acc.id)
+                                      setPopoverOpen(false)
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        acc.id === field.value
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                    {acc.label}
+                                  </CommandItem>
+                                ))}
+                                </ScrollArea>
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                         <FormMessage />
                       </FormItem>
                     )}
