@@ -31,25 +31,18 @@ import TransferBalanceForm from './TransferBalanceForm';
 import AddCapitalForm from './AddCapitalForm';
 import WithdrawBalanceForm from './WithdrawBalanceForm';
 import CustomerTransferForm from './CustomerTransferForm';
-import CustomerTransferReview from './CustomerTransferReview';
 import type { CustomerEmoneyTopUpFormValues, CustomerKJPWithdrawalFormValues, CustomerTopUpFormValues, CustomerTransferFormValues, CustomerVAPaymentFormValues, CustomerWithdrawalFormValues, EDCServiceFormValues, SettlementFormValues, MotivationFormValues, PPOBPulsaFormValues, PPOBTokenListrikFormValues, PPOBPaketDataFormValues, PPOBPlnPostpaidFormValues, PPOBPdamFormValues, PPOBBpjsFormValues, PPOBWifiFormValues, PPOBPaketTelponFormValues, ShiftReconciliationFormValues } from '@/lib/types';
 import BookkeepingReport from './BookkeepingReport';
 import AdminPasscodeDialog from './AdminPasscodeDialog';
 import CustomerWithdrawalForm from './CustomerWithdrawalForm';
-import CustomerWithdrawalReview from './CustomerWithdrawalReview';
 import ProfitLossReport from './ProfitLossReport';
 import CustomerTopUpForm from './CustomerTopUpForm';
-import CustomerTopUpReview from './CustomerTopUpReview';
 import CustomerVAPaymentForm from './CustomerVAPaymentForm';
-import CustomerVAPaymentReview from './CustomerVAPaymentReview';
 import EDCServiceForm from './EDCServiceForm';
 import CustomerEmoneyTopUpForm from './CustomerEmoneyTopUpForm';
-import CustomerEmoneyTopUpReview from './CustomerEmoneyTopUpReview';
 import SettlementForm from './SettlementForm';
-import SettlementReview from './SettlementReview';
 import { Button } from '../ui/button';
 import CustomerKJPWithdrawalForm from './CustomerKJPWithdrawalForm';
-import CustomerKJPWithdrawalReview from './CustomerKJPWithdrawalReview';
 import MotivationCard from './MotivationCard';
 import SetMotivationForm from './SetMotivationForm';
 import KasManagement from './KasManagement';
@@ -57,17 +50,12 @@ import DeleteAllKasAccountsDialog from './DeleteAllKasAccountsDialog';
 import DeleteAllReportsDialog from './DeleteAllReportsDialog';
 import { useToast } from '@/hooks/use-toast';
 import PPOBPulsaForm from './PPOBPulsaForm';
-import PPOBPulsaReview from './PPOBPulsaReview';
 import PPOBPaketDataForm from './PPOBPaketDataForm';
-import PPOBPaketDataReview from './PPOBPaketDataReview';
 import PPOBPricingManager from './PPOBPricingManager';
 import PPOBReport from './PPOBReport';
 import PPOBTokenListrikForm from './PPOBTokenListrikForm';
-import PPOBTokenListrikReview from './PPOBTokenListrikReview';
 import PPOBPlnPostpaidForm from './PPOBPlnPostpaidForm';
-import PPOBPlnPostpaidReview from './PPOBPlnPostpaidReview';
 import PPOBPdamForm from './PPOBPdamForm';
-import PPOBPdamReview from './PPOBPdamReview';
 import RepeatTransactionDialog from './RepeatTransactionDialog';
 import AccountsContent from './AccountsContent';
 import PendingSettlements from './PendingSettlements';
@@ -75,11 +63,8 @@ import OperationalCostReport from './OperationalCostReport';
 import ReportsContent from './ReportsContent';
 import CapitalAdditionReport from './CapitalAdditionReport';
 import PPOBBpjsForm from './PPOBBpjsForm';
-import PPOBBpjsReview from './PPOBBpjsReview';
 import PPOBWifiForm from './PPOBWifiForm';
-import PPOBWifiReview from './PPOBWifiReview';
 import PPOBPaketTelponForm from './PPOBPaketTelponForm';
-import PPOBPaketTelponReview from './PPOBPaketTelponReview';
 import ShiftReconciliationForm from './ShiftReconciliationForm';
 import StartShiftScreen from './StartShiftScreen';
 import ShiftReconciliationReport from './ShiftReconciliationReport';
@@ -99,7 +84,7 @@ export const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'laporan' | 'mutasi' | 'accounts' | 'admin';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerTransferReview' | 'customerWithdrawal' | 'customerWithdrawalReview' | 'customerTopUp' | 'customerTopUpReview' | 'customerVAPayment' | 'customerVAPaymentReview' | 'EDCService' | 'customerEmoneyTopUp' | 'customerEmoneyTopUpReview' | 'customerKJP' | 'customerKJPReview' | 'settlement' | 'settlementReview' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobPulsaReview' | 'ppobTokenListrik' | 'ppobTokenListrikReview' | 'ppobPaketData' | 'ppobPaketDataReview' | 'ppobPlnPostpaid' | 'ppobPlnPostpaidReview' | 'ppobPdam' | 'ppobPdamReview' | 'ppobBpjs' | 'ppobBpjsReview' | 'ppobWifi' | 'ppobWifiReview' | 'operationalCostReport' | 'deleteAllKasAccounts' | 'ppobPaketTelpon' | 'ppobPaketTelponReview' | 'shiftReconciliation';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobTokenListrik' | 'ppobPaketData' | 'ppobPlnPostpaid' | 'ppobPdam' | 'ppobBpjs' | 'ppobWifi' | 'operationalCostReport' | 'deleteAllKasAccounts' | 'ppobPaketTelpon' | 'shiftReconciliation';
 type FormSheet = 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'ppobPulsa' | 'ppobTokenListrik' | 'ppobPaketData' | 'ppobPlnPostpaid' | 'ppobPdam' | 'ppobBpjs' | 'ppobWifi' | 'ppobPaketTelpon' | 'shiftReconciliation';
 
 
@@ -116,7 +101,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
   const [currentSlide, setCurrentSlide] = useState(0)
-  const [reviewData, setReviewData] = useState<CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | CustomerKJPWithdrawalFormValues | MotivationFormValues | PPOBPulsaFormValues | PPOBTokenListrikFormValues | PPOBPaketDataFormValues | PPOBPlnPostpaidFormValues | PPOBPdamFormValues | PPOBBpjsFormValues | PPOBWifiFormValues | PPOBPaketTelponFormValues | ShiftReconciliationFormValues | null>(null);
   const [isAdminAccessGranted, setIsAdminAccessGranted] = useState(false);
   const [isPasscodeDialogOpen, setIsPasscodeDialogOpen] = useState(false);
   const [isBrilinkReportVisible, setIsBrilinkReportVisible] = useState(false);
@@ -151,7 +135,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     const storedName = localStorage.getItem('brimoDeviceName') || '';
     setDeviceName(storedName);
     
-    // Listen for storage changes from other tabs/windows
     const handleStorageChange = () => {
         const updatedName = localStorage.getItem('brimoDeviceName') || '';
         setDeviceName(updatedName);
@@ -250,41 +233,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
         setActiveSheet('ppobPaketTelpon');
     }
   }
-
-  const handleReview = (data: CustomerTransferFormValues | CustomerWithdrawalFormValues | CustomerTopUpFormValues | CustomerVAPaymentFormValues | EDCServiceFormValues | CustomerEmoneyTopUpFormValues | SettlementFormValues | CustomerKJPWithdrawalFormValues | PPOBPulsaFormValues | PPOBTokenListrikFormValues | PPOBPaketDataFormValues | PPOBPlnPostpaidFormValues | PPOBPdamFormValues | PPOBBpjsFormValues | PPOBWifiFormValues | PPOBPaketTelponFormValues) => {
-    setReviewData(data);
-    if ('destinationBank' in data) {
-        setActiveSheet('customerTransferReview');
-    } else if ('customerBankSource' in data) {
-        setActiveSheet('customerWithdrawalReview');
-    } else if ('destinationEwallet' in data) {
-        setActiveSheet('customerTopUpReview');
-    } else if ('serviceProvider' in data) {
-        setActiveSheet('customerVAPaymentReview');
-    } else if ('destinationEmoney' in data) {
-        setActiveSheet('customerEmoneyTopUpReview');
-    } else if ('sourceMerchantAccountId' in data) {
-        setActiveSheet('settlementReview');
-    } else if (activeSheet === 'ppobPaketData') {
-        setActiveSheet('ppobPaketDataReview');
-    } else if (activeSheet === 'ppobPulsa') {
-        setActiveSheet('ppobPulsaReview');
-    } else if (activeSheet === 'ppobPlnPostpaid') {
-        setActiveSheet('ppobPlnPostpaidReview');
-    } else if (activeSheet === 'ppobPdam') {
-        setActiveSheet('ppobPdamReview');
-    } else if (activeSheet === 'ppobBpjs') {
-        setActiveSheet('ppobBpjsReview');
-    } else if (activeSheet === 'ppobWifi') {
-        setActiveSheet('ppobWifiReview');
-    } else if (activeSheet === 'ppobPaketTelpon') {
-        setActiveSheet('ppobPaketTelponReview');
-    } else if (activeSheet === 'ppobTokenListrik') {
-        setActiveSheet('ppobTokenListrikReview');
-    } else if ('withdrawalAmount' in data && 'customerName' in data && !('customerBankSource' in data)) { // KJP
-        setActiveSheet('customerKJPReview');
-    }
-  }
   
   const handleSettlementClick = (account: KasAccountType) => {
     setSelectedAccount(account);
@@ -293,25 +241,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
 
   const handleTransactionComplete = () => {
     revalidateData();
-    let formSheet: FormSheet | null = null;
-    
-    // Determine which form was just completed
-    if (activeSheet === 'customerTransferReview') formSheet = 'customerTransfer';
-    else if (activeSheet === 'customerWithdrawalReview') formSheet = 'customerWithdrawal';
-    else if (activeSheet === 'customerTopUpReview') formSheet = 'customerTopUp';
-    else if (activeSheet === 'customerEmoneyTopUpReview') formSheet = 'customerEmoneyTopUp';
-    else if (activeSheet === 'customerVAPaymentReview') formSheet = 'customerVAPayment';
-    else if (activeSheet === 'ppobPulsaReview') formSheet = 'ppobPulsa';
-    else if (activeSheet === 'ppobTokenListrikReview') formSheet = 'ppobTokenListrik';
-    else if (activeSheet === 'ppobPaketDataReview') formSheet = 'ppobPaketData';
-    else if (activeSheet === 'ppobPlnPostpaidReview') formSheet = 'ppobPlnPostpaid';
-    else if (activeSheet === 'ppobPdamReview') formSheet = 'ppobPdam';
-    else if (activeSheet === 'ppobBpjsReview') formSheet = 'ppobBpjs';
-    else if (activeSheet === 'ppobWifiReview') formSheet = 'ppobWifi';
-    else if (activeSheet === 'ppobPaketTelponReview') formSheet = 'ppobPaketTelpon';
-    else if (activeSheet === 'customerKJPReview') formSheet = 'customerKJP';
-    else if (activeSheet === 'settlementReview') formSheet = 'settlement';
-    
+    let formSheet: FormSheet | null = activeSheet as FormSheet;
     setLastCompletedSheet(formSheet);
     setIsRepeatDialogOpen(true);
   }
@@ -324,18 +254,14 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
 
   const handleRepeatYes = () => {
     setIsRepeatDialogOpen(false);
-    // Close the sheet completely, then reopen the correct form.
-    // This ensures the form component is unmounted and remounted with a fresh state.
     setActiveSheet(null); 
-    setReviewData(null);
     setTimeout(() => {
         setActiveSheet(lastCompletedSheet);
-    }, 100); // A small delay to ensure the sheet has time to close
+    }, 100); 
   };
   
   const closeAllSheets = () => {
     setActiveSheet(null);
-    setReviewData(null);
     revalidateData();
   }
   
@@ -417,7 +343,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
             batch.delete(doc.ref);
         });
         
-        // Also reset the settings carry-over value
         const settingsRef = doc(firestore, 'appConfig', 'dailyReportSettings');
         batch.set(settingsRef, { lastFinalLiability: 0 }, { merge: true });
         
@@ -446,11 +371,9 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     try {
         const batch = writeBatch(firestore);
         for (const account of kasAccounts) {
-            // 1. Reset balance to 0
             const accountRef = collection(firestore, 'kasAccounts');
             batch.update(doc(accountRef, account.id), { balance: 0 });
 
-            // 2. Delete all transactions in subcollection
             const transactionsRef = collection(firestore, 'kasAccounts', account.id, 'transactions');
             const transactionsSnapshot = await getDocs(transactionsRef);
             transactionsSnapshot.forEach(transactionDoc => {
@@ -503,7 +426,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     try {
       const batch = writeBatch(firestore);
   
-      // Set shift status
       const shiftStatusRef = doc(firestore, 'appConfig', 'currentShiftStatus');
       batch.set(shiftStatusRef, {
         isActive: true,
@@ -511,7 +433,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
         startTime: new Date().toISOString()
       }, { merge: true });
   
-      // Reset laci balance and create initial transaction
       const laciRef = doc(firestore, 'kasAccounts', laciAccount.id);
       batch.update(laciRef, { balance: initialCapital });
   
@@ -523,7 +444,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
         account: 'Internal',
         date: new Date().toISOString(),
         amount: initialCapital,
-        balanceBefore: 0, // Assuming reset, or could be laciAccount.balance for an addition
+        balanceBefore: 0, 
         balanceAfter: initialCapital,
         category: 'capital',
         deviceName: deviceName,
@@ -594,22 +515,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     if (isSettingsVisible) {
         return <SettingsContent onBack={() => setIsSettingsVisible(false)} />;
     }
-
-  const isKJPReview = activeSheet === 'customerKJPReview' && reviewData && 'withdrawalAmount' in reviewData && !('customerBankSource' in reviewData);
-  const isTokenReview = activeSheet === 'ppobTokenListrikReview' && reviewData && 'costPrice' in reviewData && 'customerName' in reviewData && !('phoneNumber' in reviewData);
-  const isPulsaReview = activeSheet === 'ppobPulsaReview' && reviewData && 'phoneNumber' in reviewData && !('packageName' in reviewData);
-  const isPaketDataReview = activeSheet === 'ppobPaketDataReview' && reviewData && 'packageName' in reviewData;
-  const isPlnPostpaidReview = activeSheet === 'ppobPlnPostpaidReview' && reviewData && 'billAmount' in reviewData && 'totalAmount' in reviewData && (reviewData as any).serviceName !== 'PDAM' && (reviewData as any).serviceName !== 'BPJS' && (reviewData as any).serviceName !== 'Wifi';
-  const isPdamReview = activeSheet === 'ppobPdamReview' && reviewData && 'billAmount' in reviewData && 'totalAmount' in reviewData;
-  const isBpjsReview = activeSheet === 'ppobBpjsReview' && reviewData && 'billAmount' in reviewData && 'totalAmount' in reviewData;
-  const isWifiReview = activeSheet === 'ppobWifiReview' && reviewData && 'billAmount' in reviewData && 'totalAmount' in reviewData;
-  const isPaketTelponReview = activeSheet === 'ppobPaketTelponReview' && reviewData && 'packageName' in reviewData && !('phoneNumber' in reviewData);
-  const isEmoneyReview = activeSheet === 'customerEmoneyTopUpReview' && reviewData && 'destinationEmoney' in reviewData;
-  const isEwalletReview = activeSheet === 'customerTopUpReview' && reviewData && 'destinationEwallet' in reviewData;
-  const isVAReview = activeSheet === 'customerVAPaymentReview' && reviewData && 'serviceProvider' in reviewData;
-  const isWithdrawalReview = activeSheet === 'customerWithdrawalReview' && reviewData && 'customerBankSource' in reviewData;
-  const isTransferReview = activeSheet === 'customerTransferReview' && reviewData && 'destinationBank' in reviewData;
-  const isSettlementReview = activeSheet === 'settlementReview' && reviewData && 'sourceMerchantAccountId' in reviewData;
 
   const renderContent = () => {
     switch (activeTab) {
@@ -750,36 +655,22 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                   {activeSheet === 'addCapital' && 'Tambah Modal'}
                   {activeSheet === 'withdraw' && 'Tarik Saldo Pribadi'}
                   {activeSheet === 'customerTransfer' && 'Transfer Pelanggan'}
-                  {activeSheet === 'customerTransferReview' && 'Review Transaksi Transfer'}
                   {activeSheet === 'customerWithdrawal' && 'Tarik Tunai Pelanggan'}
-                  {activeSheet === 'customerWithdrawalReview' && 'Review Tarik Tunai'}
                   {activeSheet === 'customerTopUp' && 'Top Up E-Wallet'}
-                  {activeSheet === 'customerTopUpReview' && 'Review Top Up E-Wallet'}
                   {activeSheet === 'customerEmoneyTopUp' && 'Top Up E-Money'}
-                  {activeSheet === 'customerEmoneyTopUpReview' && 'Review Top Up E-Money'}
                   {activeSheet === 'customerKJP' && 'Tarik Tunai KJP'}
-                  {activeSheet === 'customerKJPReview' && 'Review Tarik Tunai KJP'}
                   {activeSheet === 'settlement' && `Settlement: ${selectedAccount?.label}`}
-                  {activeSheet === 'settlementReview' && 'Review Settlement'}
                   {activeSheet === 'setMotivation' && 'Atur Motivasi Harian'}
                   {activeSheet === 'manageKasAccounts' && 'Manajemen Akun Kas'}
                   {activeSheet === 'managePPOBPricing' && 'Kelola Harga PPOB'}
                   {activeSheet === 'ppobPulsa' && 'Transaksi Pulsa'}
-                  {activeSheet === 'ppobPulsaReview' && 'Review Transaksi Pulsa'}
                   {activeSheet === 'ppobTokenListrik' && 'Transaksi Token Listrik'}
-                  {activeSheet === 'ppobTokenListrikReview' && 'Review Transaksi Token Listrik'}
                   {activeSheet === 'ppobPaketData' && 'Transaksi Paket Data'}
-                  {activeSheet === 'ppobPaketDataReview' && 'Review Transaksi Paket Data'}
                   {activeSheet === 'ppobPlnPostpaid' && 'Bayar Tagihan PLN'}
-                  {activeSheet === 'ppobPlnPostpaidReview' && 'Review Tagihan PLN'}
                   {activeSheet === 'ppobPdam' && 'Bayar Tagihan PDAM'}
-                  {activeSheet === 'ppobPdamReview' && 'Review Tagihan PDAM'}
                   {activeSheet === 'ppobBpjs' && 'Bayar Tagihan BPJS'}
-                  {activeSheet === 'ppobBpjsReview' && 'Review Tagihan BPJS'}
                   {activeSheet === 'ppobWifi' && 'Bayar Tagihan Wifi'}
-                  {activeSheet === 'ppobWifiReview' && 'Review Tagihan Wifi'}
                   {activeSheet === 'ppobPaketTelpon' && 'Transaksi Paket Telpon'}
-                  {activeSheet === 'ppobPaketTelponReview' && 'Review Transaksi Paket Telpon'}
                   {activeSheet === 'operationalCostReport' && 'Laporan Biaya Operasional'}
                   {activeSheet === 'deleteAllKasAccounts' && 'Reset Semua Akun Kas'}
                   {activeSheet === 'shiftReconciliation' && 'Rekonsiliasi Shift'}
@@ -790,56 +681,41 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
             {activeSheet === 'addCapital' && <AddCapitalForm onDone={closeAllSheets} />}
             {activeSheet === 'withdraw' && <WithdrawBalanceForm onDone={closeAllSheets} />}
             
-            {activeSheet === 'customerTransfer' && <CustomerTransferForm onReview={handleReview} onDone={closeAllSheets} />}
-            {isTransferReview && <CustomerTransferReview formData={reviewData as CustomerTransferFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('customerTransfer')} />}
+            {activeSheet === 'customerTransfer' && <CustomerTransferForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
-            {activeSheet === 'customerWithdrawal' && <CustomerWithdrawalForm onReview={handleReview} onDone={closeAllSheets} />}
-            {isWithdrawalReview && <CustomerWithdrawalReview formData={reviewData as CustomerWithdrawalFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('customerWithdrawal')} />}
+            {activeSheet === 'customerWithdrawal' && <CustomerWithdrawalForm onReview={() => {}} onDone={closeAllSheets} />}
 
-            {activeSheet === 'customerTopUp' && <CustomerTopUpForm onReview={handleReview} onDone={closeAllSheets} />}
-            {isEwalletReview && <CustomerTopUpReview formData={reviewData as CustomerTopUpFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('customerTopUp')} />}
+            {activeSheet === 'customerTopUp' && <CustomerTopUpForm onReview={() => {}} onDone={closeAllSheets} />}
             
-            {activeSheet === 'customerEmoneyTopUp' && <CustomerEmoneyTopUpForm onReview={handleReview} onDone={closeAllSheets} />}
-            {isEmoneyReview && <CustomerEmoneyTopUpReview formData={reviewData as CustomerEmoneyTopUpFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('customerEmoneyTopUp')} />}
+            {activeSheet === 'customerEmoneyTopUp' && <CustomerEmoneyTopUpForm onReview={() => {}} onDone={closeAllSheets} />}
 
-            {activeSheet === 'customerVAPayment' && <CustomerVAPaymentForm onReview={handleReview} onDone={closeAllSheets} />}
-            {isVAReview && <CustomerVAPaymentReview formData={reviewData as CustomerVAPaymentFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('customerVAPayment')} />}
+            {activeSheet === 'customerVAPayment' && <CustomerVAPaymentForm onReview={() => {}} onDone={closeAllSheets} />}
             
             {activeSheet === 'EDCService' && <EDCServiceForm onDone={closeAllSheets} />}
             
-            {activeSheet === 'settlement' && selectedAccount && <SettlementForm account={selectedAccount} onReview={handleReview} onDone={closeAllSheets} />}
-            {isSettlementReview && <SettlementReview formData={reviewData as SettlementFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('settlement')} />}
+            {activeSheet === 'settlement' && selectedAccount && <SettlementForm account={selectedAccount} onReview={() => {}} onDone={closeAllSheets} />}
 
-            {activeSheet === 'customerKJP' && <CustomerKJPWithdrawalForm onReview={handleReview} onDone={closeAllSheets} />}
-            {isKJPReview && <CustomerKJPWithdrawalReview formData={reviewData as CustomerKJPWithdrawalFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('customerKJP')} />}
+            {activeSheet === 'customerKJP' && <CustomerKJPWithdrawalForm onReview={() => {}} onDone={closeAllSheets} />}
             
             {activeSheet === 'setMotivation' && <SetMotivationForm onDone={closeAllSheets} />}
             {activeSheet === 'manageKasAccounts' && <KasManagement onResetAll={handleResetAllAccountsClick} />}
             {activeSheet === 'managePPOBPricing' && <PPOBPricingManager onDone={closeAllSheets} />}
             
-            {activeSheet === 'ppobPulsa' && <PPOBPulsaForm onReview={handleReview} onDone={closeAllSheets} />}
-            {isPulsaReview && <PPOBPulsaReview formData={reviewData as PPOBPulsaFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('ppobPulsa')} />}
+            {activeSheet === 'ppobPulsa' && <PPOBPulsaForm onReview={() => {}} onDone={closeAllSheets} />}
 
-            {activeSheet === 'ppobTokenListrik' && <PPOBTokenListrikForm onReview={handleReview} onDone={closeAllSheets} />}
-            {isTokenReview && <PPOBTokenListrikReview formData={reviewData as PPOBTokenListrikFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('ppobTokenListrik')} />}
+            {activeSheet === 'ppobTokenListrik' && <PPOBTokenListrikForm onReview={() => {}} onDone={closeAllSheets} />}
             
-            {activeSheet === 'ppobPaketData' && <PPOBPaketDataForm onReview={handleReview} onDone={closeAllSheets} />}
-            {isPaketDataReview && <PPOBPaketDataReview formData={reviewData as PPOBPaketDataFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('ppobPaketData')} />}
+            {activeSheet === 'ppobPaketData' && <PPOBPaketDataForm onReview={() => {}} onDone={closeAllSheets} />}
             
-            {activeSheet === 'ppobPlnPostpaid' && <PPOBPlnPostpaidForm onReview={handleReview} onDone={closeAllSheets} />}
-            {isPlnPostpaidReview && <PPOBPlnPostpaidReview formData={reviewData as PPOBPlnPostpaidFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('ppobPlnPostpaid')} />}
+            {activeSheet === 'ppobPlnPostpaid' && <PPOBPlnPostpaidForm onReview={() => {}} onDone={closeAllSheets} />}
 
-            {activeSheet === 'ppobPdam' && <PPOBPdamForm onReview={handleReview} onDone={closeAllSheets} />}
-            {isPdamReview && <PPOBPdamReview formData={reviewData as PPOBPdamFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('ppobPdam')} />}
+            {activeSheet === 'ppobPdam' && <PPOBPdamForm onReview={() => {}} onDone={closeAllSheets} />}
             
-            {activeSheet === 'ppobBpjs' && <PPOBBpjsForm onReview={handleReview} onDone={closeAllSheets} />}
-            {isBpjsReview && <PPOBBpjsReview formData={reviewData as PPOBBpjsFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('ppobBpjs')} />}
+            {activeSheet === 'ppobBpjs' && <PPOBBpjsForm onReview={() => {}} onDone={closeAllSheets} />}
             
-            {activeSheet === 'ppobWifi' && <PPOBWifiForm onReview={handleReview} onDone={closeAllSheets} />}
-            {isWifiReview && <PPOBWifiReview formData={reviewData as PPOBWifiFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('ppobWifi')} />}
+            {activeSheet === 'ppobWifi' && <PPOBWifiForm onReview={() => {}} onDone={closeAllSheets} />}
             
-            {activeSheet === 'ppobPaketTelpon' && <PPOBPaketTelponForm onReview={handleReview} onDone={closeAllSheets} />}
-            {isPaketTelponReview && <PPOBPaketTelponReview formData={reviewData as PPOBPaketTelponFormValues} onConfirm={handleTransactionComplete} onBack={() => setActiveSheet('ppobPaketTelpon')} />}
+            {activeSheet === 'ppobPaketTelpon' && <PPOBPaketTelponForm onReview={() => {}} onDone={closeAllSheets} />}
 
 
             {activeSheet === 'operationalCostReport' && <OperationalCostReport onDone={closeAllSheets} />}
@@ -886,6 +762,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     </>
   );
 }
+
 
 
 

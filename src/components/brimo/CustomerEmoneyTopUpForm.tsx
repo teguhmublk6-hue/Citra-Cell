@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { collection, doc, runTransaction, addDoc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
@@ -21,10 +21,11 @@ import { Card, CardContent } from '../ui/card';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import emoneyCardsData from '@/lib/emoney-cards.json';
+import { Loader2 } from 'lucide-react';
 
 
 interface CustomerEmoneyTopUpFormProps {
-  onReview: (data: CustomerEmoneyTopUpFormValues) => void;
+  onTransactionComplete: () => void;
   onDone: () => void;
 }
 
@@ -52,13 +53,12 @@ const calculateServiceFee = (amount: number): number => {
 };
 
 
-export default function CustomerEmoneyTopUpForm({ onReview, onDone }: CustomerEmoneyTopUpFormProps) {
+export default function CustomerEmoneyTopUpForm({ onTransactionComplete, onDone }: CustomerEmoneyTopUpFormProps) {
   const firestore = useFirestore();
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
   
-  const kasAccountsCollection = useMemoFirebase(() => {
-    return collection(firestore, 'kasAccounts');
-  }, [firestore]);
-
+  const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
   
   const refinedSchema = CustomerEmoneyTopUpFormSchema.superRefine((data, ctx) => {
@@ -105,8 +105,118 @@ export default function CustomerEmoneyTopUpForm({ onReview, onDone }: CustomerEm
       return kasAccounts?.filter(acc => ['Bank', 'E-Wallet'].includes(acc.type));
   }, [kasAccounts]);
 
-  const onSubmit = (values: CustomerEmoneyTopUpFormValues) => {
-    onReview(values);
+  const onSubmit = async (values: CustomerEmoneyTopUpFormValues) => {
+    setIsSaving(true);
+    const { toast } = useToast();
+
+    if (!firestore || !kasAccounts) {
+      toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
+      setIsSaving(false);
+      return;
+    }
+    
+    const sourceAccount = kasAccounts.find(acc => acc.id === values.sourceAccountId);
+    const paymentTransferAccount = kasAccounts.find(acc => acc.id === values.paymentToKasTransferAccountId);
+    const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
+    const { topUpAmount, serviceFee, paymentMethod, splitTunaiAmount } = values;
+    const totalPaymentByCustomer = topUpAmount + serviceFee;
+    const splitTransferAmount = totalPaymentByCustomer - (splitTunaiAmount || 0);
+
+    if (!sourceAccount) {
+      toast({ variant: "destructive", title: "Error", description: "Akun sumber tidak ditemukan." });
+      setIsSaving(false);
+      return;
+    }
+    if (!laciAccount && (paymentMethod === 'Tunai' || paymentMethod === 'Split')) {
+        toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
+        setIsSaving(false);
+        return;
+    }
+    if (sourceAccount.balance < topUpAmount) {
+        toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Saldo ${sourceAccount.label} tidak mencukupi untuk melakukan top up.` });
+        setIsSaving(false);
+        return;
+    }
+
+    toast({ title: "Memproses...", description: "Menyimpan transaksi top up." });
+
+    const now = new Date();
+    const nowISO = now.toISOString();
+    const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
+    
+    try {
+        const auditDocRef = await addDoc(collection(firestore, 'customerEmoneyTopUps'), {
+            date: now,
+            sourceKasAccountId: values.sourceAccountId,
+            destinationEmoney: values.destinationEmoney,
+            topUpAmount: values.topUpAmount,
+            serviceFee: values.serviceFee,
+            paymentMethod: values.paymentMethod,
+            paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
+            paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? values.paymentToKasTransferAccountId : null,
+            paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTransferAmount : 0),
+            deviceName
+        });
+        const auditId = auditDocRef.id;
+
+        await runTransaction(firestore, async (transaction) => {
+            const sourceAccountRef = doc(firestore, 'kasAccounts', sourceAccount.id);
+            const laciAccountRef = laciAccount ? doc(firestore, 'kasAccounts', laciAccount.id) : null;
+            const paymentAccRef = paymentTransferAccount ? doc(firestore, 'kasAccounts', paymentTransferAccount.id) : null;
+
+            const [sourceDoc, laciDoc, paymentDoc] = await Promise.all([
+                transaction.get(sourceAccountRef),
+                laciAccountRef ? transaction.get(laciAccountRef) : Promise.resolve(null),
+                paymentAccRef ? transaction.get(paymentAccRef) : Promise.resolve(null),
+            ]);
+
+            if (!sourceDoc.exists()) throw new Error("Akun sumber tidak ditemukan.");
+            const currentSourceBalance = sourceDoc.data().balance;
+            if (currentSourceBalance < topUpAmount) throw new Error(`Saldo ${sourceAccount.label} tidak mencukupi.`);
+            
+            transaction.update(sourceAccountRef, { balance: currentSourceBalance - topUpAmount });
+            const debitTxRef = doc(collection(sourceAccountRef, 'transactions'));
+            transaction.set(debitTxRef, { kasAccountId: sourceAccount.id, type: 'debit', name: `Top Up ${values.destinationEmoney}`, account: values.destinationEmoney, date: nowISO, amount: topUpAmount, balanceBefore: currentSourceBalance, balanceAfter: currentSourceBalance - topUpAmount, category: 'customer_emoney_topup_debit', deviceName, auditId });
+            
+            switch (paymentMethod) {
+                case 'Tunai':
+                    if (!laciAccountRef || !laciDoc || !laciDoc.exists()) throw new Error("Akun Laci tidak ditemukan.");
+                    const currentLaciBalance = laciDoc.data().balance;
+                    transaction.update(laciAccountRef, { balance: currentLaciBalance + totalPaymentByCustomer });
+                    const creditTunaiRef = doc(collection(laciAccountRef, 'transactions'));
+                    transaction.set(creditTunaiRef, { kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Top Up E-Money`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName, auditId });
+                    break;
+                case 'Transfer':
+                    if (!paymentAccRef || !paymentDoc || !paymentDoc.exists()) throw new Error("Akun penerima pembayaran tidak valid.");
+                    const currentPaymentBalance = paymentDoc.data().balance;
+                    transaction.update(paymentAccRef, { balance: currentPaymentBalance + totalPaymentByCustomer });
+                    const creditTransferRef = doc(collection(paymentAccRef, 'transactions'));
+                    transaction.set(creditTransferRef, { kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Top Up E-Money`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentPaymentBalance, balanceAfter: currentPaymentBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName, auditId });
+                    break;
+                case 'Split':
+                    if (!laciAccountRef || !laciDoc || !laciDoc.exists()) throw new Error("Akun Laci tidak ditemukan.");
+                    if (!paymentAccRef || !paymentDoc || !paymentDoc.exists()) throw new Error("Akun penerima pembayaran split tidak valid.");
+                    if (!splitTunaiAmount) throw new Error("Jumlah tunai split tidak valid.");
+                    const currentLaciSplitBalance = laciDoc.data().balance;
+                    transaction.update(laciAccountRef, { balance: currentLaciSplitBalance + splitTunaiAmount });
+                    const creditSplitTunaiRef = doc(collection(laciAccountRef, 'transactions'));
+                    transaction.set(creditSplitTunaiRef, { kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Tunai E-Money`, account: 'Pelanggan', date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciSplitBalance, balanceAfter: currentLaciSplitBalance + splitTunaiAmount, category: 'customer_payment', deviceName, auditId });
+                    const currentPaymentSplitBalance = paymentDoc.data().balance;
+                    transaction.update(paymentAccRef, { balance: currentPaymentSplitBalance + splitTransferAmount });
+                    const creditSplitTransferRef = doc(collection(paymentAccRef, 'transactions'));
+                    transaction.set(creditSplitTransferRef, { kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer E-Money`, account: 'Pelanggan', date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentSplitBalance, balanceAfter: currentPaymentSplitBalance + splitTransferAmount, category: 'customer_payment', deviceName, auditId });
+                    break;
+            }
+        });
+
+        toast({ title: "Sukses", description: "Transaksi Top Up E-Money berhasil disimpan." });
+        onTransactionComplete();
+    } catch (error: any) {
+        console.error("Error saving e-money top up transaction: ", error);
+        toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
+    } finally {
+        setIsSaving(false);
+    }
   };
   
   return (
@@ -124,21 +234,9 @@ export default function CustomerEmoneyTopUpForm({ onReview, onDone }: CustomerEm
                   {!field.value ? (
                     <div className="grid grid-cols-2 gap-2">
                       {emoneyCardsData.map((card) => (
-                        <Card
-                          key={card.name}
-                          onClick={() => field.onChange(card.name)}
-                          className={cn("cursor-pointer bg-white")}
-                        >
+                        <Card key={card.name} onClick={() => field.onChange(card.name)} className={cn("cursor-pointer bg-white")}>
                           <CardContent className="p-2 flex items-center justify-center aspect-[2.5/1]">
-                            <div className="relative w-full h-full">
-                              <Image
-                                src={card.icon}
-                                alt={card.name}
-                                fill
-                                style={{ objectFit: 'contain' }}
-                                data-ai-hint={card.hint}
-                              />
-                            </div>
+                            <div className="relative w-full h-full"><Image src={card.icon} alt={card.name} fill style={{ objectFit: 'contain' }} data-ai-hint={card.hint} /></div>
                           </CardContent>
                         </Card>
                       ))}
@@ -147,15 +245,7 @@ export default function CustomerEmoneyTopUpForm({ onReview, onDone }: CustomerEm
                     <div className="space-y-2">
                       <Card className="ring-2 ring-primary bg-white">
                         <CardContent className="p-2 flex items-center justify-center aspect-[2.5/1]">
-                           <div className="relative w-full h-full">
-                            <Image
-                                src={emoneyCardsData.find(c => c.name === field.value)?.icon || ''}
-                                alt={field.value}
-                                fill
-                                style={{ objectFit: 'contain' }}
-                                data-ai-hint={emoneyCardsData.find(c => c.name === field.value)?.hint}
-                            />
-                           </div>
+                           <div className="relative w-full h-full"><Image src={emoneyCardsData.find(c => c.name === field.value)?.icon || ''} alt={field.value} fill style={{ objectFit: 'contain' }} data-ai-hint={emoneyCardsData.find(c => c.name === field.value)?.hint} /></div>
                         </CardContent>
                       </Card>
                       <Button variant="link" onClick={() => field.onChange('')} className="p-0 h-auto">Ganti Pilihan</Button>
@@ -173,15 +263,9 @@ export default function CustomerEmoneyTopUpForm({ onReview, onDone }: CustomerEm
                 <FormItem>
                   <FormLabel>Sumber Dana Top Up</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih akun sumber" />
-                      </SelectTrigger>
-                    </FormControl>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Pilih akun sumber" /></SelectTrigger></FormControl>
                     <SelectContent>
-                      {sourceKasAccounts?.map(acc => (
-                        <SelectItem key={acc.id} value={acc.id}>{acc.label} ({formatToRupiah(acc.balance)})</SelectItem>
-                      ))}
+                      {sourceKasAccounts?.map(acc => (<SelectItem key={acc.id} value={acc.id}>{acc.label} ({formatToRupiah(acc.balance)})</SelectItem>))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -214,18 +298,9 @@ export default function CustomerEmoneyTopUpForm({ onReview, onDone }: CustomerEm
                   <FormLabel>Metode Pembayaran Pelanggan</FormLabel>
                   <FormControl>
                     <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl><RadioGroupItem value="Tunai" /></FormControl>
-                        <FormLabel className="font-normal">Tunai</FormLabel>
-                      </FormItem>
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl><RadioGroupItem value="Transfer" /></FormControl>
-                        <FormLabel className="font-normal">Transfer</FormLabel>
-                      </FormItem>
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl><RadioGroupItem value="Split" /></FormControl>
-                        <FormLabel className="font-normal">Split Bill</FormLabel>
-                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="Tunai" /></FormControl><FormLabel className="font-normal">Tunai</FormLabel></FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="Transfer" /></FormControl><FormLabel className="font-normal">Transfer</FormLabel></FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="Split" /></FormControl><FormLabel className="font-normal">Split Bill</FormLabel></FormItem>
                     </RadioGroup>
                   </FormControl>
                   <FormMessage />
@@ -241,16 +316,8 @@ export default function CustomerEmoneyTopUpForm({ onReview, onDone }: CustomerEm
                         <FormItem>
                         <FormLabel>Akun Penerima Bayaran</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Pilih akun penerima" />
-                            </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                            {kasAccounts?.map(acc => (
-                                <SelectItem key={acc.id} value={acc.id}>{acc.label}</SelectItem>
-                            ))}
-                            </SelectContent>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Pilih akun penerima" /></SelectTrigger></FormControl>
+                            <SelectContent>{kasAccounts?.map(acc => (<SelectItem key={acc.id} value={acc.id}>{acc.label}</SelectItem>))}</SelectContent>
                         </Select>
                         <FormMessage />
                         </FormItem>
@@ -274,16 +341,8 @@ export default function CustomerEmoneyTopUpForm({ onReview, onDone }: CustomerEm
                             <FormItem>
                             <FormLabel>Akun Penerima Sisa Bayaran (Transfer)</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Pilih akun penerima" />
-                                </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                {kasAccounts?.map(acc => (
-                                    <SelectItem key={acc.id} value={acc.id}>{acc.label}</SelectItem>
-                                ))}
-                                </SelectContent>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Pilih akun penerima" /></SelectTrigger></FormControl>
+                                <SelectContent>{kasAccounts?.map(acc => (<SelectItem key={acc.id} value={acc.id}>{acc.label}</SelectItem>))}</SelectContent>
                             </Select>
                             <FormMessage />
                             </FormItem>
@@ -295,11 +354,9 @@ export default function CustomerEmoneyTopUpForm({ onReview, onDone }: CustomerEm
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full">
-            Batal
-          </Button>
-          <Button type="submit" className="w-full">
-            Review
+          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>Batal</Button>
+          <Button type="submit" className="w-full" disabled={isSaving}>
+            {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
           </Button>
         </div>
       </form>

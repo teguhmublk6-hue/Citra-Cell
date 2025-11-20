@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { collection, doc, runTransaction, addDoc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
@@ -18,7 +18,7 @@ import bankData from '@/lib/banks.json';
 import { useState, useEffect, useMemo } from 'react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Check, ChevronsUpDown } from 'lucide-react';
+import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CustomerTransferFormValues } from '@/lib/types';
 
@@ -39,7 +39,6 @@ const baseSchema = z.object({
 
 // Create a refined schema that applies conditional validation
 const refinedSchema = baseSchema.superRefine((data, ctx) => {
-    // For 'Transfer' method, paymentToKasTransferAccountId is required
     if (data.paymentMethod === 'Transfer' && !data.paymentToKasTransferAccountId) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -47,11 +46,8 @@ const refinedSchema = baseSchema.superRefine((data, ctx) => {
             path: ['paymentToKasTransferAccountId'],
         });
     }
-
-    // For 'Split' method, both splitTunaiAmount and paymentToKasTransferAccountId are required
     if (data.paymentMethod === 'Split') {
         const totalPayment = data.transferAmount + data.serviceFee;
-        
         if (!data.splitTunaiAmount || data.splitTunaiAmount <= 0) {
              ctx.addIssue({
                 code: z.ZodIssueCode.custom,
@@ -65,7 +61,6 @@ const refinedSchema = baseSchema.superRefine((data, ctx) => {
                 path: ['splitTunaiAmount'],
             });
         }
-        
         if (!data.paymentToKasTransferAccountId) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
@@ -78,7 +73,7 @@ const refinedSchema = baseSchema.superRefine((data, ctx) => {
 
 
 interface CustomerTransferFormProps {
-  onReview: (data: CustomerTransferFormValues) => void;
+  onTransactionComplete: () => void;
   onDone: () => void;
 }
 
@@ -106,28 +101,23 @@ const calculateServiceFee = (amount: number): number => {
 };
 
 
-export default function CustomerTransferForm({ onReview, onDone }: CustomerTransferFormProps) {
+export default function CustomerTransferForm({ onTransactionComplete, onDone }: CustomerTransferFormProps) {
   const firestore = useFirestore();
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
   const [bankPopoverOpen, setBankPopoverOpen] = useState(false);
   const [bankSearch, setBankSearch] = useState('');
 
-  
-  const kasAccountsCollection = useMemoFirebase(() => {
-    return collection(firestore, 'kasAccounts');
-  }, [firestore]);
-
+  const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
   
   const sourceKasAccounts = useMemo(() => {
     if (!kasAccounts) return [];
-    
     const filtered = kasAccounts.filter(acc => ['Bank', 'E-Wallet'].includes(acc.type));
-    
-    // Custom sort: 'Bank' first, then 'E-Wallet'
     return filtered.sort((a, b) => {
         if (a.type === 'Bank' && b.type !== 'Bank') return -1;
         if (a.type !== 'Bank' && b.type === 'Bank') return 1;
-        return a.label.localeCompare(b.label); // Optional: sort alphabetically within types
+        return a.label.localeCompare(b.label);
     });
   }, [kasAccounts]);
 
@@ -156,8 +146,134 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
     }
   }, [transferAmount, form]);
 
-  const onSubmit = (values: CustomerTransferFormValues) => {
-    onReview(values);
+  const onSubmit = async (values: CustomerTransferFormValues) => {
+    setIsSaving(true);
+    const { toast } = useToast();
+
+    if (!firestore || !kasAccounts) {
+      toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
+      setIsSaving(false);
+      return;
+    }
+    
+    const sourceAccount = kasAccounts.find(acc => acc.id === values.sourceAccountId);
+    const paymentTransferAccount = kasAccounts.find(acc => acc.id === values.paymentToKasTransferAccountId);
+    const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
+
+    if (!sourceAccount) {
+      toast({ variant: "destructive", title: "Error", description: "Akun sumber tidak ditemukan." });
+      setIsSaving(false);
+      return;
+    }
+    if (!laciAccount && (values.paymentMethod === 'Tunai' || values.paymentMethod === 'Split')) {
+        toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
+        setIsSaving(false);
+        return;
+    }
+
+    const totalDebitFromSource = values.transferAmount + (values.bankAdminFee || 0);
+
+    if (sourceAccount.balance < totalDebitFromSource) {
+      toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Saldo ${sourceAccount.label} tidak mencukupi untuk melakukan transfer ini.` });
+      setIsSaving(false);
+      return;
+    }
+
+    toast({ title: "Memproses...", description: "Menyimpan transaksi transfer." });
+
+    const now = new Date();
+    const nowISO = now.toISOString();
+    const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
+    const totalPaymentByCustomer = values.transferAmount + values.serviceFee;
+    const netProfit = values.serviceFee - (values.bankAdminFee || 0);
+    const splitTransferAmount = totalPaymentByCustomer - (values.splitTunaiAmount || 0);
+    
+    try {
+        const auditDocRef = await addDoc(collection(firestore, 'customerTransfers'), {
+            date: now,
+            sourceKasAccountId: values.sourceAccountId,
+            destinationBankName: values.destinationBank,
+            destinationAccountName: values.destinationAccountName,
+            transferAmount: values.transferAmount,
+            bankAdminFee: values.bankAdminFee || 0,
+            serviceFee: values.serviceFee,
+            netProfit,
+            paymentMethod: values.paymentMethod,
+            paymentToKasTunaiAmount: values.paymentMethod === 'Tunai' ? totalPaymentByCustomer : (values.paymentMethod === 'Split' ? values.splitTunaiAmount : 0),
+            paymentToKasTransferAccountId: values.paymentMethod === 'Transfer' || values.paymentMethod === 'Split' ? values.paymentToKasTransferAccountId : null,
+            paymentToKasTransferAmount: values.paymentMethod === 'Transfer' ? totalPaymentByCustomer : (values.paymentMethod === 'Split' ? splitTransferAmount : 0),
+            deviceName
+        });
+        const auditId = auditDocRef.id;
+
+        await runTransaction(firestore, async (transaction) => {
+            const sourceAccountRef = doc(firestore, 'kasAccounts', sourceAccount.id);
+            const laciAccountRef = laciAccount ? doc(firestore, 'kasAccounts', laciAccount.id) : null;
+            const paymentAccRef = paymentTransferAccount ? doc(firestore, 'kasAccounts', paymentTransferAccount.id) : null;
+
+            const [sourceDoc, laciDoc, paymentDoc] = await Promise.all([
+                transaction.get(sourceAccountRef),
+                laciAccountRef ? transaction.get(laciAccountRef) : Promise.resolve(null),
+                paymentAccRef ? transaction.get(paymentAccRef) : Promise.resolve(null),
+            ]);
+
+            if (!sourceDoc.exists()) throw new Error("Akun sumber tidak ditemukan.");
+            
+            const currentSourceBalance = sourceDoc.data().balance;
+            if (currentSourceBalance < totalDebitFromSource) throw new Error(`Saldo ${sourceAccount.label} tidak mencukupi.`);
+            
+            transaction.update(sourceAccountRef, { balance: currentSourceBalance - totalDebitFromSource });
+
+            const debitPrincipalRef = doc(collection(sourceAccountRef, 'transactions'));
+            transaction.set(debitPrincipalRef, { kasAccountId: sourceAccount.id, type: 'debit', name: `Trf an. ${values.destinationAccountName}`, account: values.destinationBank, date: nowISO, amount: values.transferAmount, balanceBefore: currentSourceBalance, balanceAfter: currentSourceBalance - totalDebitFromSource, category: 'customer_transfer_debit', deviceName, auditId });
+
+            if (values.bankAdminFee && values.bankAdminFee > 0) {
+                const debitFeeRef = doc(collection(sourceAccountRef, 'transactions'));
+                transaction.set(debitFeeRef, { kasAccountId: sourceAccount.id, type: 'debit', name: `Biaya Admin Trf an. ${values.destinationAccountName}`, account: 'Biaya Bank', date: nowISO, amount: values.bankAdminFee, balanceBefore: currentSourceBalance - values.transferAmount, balanceAfter: currentSourceBalance - totalDebitFromSource, category: 'customer_transfer_fee', deviceName, auditId });
+            }
+            
+            switch (values.paymentMethod) {
+                case 'Tunai':
+                    if (!laciAccountRef || !laciDoc || !laciDoc.exists()) throw new Error("Akun Laci tidak ditemukan.");
+                    const currentLaciBalance = laciDoc.data().balance;
+                    transaction.update(laciAccountRef, { balance: currentLaciBalance + totalPaymentByCustomer });
+                    const creditTunaiRef = doc(collection(laciAccountRef, 'transactions'));
+                    transaction.set(creditTunaiRef, { kasAccountId: laciAccount!.id, type: 'credit', name: `Bayar Trf an. ${values.destinationAccountName}`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName, auditId });
+                    break;
+                case 'Transfer':
+                    if (!paymentAccRef || !paymentDoc || !paymentDoc.exists()) throw new Error("Akun penerima pembayaran tidak valid.");
+                    const currentPaymentBalance = paymentDoc.data().balance;
+                    transaction.update(paymentAccRef, { balance: currentPaymentBalance + totalPaymentByCustomer });
+                    const creditTransferRef = doc(collection(paymentAccRef, 'transactions'));
+                    transaction.set(creditTransferRef, { kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Trf an. ${values.destinationAccountName}`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentPaymentBalance, balanceAfter: currentPaymentBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName, auditId });
+                    break;
+                case 'Split':
+                    if (!laciAccountRef || !laciDoc || !laciDoc.exists()) throw new Error("Akun Laci tidak ditemukan.");
+                    if (!paymentAccRef || !paymentDoc || !paymentDoc.exists()) throw new Error("Akun penerima pembayaran split tidak valid.");
+                    if (!values.splitTunaiAmount) throw new Error("Jumlah tunai split tidak valid.");
+                    
+                    const currentLaciSplitBalance = laciDoc.data().balance;
+                    transaction.update(laciAccountRef, { balance: currentLaciSplitBalance + values.splitTunaiAmount });
+                    const creditSplitTunaiRef = doc(collection(laciAccountRef, 'transactions'));
+                    transaction.set(creditSplitTunaiRef, { kasAccountId: laciAccount!.id, type: 'credit', name: `Bayar Tunai Trf an. ${values.destinationAccountName}`, account: 'Pelanggan', date: nowISO, amount: values.splitTunaiAmount, balanceBefore: currentLaciSplitBalance, balanceAfter: currentLaciSplitBalance + values.splitTunaiAmount, category: 'customer_payment', deviceName, auditId });
+
+                    const currentPaymentSplitBalance = paymentDoc.data().balance;
+                    transaction.update(paymentAccRef, { balance: currentPaymentSplitBalance + splitTransferAmount });
+                    const creditSplitTransferRef = doc(collection(paymentAccRef, 'transactions'));
+                    transaction.set(creditSplitTransferRef, { kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Trf an. ${values.destinationAccountName}`, account: 'Pelanggan', date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentSplitBalance, balanceAfter: currentPaymentSplitBalance + splitTransferAmount, category: 'customer_payment', deviceName, auditId });
+                    break;
+            }
+        });
+
+        toast({ title: "Sukses", description: "Transaksi berhasil disimpan." });
+        onTransactionComplete();
+
+    } catch (error: any) {
+      console.error("Error saving transaction:", error);
+      toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
+    } finally {
+      setIsSaving(false);
+    }
   };
   
   return (
@@ -166,7 +282,6 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
         <ScrollArea className="flex-1 -mx-6 px-6">
           <div className="space-y-4 pt-4 pb-6">
             
-            {/* Akun Kas Asal */}
             <FormField
               control={form.control}
               name="sourceAccountId"
@@ -190,7 +305,6 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
               )}
             />
 
-            {/* Bank Tujuan */}
             <FormField
                 control={form.control}
                 name="destinationBank"
@@ -266,7 +380,6 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
                 )}
             />
             
-            {/* Nama Pemilik Rekening */}
             <FormField control={form.control} name="destinationAccountName" render={({ field }) => (
                 <FormItem>
                     <FormLabel>Nama Pemilik Rekening</FormLabel>
@@ -277,7 +390,6 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
                 </FormItem>
             )}/>
 
-            {/* Nominal & Biaya */}
             <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="transferAmount" render={({ field }) => (
                     <FormItem>
@@ -302,7 +414,6 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
                 </FormItem>
             )}/>
 
-            {/* Metode Pembayaran */}
             <FormField
               control={form.control}
               name="paymentMethod"
@@ -311,18 +422,9 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
                   <FormLabel>Metode Pembayaran Pelanggan</FormLabel>
                   <FormControl>
                     <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl><RadioGroupItem value="Tunai" /></FormControl>
-                        <FormLabel className="font-normal">Tunai</FormLabel>
-                      </FormItem>
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl><RadioGroupItem value="Transfer" /></FormControl>
-                        <FormLabel className="font-normal">Transfer</FormLabel>
-                      </FormItem>
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl><RadioGroupItem value="Split" /></FormControl>
-                        <FormLabel className="font-normal">Split Bill</FormLabel>
-                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="Tunai" /></FormControl><FormLabel className="font-normal">Tunai</FormLabel></FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="Transfer" /></FormControl><FormLabel className="font-normal">Transfer</FormLabel></FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="Split" /></FormControl><FormLabel className="font-normal">Split Bill</FormLabel></FormItem>
                     </RadioGroup>
                   </FormControl>
                   <FormMessage />
@@ -330,7 +432,6 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
               )}
             />
 
-            {/* Conditional Fields */}
             {paymentMethod === 'Transfer' && (
                  <FormField
                     control={form.control}
@@ -393,11 +494,9 @@ export default function CustomerTransferForm({ onReview, onDone }: CustomerTrans
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full">
-            Batal
-          </Button>
-          <Button type="submit" className="w-full">
-            Review
+          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>Batal</Button>
+          <Button type="submit" className="w-full" disabled={isSaving}>
+            {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
           </Button>
         </div>
       </form>
