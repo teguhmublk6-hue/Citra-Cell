@@ -159,6 +159,12 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
         splitTunaiAmount: undefined,
     },
   });
+  
+  useEffect(() => {
+    // Automatically open the source account selection popover when the form mounts
+    const timer = setTimeout(() => setSourcePopoverOpen(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const paymentMethod = form.watch('paymentMethod');
   const transferAmount = form.watch('transferAmount');
@@ -313,7 +319,6 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
             }
         });
 
-        toast({ title: "Sukses", description: "Transaksi berhasil disimpan." });
         onTransactionComplete();
 
     } catch (error: any) {
