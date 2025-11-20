@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, runTransaction, addDoc } from 'firebase/firestore';
+import { collection, doc, runTransaction, addDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { startOfDay } from 'date-fns';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import bankData from '@/lib/banks.json';
@@ -21,6 +22,7 @@ import type { CustomerWithdrawalFormValues } from '@/lib/types';
 import { CustomerWithdrawalFormSchema } from '@/lib/types';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
+import DuplicateTransactionDialog from './DuplicateTransactionDialog';
 
 
 interface CustomerWithdrawalFormProps {
@@ -58,6 +60,9 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
   const [isSaving, setIsSaving] = useState(false);
   const [bankPopoverOpen, setBankPopoverOpen] = useState(false);
   const [destinationPopoverOpen, setDestinationPopoverOpen] = useState(false);
+  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+  const [formData, setFormData] = useState<CustomerWithdrawalFormValues | null>(null);
+
 
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -70,7 +75,7 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
         withdrawalAmount: undefined,
         serviceFee: undefined,
         destinationAccountId: '',
-        feePaymentMethod: 'Tunai',
+        feePaymentMethod: 'Dipotong',
     },
   });
 
@@ -89,8 +94,33 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
   }, [kasAccounts]);
 
   const onSubmit = async (values: CustomerWithdrawalFormValues) => {
+    if (!firestore) return;
     setIsSaving(true);
-    
+    setFormData(values);
+
+    const today = new Date();
+    const startOfToday = startOfDay(today);
+
+    const q = query(
+      collection(firestore, "customerWithdrawals"),
+      where("customerName", "==", values.customerName),
+      where("withdrawalAmount", "==", values.withdrawalAmount),
+      where("destinationKasAccountId", "==", values.destinationAccountId),
+      where("date", ">=", Timestamp.fromDate(startOfToday))
+    );
+
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      setIsDuplicateDialogOpen(true);
+      setIsSaving(false);
+    } else {
+      await proceedWithTransaction(values);
+    }
+  };
+
+  const proceedWithTransaction = async (values: CustomerWithdrawalFormValues) => {
+    setIsSaving(true);
     if (!firestore || !kasAccounts) {
         toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
         setIsSaving(false);
@@ -177,17 +207,18 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
             }
         });
 
-        toast({ title: "Sukses", description: "Transaksi tarik tunai berhasil disimpan." });
         onTransactionComplete();
     } catch (error: any) {
         console.error("Error saving withdrawal transaction: ", error);
         toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
     } finally {
         setIsSaving(false);
+        setIsDuplicateDialogOpen(false);
     }
   };
   
   return (
+    <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 flex flex-col h-full">
         <ScrollArea className="flex-1 -mx-6 px-6">
@@ -350,5 +381,18 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
         </div>
       </form>
     </Form>
+    <DuplicateTransactionDialog 
+        isOpen={isDuplicateDialogOpen}
+        onConfirm={() => {
+            if(formData) {
+                proceedWithTransaction(formData);
+            }
+        }}
+        onCancel={() => {
+            setIsDuplicateDialogOpen(false);
+            onDone();
+        }}
+    />
+    </>
   );
 }
