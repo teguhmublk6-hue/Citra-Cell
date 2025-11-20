@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, runTransaction, addDoc } from 'firebase/firestore';
-import type { KasAccount } from '@/lib/data';
+import { collection, doc, runTransaction, addDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { startOfDay } from 'date-fns';
+import type { KasAccount, Transaction } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
@@ -19,7 +20,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { CustomerTransferFormValues } from '@/lib/types';
+import type { CustomerTransferFormValues, CustomerTransfer } from '@/lib/types';
+import DuplicateTransactionDialog from './DuplicateTransactionDialog';
 
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
@@ -123,6 +125,9 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
   const [bankSearch, setBankSearch] = useState('');
   const [sourcePopoverOpen, setSourcePopoverOpen] = useState(false);
   const [paymentPopoverOpen, setPaymentPopoverOpen] = useState(false);
+  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+  const [formData, setFormData] = useState<CustomerTransferFormValues | null>(null);
+
   
   const inputRefs = {
     destinationAccountName: useRef<HTMLInputElement>(null),
@@ -169,9 +174,8 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
   const paymentMethod = form.watch('paymentMethod');
   const transferAmount = form.watch('transferAmount');
   const sourceAccountId = form.watch('sourceAccountId');
-  const destinationBank = form.watch('destinationBank');
 
-  // Autofill destination bank and handle focus
+  // Autofill destination bank 
   useEffect(() => {
     const selectedSourceAccount = kasAccounts?.find(acc => acc.id === sourceAccountId);
     if (selectedSourceAccount) {
@@ -186,14 +190,13 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
   
   // New useEffect to handle focusing after popover closes.
   useEffect(() => {
-    if (!sourcePopoverOpen && sourceAccountId && destinationBank) {
-      // The popover is closed, and we have the necessary data, now we can focus.
+    if (!sourcePopoverOpen && sourceAccountId) {
       const timer = setTimeout(() => {
         inputRefs.destinationAccountName.current?.focus();
       }, 100); // A small delay ensures the input is rendered and visible.
       return () => clearTimeout(timer);
     }
-  }, [sourcePopoverOpen, sourceAccountId, destinationBank]);
+  }, [sourcePopoverOpen, sourceAccountId]);
 
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, nextFieldRef?: React.RefObject<HTMLInputElement>) => {
@@ -206,6 +209,33 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
   };
 
   const onSubmit = async (values: CustomerTransferFormValues) => {
+    if (!firestore) return;
+    setIsSaving(true);
+    setFormData(values);
+
+    // Check for duplicates
+    const today = new Date();
+    const startOfToday = startOfDay(today);
+
+    const q = query(
+      collection(firestore, "customerTransfers"),
+      where("sourceKasAccountId", "==", values.sourceAccountId),
+      where("destinationAccountName", "==", values.destinationAccountName),
+      where("transferAmount", "==", values.transferAmount),
+      where("date", ">=", Timestamp.fromDate(startOfToday))
+    );
+
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      setIsDuplicateDialogOpen(true);
+      setIsSaving(false);
+    } else {
+      await proceedWithTransaction(values);
+    }
+  };
+  
+  const proceedWithTransaction = async (values: CustomerTransferFormValues) => {
     setIsSaving(true);
     if (!firestore || !kasAccounts) {
       toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
@@ -329,10 +359,12 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
       toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
     } finally {
       setIsSaving(false);
+      setIsDuplicateDialogOpen(false);
     }
   };
   
   return (
+    <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 flex flex-col h-full">
         <ScrollArea className="flex-1 -mx-6 px-6">
@@ -720,6 +752,19 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
         </div>
       </form>
     </Form>
+    <DuplicateTransactionDialog 
+        isOpen={isDuplicateDialogOpen}
+        onConfirm={() => {
+            if(formData) {
+                proceedWithTransaction(formData);
+            }
+        }}
+        onCancel={() => {
+            setIsDuplicateDialogOpen(false);
+            onDone();
+        }}
+    />
+    </>
   );
 }
 
