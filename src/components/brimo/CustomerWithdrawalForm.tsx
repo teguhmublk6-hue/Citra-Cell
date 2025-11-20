@@ -7,7 +7,6 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, runTransaction, addDoc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
@@ -71,7 +70,7 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
         withdrawalAmount: undefined,
         serviceFee: undefined,
         destinationAccountId: '',
-        feePaymentMethod: 'Dipotong',
+        feePaymentMethod: 'Tunai',
     },
   });
 
@@ -270,8 +269,8 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
                   <FormLabel>Pembayaran Biaya Jasa</FormLabel>
                   <FormControl>
                     <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
-                      <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="Dipotong" /></FormControl><FormLabel className="font-normal">Potong dari Uang Tunai</FormLabel></FormItem>
                       <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="Tunai" /></FormControl><FormLabel className="font-normal">Bayar Tunai Terpisah</FormLabel></FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="Dipotong" /></FormControl><FormLabel className="font-normal">Potong dari Uang Tunai</FormLabel></FormItem>
                     </RadioGroup>
                   </FormControl>
                   <FormMessage />

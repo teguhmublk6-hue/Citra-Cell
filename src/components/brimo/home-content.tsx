@@ -683,39 +683,39 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
             
             {activeSheet === 'customerTransfer' && <CustomerTransferForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
-            {activeSheet === 'customerWithdrawal' && <CustomerWithdrawalForm onReview={() => {}} onDone={closeAllSheets} />}
+            {activeSheet === 'customerWithdrawal' && <CustomerWithdrawalForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
 
-            {activeSheet === 'customerTopUp' && <CustomerTopUpForm onReview={() => {}} onDone={closeAllSheets} />}
+            {activeSheet === 'customerTopUp' && <CustomerTopUpForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
-            {activeSheet === 'customerEmoneyTopUp' && <CustomerEmoneyTopUpForm onReview={() => {}} onDone={closeAllSheets} />}
+            {activeSheet === 'customerEmoneyTopUp' && <CustomerEmoneyTopUpForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
 
-            {activeSheet === 'customerVAPayment' && <CustomerVAPaymentForm onReview={() => {}} onDone={closeAllSheets} />}
+            {activeSheet === 'customerVAPayment' && <CustomerVAPaymentForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
             {activeSheet === 'EDCService' && <EDCServiceForm onDone={closeAllSheets} />}
             
             {activeSheet === 'settlement' && selectedAccount && <SettlementForm account={selectedAccount} onReview={() => {}} onDone={closeAllSheets} />}
 
-            {activeSheet === 'customerKJP' && <CustomerKJPWithdrawalForm onReview={() => {}} onDone={closeAllSheets} />}
+            {activeSheet === 'customerKJP' && <CustomerKJPWithdrawalForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
             {activeSheet === 'setMotivation' && <SetMotivationForm onDone={closeAllSheets} />}
             {activeSheet === 'manageKasAccounts' && <KasManagement onResetAll={handleResetAllAccountsClick} />}
             {activeSheet === 'managePPOBPricing' && <PPOBPricingManager onDone={closeAllSheets} />}
             
-            {activeSheet === 'ppobPulsa' && <PPOBPulsaForm onReview={() => {}} onDone={closeAllSheets} />}
+            {activeSheet === 'ppobPulsa' && <PPOBPulsaForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
 
-            {activeSheet === 'ppobTokenListrik' && <PPOBTokenListrikForm onReview={() => {}} onDone={closeAllSheets} />}
+            {activeSheet === 'ppobTokenListrik' && <PPOBTokenListrikForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
-            {activeSheet === 'ppobPaketData' && <PPOBPaketDataForm onReview={() => {}} onDone={closeAllSheets} />}
+            {activeSheet === 'ppobPaketData' && <PPOBPaketDataForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
-            {activeSheet === 'ppobPlnPostpaid' && <PPOBPlnPostpaidForm onReview={() => {}} onDone={closeAllSheets} />}
+            {activeSheet === 'ppobPlnPostpaid' && <PPOBPlnPostpaidForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
 
-            {activeSheet === 'ppobPdam' && <PPOBPdamForm onReview={() => {}} onDone={closeAllSheets} />}
+            {activeSheet === 'ppobPdam' && <PPOBPdamForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
-            {activeSheet === 'ppobBpjs' && <PPOBBpjsForm onReview={() => {}} onDone={closeAllSheets} />}
+            {activeSheet === 'ppobBpjs' && <PPOBBpjsForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
-            {activeSheet === 'ppobWifi' && <PPOBWifiForm onReview={() => {}} onDone={closeAllSheets} />}
+            {activeSheet === 'ppobWifi' && <PPOBWifiForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
-            {activeSheet === 'ppobPaketTelpon' && <PPOBPaketTelponForm onReview={() => {}} onDone={closeAllSheets} />}
+            {activeSheet === 'ppobPaketTelpon' && <PPOBPaketTelponForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
 
 
             {activeSheet === 'operationalCostReport' && <OperationalCostReport onDone={closeAllSheets} />}
@@ -762,6 +762,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     </>
   );
 }
+
 
 
 
