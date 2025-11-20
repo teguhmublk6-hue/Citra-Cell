@@ -7,7 +7,6 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, runTransaction, addDoc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
@@ -15,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import bankData from '@/lib/banks.json';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
@@ -101,6 +100,21 @@ const calculateServiceFee = (amount: number): number => {
 };
 
 
+const sourceToBankMap: Record<string, string> = {
+  'BRILink': 'Bank BRI',
+  'BRIMo': 'Bank BRI',
+  'myBCA': 'Bank BCA',
+  'BNI Agen': 'Bank BNI',
+  'Wondr by BNI': 'Bank BNI',
+  'Byond': 'Bank Syariah Indonesia (BSI)',
+  'BSI Smart Agen': 'Bank Syariah Indonesia (BSI)',
+  'Mandiri Agen': 'Bank Mandiri',
+  'Livin by Mandiri': 'Bank Mandiri',
+  'JakOne': 'BPD DKI Jakarta',
+  'Seabank': 'SeaBank'
+};
+
+
 export default function CustomerTransferForm({ onTransactionComplete, onDone }: CustomerTransferFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -109,6 +123,14 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
   const [bankSearch, setBankSearch] = useState('');
   const [sourcePopoverOpen, setSourcePopoverOpen] = useState(false);
   const [paymentPopoverOpen, setPaymentPopoverOpen] = useState(false);
+  
+  const inputRefs = {
+    destinationAccountName: useRef<HTMLInputElement>(null),
+    transferAmount: useRef<HTMLInputElement>(null),
+    serviceFee: useRef<HTMLInputElement>(null),
+    bankAdminFee: useRef<HTMLInputElement>(null),
+    splitTunaiAmount: useRef<HTMLInputElement>(null),
+  };
 
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -140,6 +162,7 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
 
   const paymentMethod = form.watch('paymentMethod');
   const transferAmount = form.watch('transferAmount');
+  const sourceAccountId = form.watch('sourceAccountId');
 
   useEffect(() => {
     if (transferAmount !== undefined) {
@@ -147,6 +170,30 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
       form.setValue('serviceFee', fee, { shouldValidate: true });
     }
   }, [transferAmount, form]);
+  
+  useEffect(() => {
+    const selectedSourceAccount = kasAccounts?.find(acc => acc.id === sourceAccountId);
+    if (selectedSourceAccount) {
+      const mappedBank = sourceToBankMap[selectedSourceAccount.label];
+      if (mappedBank) {
+        form.setValue('destinationBank', mappedBank, { shouldValidate: true });
+        // Close popovers
+        setSourcePopoverOpen(false);
+        setBankPopoverOpen(false);
+        // Focus next field
+        setTimeout(() => inputRefs.destinationAccountName.current?.focus(), 100);
+      }
+    }
+  }, [sourceAccountId, kasAccounts, form]);
+  
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, nextFieldRef?: React.RefObject<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (nextFieldRef?.current) {
+        nextFieldRef.current.focus();
+      }
+    }
+  };
 
   const onSubmit = async (values: CustomerTransferFormValues) => {
     setIsSaving(true);
@@ -321,7 +368,7 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
                               key={acc.id}
                               onSelect={() => {
                                 form.setValue("sourceAccountId", acc.id)
-                                setSourcePopoverOpen(false)
+                                // Auto-selection logic is now handled by useEffect
                               }}
                             >
                               <Check
@@ -384,6 +431,7 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
                                     form.setValue("destinationBank", bankSearch);
                                     setBankPopoverOpen(false);
                                     setBankSearch("");
+                                    inputRefs.destinationAccountName.current?.focus();
                                 }}
                             >
                                 Gunakan "{bankSearch}"
@@ -399,6 +447,7 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
                                     form.setValue("destinationBank", bank.name)
                                     setBankPopoverOpen(false)
                                     setBankSearch("")
+                                    inputRefs.destinationAccountName.current?.focus();
                                 }}
                                 >
                                 <Check
@@ -424,7 +473,12 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
                 <FormItem>
                     <FormLabel>Nama Pemilik Rekening</FormLabel>
                     <FormControl>
-                        <Input placeholder="Masukkan nama" {...field} />
+                        <Input
+                            ref={inputRefs.destinationAccountName}
+                            placeholder="Masukkan nama" 
+                            {...field}
+                            onKeyDown={(e) => handleKeyDown(e, inputRefs.transferAmount)}
+                        />
                     </FormControl>
                     <FormMessage />
                 </FormItem>
@@ -434,14 +488,34 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
                 <FormField control={form.control} name="transferAmount" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Nominal Transfer</FormLabel>
-                        <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                        <FormControl>
+                            <Input
+                                ref={inputRefs.transferAmount}
+                                type="text" 
+                                placeholder="Rp 0" 
+                                {...field} 
+                                value={formatToRupiah(field.value)} 
+                                onChange={(e) => field.onChange(parseRupiah(e.target.value))}
+                                onKeyDown={(e) => handleKeyDown(e, inputRefs.serviceFee)}
+                            />
+                        </FormControl>
                         <FormMessage />
                     </FormItem>
                 )}/>
                 <FormField control={form.control} name="serviceFee" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Biaya Jasa (Laba)</FormLabel>
-                        <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                        <FormControl>
+                             <Input
+                                ref={inputRefs.serviceFee}
+                                type="text" 
+                                placeholder="Rp 0" 
+                                {...field} 
+                                value={formatToRupiah(field.value)} 
+                                onChange={(e) => field.onChange(parseRupiah(e.target.value))}
+                                onKeyDown={(e) => handleKeyDown(e, inputRefs.bankAdminFee)}
+                            />
+                        </FormControl>
                         <FormMessage />
                     </FormItem>
                 )}/>
@@ -449,7 +523,17 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
              <FormField control={form.control} name="bankAdminFee" render={({ field }) => (
                 <FormItem>
                     <FormLabel>Biaya Admin Bank</FormLabel>
-                    <FormControl><Input type="text" placeholder="Rp 0 (Opsional)" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                    <FormControl>
+                        <Input
+                            ref={inputRefs.bankAdminFee}
+                            type="text" 
+                            placeholder="Rp 0 (Opsional)" 
+                            {...field} 
+                            value={formatToRupiah(field.value)} 
+                            onChange={(e) => field.onChange(parseRupiah(e.target.value))} 
+                            onKeyDown={(e) => handleKeyDown(e)}
+                        />
+                    </FormControl>
                     <FormMessage />
                 </FormItem>
             )}/>
@@ -541,7 +625,17 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
                     <FormField control={form.control} name="splitTunaiAmount" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Jumlah Dibayar Tunai</FormLabel>
-                            <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                            <FormControl>
+                                <Input
+                                    ref={inputRefs.splitTunaiAmount}
+                                    type="text" 
+                                    placeholder="Rp 0" 
+                                    {...field} 
+                                    value={formatToRupiah(field.value)} 
+                                    onChange={(e) => field.onChange(parseRupiah(e.target.value))} 
+                                    onKeyDown={(e) => handleKeyDown(e)}
+                                />
+                            </FormControl>
                             <FormMessage />
                         </FormItem>
                     )}/>
