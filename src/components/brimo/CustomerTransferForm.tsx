@@ -161,7 +161,6 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
   });
   
   useEffect(() => {
-    // Automatically open the source account selection popover when the form mounts
     const timer = setTimeout(() => setSourcePopoverOpen(true), 100);
     return () => clearTimeout(timer);
   }, []);
@@ -183,11 +182,12 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
       const mappedBank = sourceToBankMap[selectedSourceAccount.label];
       if (mappedBank) {
         form.setValue('destinationBank', mappedBank, { shouldValidate: true });
-        // Close popovers
         setSourcePopoverOpen(false);
         setBankPopoverOpen(false);
-        // Focus next field
-        setTimeout(() => inputRefs.destinationAccountName.current?.focus(), 100);
+        // Use a timeout to ensure the DOM is updated before focusing
+        setTimeout(() => {
+            inputRefs.destinationAccountName.current?.focus();
+        }, 100);
       }
     }
   }, [sourceAccountId, kasAccounts, form]);
@@ -203,7 +203,6 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
 
   const onSubmit = async (values: CustomerTransferFormValues) => {
     setIsSaving(true);
-
     if (!firestore || !kasAccounts) {
       toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
       setIsSaving(false);
@@ -373,7 +372,6 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
                               key={acc.id}
                               onSelect={() => {
                                 form.setValue("sourceAccountId", acc.id)
-                                // Auto-selection logic is now handled by useEffect
                               }}
                             >
                               <Check
