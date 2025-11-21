@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, runTransaction, addDoc } from 'firebase/firestore';
+import { collection, doc, runTransaction, addDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { startOfDay } from 'date-fns';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +23,7 @@ import Image from 'next/image';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '../ui/command';
+import DuplicateTransactionDialog from './DuplicateTransactionDialog';
 
 
 interface CustomerTopUpFormProps {
@@ -67,6 +69,9 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
   const [isSaving, setIsSaving] = useState(false);
   const [sourcePopoverOpen, setSourcePopoverOpen] = useState(false);
   const [paymentPopoverOpen, setPaymentPopoverOpen] = useState(false);
+  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+  const [formData, setFormData] = useState<CustomerTopUpFormValues | null>(null);
+
   
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -123,8 +128,32 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
   }, [kasAccounts]);
 
   const onSubmit = async (values: CustomerTopUpFormValues) => {
+    if (!firestore) return;
     setIsSaving(true);
+    setFormData(values);
 
+    const today = new Date();
+    const startOfToday = startOfDay(today);
+
+    const q = query(
+      collection(firestore, "customerTopUps"),
+      where("sourceKasAccountId", "==", values.sourceAccountId),
+      where("customerName", "==", values.customerName),
+      where("topUpAmount", "==", values.topUpAmount),
+      where("date", ">=", Timestamp.fromDate(startOfToday))
+    );
+
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      setIsDuplicateDialogOpen(true);
+      setIsSaving(false);
+    } else {
+      await proceedWithTransaction(values);
+    }
+  };
+  
+  const proceedWithTransaction = async (values: CustomerTopUpFormValues) => {
+    setIsSaving(true);
     if (!firestore || !kasAccounts) {
         toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
         setIsSaving(false);
@@ -233,10 +262,12 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
         toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
     } finally {
         setIsSaving(false);
+        setIsDuplicateDialogOpen(false);
     }
   };
   
   return (
+    <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 flex flex-col h-full">
         <ScrollArea className="flex-1 -mx-6 px-6">
@@ -526,5 +557,18 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
         </div>
       </form>
     </Form>
+    <DuplicateTransactionDialog
+      isOpen={isDuplicateDialogOpen}
+      onConfirm={() => {
+        if (formData) {
+          proceedWithTransaction(formData);
+        }
+      }}
+      onCancel={() => {
+        setIsDuplicateDialogOpen(false);
+        onDone();
+      }}
+    />
+    </>
   );
 }
