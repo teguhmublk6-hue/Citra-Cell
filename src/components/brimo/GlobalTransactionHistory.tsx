@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, orderBy, where, Timestamp, doc, writeBatch, deleteDoc } from 'firebase/firestore';
 import type { KasAccount, Transaction } from '@/lib/data';
@@ -24,6 +24,17 @@ import EditTransactionNameForm from './EditTransactionNameForm';
 
 type TransactionWithId = Transaction & { id: string, accountLabel?: string };
 
+type GroupedTransaction = {
+    isGroup: true;
+    mainTransaction: TransactionWithId;
+    feeTransaction: TransactionWithId | null;
+    totalAmount: number;
+    date: string;
+    type: 'credit' | 'debit';
+};
+
+type DisplayItem = TransactionWithId | GroupedTransaction;
+
 const formatToRupiah = (value: number | string | undefined | null): string => {
     if (value === null || value === undefined || value === '') return 'Rp 0';
     const num = Number(String(value).replace(/[^0-9]/g, ''));
@@ -34,14 +45,15 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 const getCollectionNameFromCategory = (category?: string): string | null => {
     if (!category) return null;
 
-    // This map links a specific transaction category to its root audit collection.
+    // This comprehensive map links every possible transaction category to its root audit collection.
     const categoryMap: Record<string, string> = {
-        // BRILink & Customer Services
+        // --- BRILink & Customer Services ---
         'customer_transfer_debit': 'customerTransfers',
         'customer_transfer_fee': 'customerTransfers',
+        'customer_payment': 'customerTransfers', // Assume customer_payment for transfer service defaults here. More specific ones below.
         'customer_withdrawal_credit': 'customerWithdrawals',
         'customer_withdrawal_debit': 'customerWithdrawals',
-        'service_fee_income': 'customerWithdrawals', // Fee from cash withdrawal
+        'service_fee_income': 'customerWithdrawals', // This is specifically for withdrawal service fee
         'customer_topup_debit': 'customerTopUps',
         'customer_emoney_topup_debit': 'customerEmoneyTopUps',
         'customer_va_payment_debit': 'customerVAPayments',
@@ -49,40 +61,43 @@ const getCollectionNameFromCategory = (category?: string): string | null => {
         'customer_kjp_withdrawal_credit': 'customerKJPWithdrawals',
         'customer_kjp_withdrawal_debit': 'customerKJPWithdrawals',
         'edc_service': 'edcServices',
+        
+        // --- Internal & Settlement ---
         'settlement_debit': 'settlements',
         'settlement_credit': 'settlements',
-        'customer_payment': 'customerTransfers', // Default for ambiguous payments, review if causes issues.
+        'transfer': 'internalTransfers',
+        'operational_fee': 'internalTransfers',
         
-        // PPOB Services
-        'ppob_purchase': 'ppobTransactions', // Generic for Pulsa, Paket Data, Token Listrik
-        'customer_payment_ppob': 'ppobTransactions', // Payment for PPOB
+        // --- PPOB Generic ---
+        'ppob_purchase': 'ppobTransactions', // Pulsa, Paket Data
+        'customer_payment_ppob': 'ppobTransactions', // Pulsa, Paket Data Payment
+        
+        // --- PPOB Bills ---
         'ppob_pln_postpaid': 'ppobPlnPostpaid',
         'ppob_pln_postpaid_cashback': 'ppobPlnPostpaid',
         'ppob_pln_postpaid_payment': 'ppobPlnPostpaid',
+        
         'ppob_pdam_payment': 'ppobPdam',
         'ppob_pdam_cashback': 'ppobPdam',
+
         'ppob_bpjs_payment': 'ppobBpjs',
         'ppob_bpjs_cashback': 'ppobBpjs',
+
         'ppob_wifi_payment': 'ppobWifi',
         'ppob_wifi_cashback': 'ppobWifi',
-        
-        // Internal & Ambiguous
-        'transfer': 'internalTransfers',
-        'operational_fee': 'internalTransfers',
     };
     
-    // It's crucial to also handle generic payment categories.
-    // Since 'customer_payment' could come from various services,
-    // we return null to avoid deleting the wrong audit log.
-    // The balance reversal will still happen correctly because it finds all transactions with the same auditId.
-    if (category === 'customer_payment') {
-       return null;
-    }
-
+    // Check direct mapping first
     const collectionName = categoryMap[category];
 
     if (!collectionName) {
-        console.warn(`No audit collection mapping found for category: ${category}.`);
+        // Handle ambiguous payment categories by checking against all possible audit collections
+        // This is a fallback and less efficient, but ensures correctness if a specific payment category isn't mapped.
+        if (category.includes('payment')) {
+             console.warn(`Ambiguous payment category "${category}" encountered. The system will attempt to find the correct audit log, but this may be slower. Consider creating a more specific category.`);
+             return null; // Let the deletion logic handle the search across collections if needed.
+        }
+        console.warn(`No audit collection mapping found for category: ${category}. Deletion may be incomplete.`);
     }
 
     return collectionName || null;
