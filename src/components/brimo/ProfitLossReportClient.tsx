@@ -3,9 +3,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, where, Timestamp, doc, writeBatch, deleteDoc } from 'firebase/firestore';
 import type { CustomerTransfer, CustomerWithdrawal, CustomerTopUp, CustomerEmoneyTopUp, CustomerVAPayment, EDCService, CustomerKJPWithdrawal, PPOBTransaction, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs, PPOBWifi } from '@/lib/types';
-import type { KasAccount } from '@/lib/data';
+import type { KasAccount, Transaction } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon, ArrowLeft, Download, Loader2 } from 'lucide-react';
@@ -17,6 +17,7 @@ import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProfitLossReportProps {
   onDone: () => void;
@@ -47,6 +48,7 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 
 export default function ProfitLossReportClient({ onDone }: ProfitLossReportProps) {
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [brilinkReports, setBrilinkReports] = useState<BrilinkReportItem[]>([]);
   const [ppobReports, setPpobReports] = useState<(PPOBTransaction & {id: string})[]>([]);
   const [ppobBillReports, setPpobBillReports] = useState<PpobBillReportItem[]>([]);
@@ -59,78 +61,79 @@ export default function ProfitLossReportClient({ onDone }: ProfitLossReportProps
     return collection(firestore, 'kasAccounts');
   }, [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
+  
+  const fetchReports = async () => {
+      if (!firestore) return;
+      setIsLoading(true);
+
+      try {
+          const dateFrom = dateRange?.from ? Timestamp.fromDate(startOfDay(dateRange.from)) : null;
+          const dateTo = dateRange?.to ? Timestamp.fromDate(endOfDay(dateRange.to)) : null;
+
+          const brilinkQueries = [
+              getDocs(query(collection(firestore, 'customerTransfers'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+              getDocs(query(collection(firestore, 'customerWithdrawals'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+              getDocs(query(collection(firestore, 'customerTopUps'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+              getDocs(query(collection(firestore, 'customerEmoneyTopUps'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+              getDocs(query(collection(firestore, 'customerVAPayments'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+              getDocs(query(collection(firestore, 'edcServices'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+              getDocs(query(collection(firestore, 'customerKJPWithdrawals'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
+          ];
+
+          const ppobQuery = getDocs(query(collection(firestore, 'ppobTransactions'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
+          const ppobPlnPostpaidQuery = getDocs(query(collection(firestore, 'ppobPlnPostpaid'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
+          const ppobPdamQuery = getDocs(query(collection(firestore, 'ppobPdam'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
+          const ppobBpjsQuery = getDocs(query(collection(firestore, 'ppobBpjs'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
+          const ppobWifiQuery = getDocs(query(collection(firestore, 'ppobWifi'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
+          
+          const [
+              transfersSnapshot, 
+              withdrawalsSnapshot, 
+              topUpsSnapshot, 
+              emoneyTopUpsSnapshot, 
+              vaPaymentsSnapshot, 
+              edcServicesSnapshot, 
+              kjpWithdrawalsSnapshot,
+              ppobSnapshot,
+              ppobPlnPostpaidSnapshot,
+              ppobPdamSnapshot,
+              ppobBpjsSnapshot,
+              ppobWifiSnapshot,
+          ] = await Promise.all([...brilinkQueries, ppobQuery, ppobPlnPostpaidQuery, ppobPdamQuery, ppobBpjsQuery, ppobWifiQuery]);
+
+          const combinedBrilinkReports: BrilinkReportItem[] = [];
+
+          transfersSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerTransfer), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Transfer' }));
+          withdrawalsSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerWithdrawal), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Tarik Tunai' }));
+          topUpsSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerTopUp), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Top Up' }));
+          emoneyTopUpsSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerEmoneyTopUp), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Top Up E-Money' }));
+          vaPaymentsSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerVAPayment), date: (doc.data().date as Timestamp).toDate(), transactionType: 'VA Payment' }));
+          edcServicesSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as EDCService), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Layanan EDC' }));
+          kjpWithdrawalsSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerKJPWithdrawal), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Tarik Tunai KJP' }));
+
+          combinedBrilinkReports.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          
+          const fetchedPpobReports = ppobSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PPOBTransaction & {id: string}));
+          const fetchedPpobBillReports: PpobBillReportItem[] = [];
+          ppobPlnPostpaidSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBPlnPostpaid), serviceName: 'PLN Pascabayar' }));
+          ppobPdamSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBPdam), serviceName: 'PDAM' }));
+          ppobBpjsSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBBpjs), serviceName: 'BPJS' }));
+          ppobWifiSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBWifi), serviceName: 'Wifi' }));
+          fetchedPpobBillReports.sort((a, b) => (b.date as any).toDate().getTime() - (a.date as any).toDate().getTime());
+
+          setBrilinkReports(combinedBrilinkReports);
+          setPpobReports(fetchedPpobReports);
+          setPpobBillReports(fetchedPpobBillReports);
+
+      } catch (error) {
+          console.error("Error fetching profit/loss reports: ", error);
+      } finally {
+          setIsLoading(false);
+      }
+  };
+
 
   useEffect(() => {
-    const fetchReports = async () => {
-        if (!firestore) return;
-        setIsLoading(true);
-
-        try {
-            const dateFrom = dateRange?.from ? Timestamp.fromDate(startOfDay(dateRange.from)) : null;
-            const dateTo = dateRange?.to ? Timestamp.fromDate(endOfDay(dateRange.to)) : null;
-
-            const brilinkQueries = [
-                getDocs(query(collection(firestore, 'customerTransfers'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
-                getDocs(query(collection(firestore, 'customerWithdrawals'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
-                getDocs(query(collection(firestore, 'customerTopUps'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
-                getDocs(query(collection(firestore, 'customerEmoneyTopUps'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
-                getDocs(query(collection(firestore, 'customerVAPayments'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
-                getDocs(query(collection(firestore, 'edcServices'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
-                getDocs(query(collection(firestore, 'customerKJPWithdrawals'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []))),
-            ];
-
-            const ppobQuery = getDocs(query(collection(firestore, 'ppobTransactions'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
-            const ppobPlnPostpaidQuery = getDocs(query(collection(firestore, 'ppobPlnPostpaid'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
-            const ppobPdamQuery = getDocs(query(collection(firestore, 'ppobPdam'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
-            const ppobBpjsQuery = getDocs(query(collection(firestore, 'ppobBpjs'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
-            const ppobWifiQuery = getDocs(query(collection(firestore, 'ppobWifi'), ...(dateFrom ? [where('date', '>=', dateFrom)] : []), ...(dateTo ? [where('date', '<=', dateTo)] : []), orderBy('date', 'desc')));
-            
-            const [
-                transfersSnapshot, 
-                withdrawalsSnapshot, 
-                topUpsSnapshot, 
-                emoneyTopUpsSnapshot, 
-                vaPaymentsSnapshot, 
-                edcServicesSnapshot, 
-                kjpWithdrawalsSnapshot,
-                ppobSnapshot,
-                ppobPlnPostpaidSnapshot,
-                ppobPdamSnapshot,
-                ppobBpjsSnapshot,
-                ppobWifiSnapshot,
-            ] = await Promise.all([...brilinkQueries, ppobQuery, ppobPlnPostpaidQuery, ppobPdamQuery, ppobBpjsQuery, ppobWifiQuery]);
-
-            const combinedBrilinkReports: BrilinkReportItem[] = [];
-
-            transfersSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerTransfer), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Transfer' }));
-            withdrawalsSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerWithdrawal), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Tarik Tunai' }));
-            topUpsSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerTopUp), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Top Up' }));
-            emoneyTopUpsSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerEmoneyTopUp), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Top Up E-Money' }));
-            vaPaymentsSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerVAPayment), date: (doc.data().date as Timestamp).toDate(), transactionType: 'VA Payment' }));
-            edcServicesSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as EDCService), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Layanan EDC' }));
-            kjpWithdrawalsSnapshot.forEach((doc) => combinedBrilinkReports.push({ id: doc.id, ...(doc.data() as CustomerKJPWithdrawal), date: (doc.data().date as Timestamp).toDate(), transactionType: 'Tarik Tunai KJP' }));
-
-            combinedBrilinkReports.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            
-            const fetchedPpobReports = ppobSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PPOBTransaction & {id: string}));
-            const fetchedPpobBillReports: PpobBillReportItem[] = [];
-            ppobPlnPostpaidSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBPlnPostpaid), serviceName: 'PLN Pascabayar' }));
-            ppobPdamSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBPdam), serviceName: 'PDAM' }));
-            ppobBpjsSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBBpjs), serviceName: 'BPJS' }));
-            ppobWifiSnapshot.forEach(doc => fetchedPpobBillReports.push({ id: doc.id, ...(doc.data() as PPOBWifi), serviceName: 'Wifi' }));
-            fetchedPpobBillReports.sort((a, b) => (b.date as any).toDate().getTime() - (a.date as any).toDate().getTime());
-
-            setBrilinkReports(combinedBrilinkReports);
-            setPpobReports(fetchedPpobReports);
-            setPpobBillReports(fetchedPpobBillReports);
-
-        } catch (error) {
-            console.error("Error fetching profit/loss reports: ", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    
     fetchReports();
   }, [firestore, dateRange]);
 
