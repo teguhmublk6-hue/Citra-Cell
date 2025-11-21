@@ -65,20 +65,10 @@ const getCollectionNameFromCategory = (category?: string): string | null => {
         case 'customer_kjp_withdrawal_debit':
             return 'customerKJPWithdrawals';
         
-        // This category can be from multiple sources, we need to handle it carefully.
-        // It's often paired with another transaction that has a more specific category.
-        // For deletion logic, relying on the debiting transaction's category is safer.
-        // However, if a payment is the *only* transaction, we might need a fallback.
-        // Let's assume for now the main deletion is triggered from the debit side.
-        // If a 'customer_payment' is deleted directly, it might be an ambiguous case.
-        case 'customer_payment':
-            // This is tricky. It could be from any service.
-            // We might need to make a guess or improve data model to resolve ambiguity.
-            // For now, let's not delete audit logs based on this ambiguous category alone to be safe.
-            return null;
-
         // --- PPOB Services ---
         case 'ppob_purchase':
+            // This is generic, could be Pulsa, Paket Data, Token Listrik, etc.
+            // All are stored in ppobTransactions
             return 'ppobTransactions';
         
         case 'ppob_pln_postpaid':
@@ -89,12 +79,23 @@ const getCollectionNameFromCategory = (category?: string): string | null => {
         case 'ppob_pdam_payment':
         case 'ppob_pdam_cashback':
             return 'ppobPdam';
+        
+        case 'ppob_bpjs_payment':
+        case 'ppob_bpjs_cashback':
+            return 'ppobBpjs';
+            
+        case 'ppob_wifi_payment':
+        case 'ppob_wifi_cashback':
+            return 'ppobWifi';
 
         // --- Internal Mutations ---
         case 'transfer':
         case 'transfer_fee':
             return 'internalTransfers';
-
+        
+        // --- Ambiguous or No Audit Log ---
+        case 'customer_payment': // Could be from any service, safer to not delete audit log from this alone
+        case 'customer_payment_ppob':
         case 'capital': // Capital additions/withdrawals don't have separate audit logs
         case 'operational':
         case 'service_fee_income':
