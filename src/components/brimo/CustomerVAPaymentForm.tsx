@@ -281,7 +281,6 @@ export default function CustomerVAPaymentForm({ onTransactionComplete, onDone }:
             }
         });
 
-        toast({ title: "Sukses", description: "Transaksi berhasil disimpan." });
         onTransactionComplete();
 
     } catch (error: any) {

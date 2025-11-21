@@ -139,7 +139,7 @@ export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPul
   const onSubmit = async (values: PPOBPulsaFormValues) => {
     setIsSaving(true);
     
-    if (!firestore || !sourcePPOBAccount || !kasAccounts) {
+    if (!firestore || !selectedPPOBAccount || !kasAccounts) {
         toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
         setIsSaving(false);
         return;
@@ -155,8 +155,8 @@ export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPul
         return;
     }
     
-    if (sourcePPOBAccount.balance < costPrice) {
-        toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${sourcePPOBAccount.label} tidak mencukupi.` });
+    if (selectedPPOBAccount.balance < costPrice) {
+        toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${selectedPPOBAccount.label} tidak mencukupi.` });
         setIsSaving(false);
         return;
     }
@@ -188,7 +188,7 @@ export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPul
         const auditId = auditDocRef.id;
 
         await runTransaction(firestore, async (transaction) => {
-            const sourcePPOBAccountRef = doc(firestore, 'kasAccounts', sourcePPOBAccount.id);
+            const sourcePPOBAccountRef = doc(firestore, 'kasAccounts', selectedPPOBAccount.id);
             const laciAccountRef = laciAccount ? doc(firestore, 'kasAccounts', laciAccount.id) : null;
             const paymentAccRef = paymentTransferAccount ? doc(firestore, 'kasAccounts', paymentTransferAccount.id) : null;
 
@@ -201,12 +201,12 @@ export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPul
             if (!sourceDoc.exists()) throw new Error("Akun sumber PPOB tidak ditemukan.");
             
             const currentSourcePPOBBalance = sourceDoc.data().balance;
-            if (currentSourcePPOBBalance < costPrice) throw new Error(`Saldo ${sourcePPOBAccount.label} tidak mencukupi.`);
+            if (currentSourcePPOBBalance < costPrice) throw new Error(`Saldo ${selectedPPOBAccount.label} tidak mencukupi.`);
             
             transaction.update(sourcePPOBAccountRef, { balance: currentSourcePPOBBalance - costPrice });
             const debitTxRef = doc(collection(sourcePPOBAccountRef, 'transactions'));
             transaction.set(debitTxRef, {
-                kasAccountId: sourcePPOBAccount.id, type: 'debit', name: `Beli Pulsa ${values.denomination}`, account: values.phoneNumber, date: nowISO, amount: costPrice, balanceBefore: currentSourcePPOBBalance, balanceAfter: currentSourcePPOBBalance - costPrice, category: 'ppob_purchase', deviceName, auditId
+                kasAccountId: selectedPPOBAccount.id, type: 'debit', name: `Beli Pulsa ${values.denomination}`, account: values.phoneNumber, date: nowISO, amount: costPrice, balanceBefore: currentSourcePPOBBalance, balanceAfter: currentSourcePPOBBalance - costPrice, category: 'ppob_purchase', deviceName, auditId
             });
             
             switch (paymentMethod) {
@@ -250,7 +250,6 @@ export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPul
             }
         });
 
-        toast({ title: "Sukses", description: "Transaksi Pulsa berhasil disimpan." });
         onTransactionComplete();
 
     } catch (error: any) {
@@ -450,3 +449,4 @@ export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPul
 }
 
     
+

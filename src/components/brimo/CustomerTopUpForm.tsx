@@ -227,7 +227,7 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
             }
         });
 
-        handleTransactionComplete();
+        onTransactionComplete();
     } catch (error: any) {
         console.error("Error saving top up transaction: ", error);
         toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });

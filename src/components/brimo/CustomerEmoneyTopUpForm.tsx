@@ -211,7 +211,7 @@ export default function CustomerEmoneyTopUpForm({ onTransactionComplete, onDone 
             }
         });
 
-        handleTransactionComplete();
+        onTransactionComplete();
     } catch (error: any) {
         console.error("Error saving e-money top up transaction: ", error);
         toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
