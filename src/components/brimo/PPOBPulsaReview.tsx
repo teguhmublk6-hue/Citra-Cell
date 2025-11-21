@@ -58,7 +58,7 @@ export default function PPOBPulsaReview({ formData, onConfirm, onBack }: PPOBPul
             toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
             return;
         }
-
+        
         if (sourcePPOBAccount.balance < costPrice) {
             toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${sourcePPOBAccount.label} tidak mencukupi.` });
             return;

@@ -118,7 +118,7 @@ export default function CustomerTopUpReview({ formData, onConfirm, onBack }: Cus
                         transaction.update(laciAccountRef, { balance: currentLaciBalance + totalPaymentByCustomer });
                         const creditTunaiRef = doc(collection(laciAccountRef, 'transactions'));
                         transaction.set(creditTunaiRef, {
-                             kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Top Up an. ${formData.customerName}`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName, auditId
+                             kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Top Up an. ${formData.customerName}`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + totalPaymentByCustomer, category: 'customer_payment_topup', deviceName, auditId
                         });
                         break;
                     case 'Transfer':
@@ -127,7 +127,7 @@ export default function CustomerTopUpReview({ formData, onConfirm, onBack }: Cus
                         transaction.update(paymentAccRef, { balance: currentPaymentBalance + totalPaymentByCustomer });
                         const creditTransferRef = doc(collection(paymentAccRef, 'transactions'));
                         transaction.set(creditTransferRef, {
-                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Top Up an. ${formData.customerName}`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentPaymentBalance, balanceAfter: currentPaymentBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName, auditId
+                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Top Up an. ${formData.customerName}`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentPaymentBalance, balanceAfter: currentPaymentBalance + totalPaymentByCustomer, category: 'customer_payment_topup', deviceName, auditId
                         });
                         break;
                     case 'Split':
@@ -139,14 +139,14 @@ export default function CustomerTopUpReview({ formData, onConfirm, onBack }: Cus
                         transaction.update(laciAccountRef, { balance: currentLaciSplitBalance + splitTunaiAmount });
                         const creditSplitTunaiRef = doc(collection(laciAccountRef, 'transactions'));
                         transaction.set(creditSplitTunaiRef, {
-                             kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Tunai Top Up an. ${formData.customerName}`, account: 'Pelanggan', date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciSplitBalance, balanceAfter: currentLaciSplitBalance + splitTunaiAmount, category: 'customer_payment', deviceName, auditId
+                             kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Tunai Top Up an. ${formData.customerName}`, account: 'Pelanggan', date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciSplitBalance, balanceAfter: currentLaciSplitBalance + splitTunaiAmount, category: 'customer_payment_topup', deviceName, auditId
                         });
 
                         const currentPaymentSplitBalance = paymentDoc.data().balance;
                         transaction.update(paymentAccRef, { balance: currentPaymentSplitBalance + splitTransferAmount });
                         const creditSplitTransferRef = doc(collection(paymentAccRef, 'transactions'));
                         transaction.set(creditSplitTransferRef, {
-                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Top Up an. ${formData.customerName}`, account: 'Pelanggan', date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentSplitBalance, balanceAfter: currentPaymentSplitBalance + splitTransferAmount, category: 'customer_payment', deviceName, auditId
+                            kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Top Up an. ${formData.customerName}`, account: 'Pelanggan', date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentSplitBalance, balanceAfter: currentPaymentSplitBalance + splitTransferAmount, category: 'customer_payment_topup', deviceName, auditId
                         });
                         break;
                 }

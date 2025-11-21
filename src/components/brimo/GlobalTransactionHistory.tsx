@@ -45,33 +45,47 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 const getCollectionNameFromCategory = (category?: string): string | null => {
     if (!category) return null;
 
-    // This comprehensive map links every possible transaction category to its root audit collection.
     const categoryMap: Record<string, string> = {
-        // --- BRILink & Customer Services ---
-        'customer_transfer_debit': 'customerTransfers',
-        'customer_transfer_fee': 'customerTransfers',
-        'customer_payment': 'customerTransfers', // Assume customer_payment for transfer service defaults here. More specific ones below.
-        'customer_withdrawal_credit': 'customerWithdrawals',
-        'customer_withdrawal_debit': 'customerWithdrawals',
-        'service_fee_income': 'customerWithdrawals', // This is specifically for withdrawal service fee
-        'customer_topup_debit': 'customerTopUps',
-        'customer_emoney_topup_debit': 'customerEmoneyTopUps',
-        'customer_va_payment_debit': 'customerVAPayments',
-        'customer_va_payment_fee': 'customerVAPayments',
-        'customer_kjp_withdrawal_credit': 'customerKJPWithdrawals',
-        'customer_kjp_withdrawal_debit': 'customerKJPWithdrawals',
-        'edc_service': 'edcServices',
-        
-        // --- Internal & Settlement ---
-        'settlement_debit': 'settlements',
-        'settlement_credit': 'settlements',
+        // --- Internal & Operational ---
         'transfer': 'internalTransfers',
         'operational_fee': 'internalTransfers',
-        
+        'settlement_debit': 'settlements',
+        'settlement_credit': 'settlements',
+
+        // --- Customer Transfer ---
+        'customer_transfer_debit': 'customerTransfers',
+        'customer_transfer_fee': 'customerTransfers',
+        'customer_payment_transfer': 'customerTransfers',
+
+        // --- Customer Withdrawal ---
+        'customer_withdrawal_credit': 'customerWithdrawals',
+        'customer_withdrawal_debit': 'customerWithdrawals',
+        'service_fee_income': 'customerWithdrawals',
+
+        // --- Customer TopUp (E-Wallet) ---
+        'customer_topup_debit': 'customerTopUps',
+        'customer_payment_topup': 'customerTopUps',
+
+        // --- Customer TopUp (E-Money) ---
+        'customer_emoney_topup_debit': 'customerEmoneyTopUps',
+        'customer_payment_emoney': 'customerEmoneyTopUps',
+
+        // --- Customer VA Payment ---
+        'customer_va_payment_debit': 'customerVAPayments',
+        'customer_va_payment_fee': 'customerVAPayments',
+        'customer_payment_va': 'customerVAPayments',
+
+        // --- Customer KJP Withdrawal ---
+        'customer_kjp_withdrawal_credit': 'customerKJPWithdrawals',
+        'customer_kjp_withdrawal_debit': 'customerKJPWithdrawals',
+
+        // --- EDC Service ---
+        'edc_service': 'edcServices',
+
         // --- PPOB Generic ---
-        'ppob_purchase': 'ppobTransactions', // Pulsa, Paket Data
-        'customer_payment_ppob': 'ppobTransactions', // Pulsa, Paket Data Payment
-        
+        'ppob_purchase': 'ppobTransactions',
+        'customer_payment_ppob': 'ppobTransactions', // Pulsa, Paket Data, Token Listrik, Paket Telpon
+
         // --- PPOB Bills ---
         'ppob_pln_postpaid': 'ppobPlnPostpaid',
         'ppob_pln_postpaid_cashback': 'ppobPlnPostpaid',
@@ -87,20 +101,7 @@ const getCollectionNameFromCategory = (category?: string): string | null => {
         'ppob_wifi_cashback': 'ppobWifi',
     };
     
-    // Check direct mapping first
-    const collectionName = categoryMap[category];
-
-    if (!collectionName) {
-        // Handle ambiguous payment categories by checking against all possible audit collections
-        // This is a fallback and less efficient, but ensures correctness if a specific payment category isn't mapped.
-        if (category.includes('payment')) {
-             console.warn(`Ambiguous payment category "${category}" encountered. The system will attempt to find the correct audit log, but this may be slower. Consider creating a more specific category.`);
-             return null; // Let the deletion logic handle the search across collections if needed.
-        }
-        console.warn(`No audit collection mapping found for category: ${category}. Deletion may be incomplete.`);
-    }
-
-    return collectionName || null;
+    return categoryMap[category] || null;
 };
 
 
