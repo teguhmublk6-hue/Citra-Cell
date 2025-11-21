@@ -125,7 +125,7 @@ export default function CustomerWithdrawalReview({ formData, onConfirm, onBack }
 
                     const feeTrxRef = doc(collection(laciAccountRef, 'transactions'));
                      transaction.set(feeTrxRef, {
-                        kasAccountId: laciAccount.id, type: 'credit', name: `Biaya Jasa Tarik Tunai`, account: 'Pendapatan Jasa', date: nowISO, amount: serviceFee, balanceBefore: balanceAfterDebit, balanceAfter: finalLaciBalance, category: 'service_fee_income', deviceName, auditId
+                        kasAccountId: laciAccount.id, type: 'credit', name: `Biaya Jasa Tarik Tunai`, account: 'Pendapatan Jasa', date: nowISO, amount: serviceFee, balanceBefore: balanceAfterDebit, balanceAfter: finalLaciBalance, category: 'service_fee_income_withdrawal', deviceName, auditId
                     });
 
                 } else { // 'Dipotong'

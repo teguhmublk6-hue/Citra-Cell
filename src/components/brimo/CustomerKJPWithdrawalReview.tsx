@@ -129,7 +129,7 @@ export default function CustomerKJPWithdrawalReview({ formData, onConfirm, onBac
 
                     const feeTrxRef = doc(collection(laciAccountRef, 'transactions'));
                     transaction.set(feeTrxRef, {
-                        kasAccountId: laciAccount.id, type: 'credit', name: `Biaya Jasa KJP a/n ${formData.customerName}`, account: 'Pendapatan Jasa', date: nowISO, amount: serviceFee, balanceBefore: balanceAfterDebit, balanceAfter: finalLaciBalance, category: 'service_fee_income', deviceName, auditId
+                        kasAccountId: laciAccount.id, type: 'credit', name: `Biaya Jasa KJP a/n ${formData.customerName}`, account: 'Pendapatan Jasa', date: nowISO, amount: serviceFee, balanceBefore: balanceAfterDebit, balanceAfter: finalLaciBalance, category: 'service_fee_income_kjp', deviceName, auditId
                     });
 
                 } else { // 'Dipotong'
