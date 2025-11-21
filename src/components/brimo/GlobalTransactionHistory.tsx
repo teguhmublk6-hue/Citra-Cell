@@ -34,77 +34,57 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 const getCollectionNameFromCategory = (category?: string): string | null => {
     if (!category) return null;
 
-    switch (category) {
-        // --- BRILink Services ---
-        case 'customer_transfer_debit':
-        case 'customer_transfer_fee':
-            return 'customerTransfers';
-
-        case 'customer_withdrawal_credit':
-        case 'customer_withdrawal_debit':
-            return 'customerWithdrawals';
-
-        case 'customer_topup_debit':
-            return 'customerTopUps';
-
-        case 'customer_emoney_topup_debit':
-            return 'customerEmoneyTopUps';
+    const categoryMap: Record<string, string> = {
+        // BRILink & Customer Services
+        'customer_transfer_debit': 'customerTransfers',
+        'customer_transfer_fee': 'customerTransfers',
+        'customer_withdrawal_credit': 'customerWithdrawals',
+        'customer_withdrawal_debit': 'customerWithdrawals',
+        'customer_topup_debit': 'customerTopUps',
+        'customer_emoney_topup_debit': 'customerEmoneyTopUps',
+        'customer_va_payment_debit': 'customerVAPayments',
+        'customer_va_payment_fee': 'customerVAPayments',
+        'customer_kjp_withdrawal_credit': 'customerKJPWithdrawals',
+        'customer_kjp_withdrawal_debit': 'customerKJPWithdrawals',
+        'edc_service': 'edcServices',
+        'settlement_debit': 'settlements',
+        'settlement_credit': 'settlements',
         
-        case 'customer_va_payment_debit':
-        case 'customer_va_payment_fee':
-            return 'customerVAPayments';
-
-        case 'edc_service':
-            return 'edcServices';
-
-        case 'settlement_debit':
-        case 'settlement_credit':
-            return 'settlements';
-
-        case 'customer_kjp_withdrawal_credit':
-        case 'customer_kjp_withdrawal_debit':
-            return 'customerKJPWithdrawals';
+        // PPOB Services
+        'ppob_purchase': 'ppobTransactions', // Generic for Pulsa, Paket Data, Token Listrik
+        'ppob_pln_postpaid_payment': 'ppobPlnPostpaid',
+        'ppob_pln_postpaid_cashback': 'ppobPlnPostpaid',
+        'ppob_pdam_payment': 'ppobPdam',
+        'ppob_pdam_cashback': 'ppobPdam',
+        'ppob_bpjs_payment': 'ppobBpjs',
+        'ppob_bpjs_cashback': 'ppobBpjs',
+        'ppob_wifi_payment': 'ppobWifi',
+        'ppob_wifi_cashback': 'ppobWifi',
         
-        // --- PPOB Services ---
-        case 'ppob_purchase':
-            // This is generic, could be Pulsa, Paket Data, Token Listrik, etc.
-            // All are stored in ppobTransactions
-            return 'ppobTransactions';
-        
-        case 'ppob_pln_postpaid':
-        case 'ppob_pln_postpaid_cashback':
-        case 'ppob_pln_postpaid_payment':
-            return 'ppobPlnPostpaid';
-        
-        case 'ppob_pdam_payment':
-        case 'ppob_pdam_cashback':
-            return 'ppobPdam';
-        
-        case 'ppob_bpjs_payment':
-        case 'ppob_bpjs_cashback':
-            return 'ppobBpjs';
-            
-        case 'ppob_wifi_payment':
-        case 'ppob_wifi_cashback':
-            return 'ppobWifi';
+        // Internal & Ambiguous
+        'transfer': 'internalTransfers',
+        'transfer_fee': 'internalTransfers',
+    };
 
-        // --- Internal Mutations ---
-        case 'transfer':
-        case 'transfer_fee':
-            return 'internalTransfers';
-        
-        // --- Ambiguous or No Audit Log ---
-        case 'customer_payment': // Could be from any service, safer to not delete audit log from this alone
-        case 'customer_payment_ppob':
-        case 'capital': // Capital additions/withdrawals don't have separate audit logs
-        case 'operational':
-        case 'service_fee_income':
-            return null;
-
-        default:
-            console.warn(`No audit collection mapping found for category: ${category}.`);
-            return null;
+    // Special handling for 'customer_payment' which is ambiguous
+    // It's safer not to delete an audit log based on this alone unless other info is used.
+    // However, for the sake of functionality as requested by the user, we can try to guess.
+    // This is a simplified approach. A more robust solution might need to store the service type in the transaction.
+    if (category === 'customer_payment' || category === 'customer_payment_ppob') {
+        // This is a weak link. We are assuming that a payment is related to one of these services.
+        // A better approach would be to have more specific categories on the payment transactions themselves.
+        // For now, we will return null to prevent accidental deletion of the wrong audit log.
+        // The logic will still revert the balance and delete the kas transactions.
+        return null; 
     }
+
+    const collectionName = categoryMap[category];
+
+    if (!collectionName) {
+        console.warn(`No audit collection mapping found for category: ${category}.`);
+    }
+
+    return collectionName || null;
 };
 
 
