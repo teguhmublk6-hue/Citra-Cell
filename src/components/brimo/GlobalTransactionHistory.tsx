@@ -34,12 +34,14 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 const getCollectionNameFromCategory = (category?: string): string | null => {
     if (!category) return null;
 
+    // This map links a specific transaction category to its root audit collection.
     const categoryMap: Record<string, string> = {
         // BRILink & Customer Services
         'customer_transfer_debit': 'customerTransfers',
         'customer_transfer_fee': 'customerTransfers',
         'customer_withdrawal_credit': 'customerWithdrawals',
         'customer_withdrawal_debit': 'customerWithdrawals',
+        'service_fee_income': 'customerWithdrawals', // Fee from cash withdrawal
         'customer_topup_debit': 'customerTopUps',
         'customer_emoney_topup_debit': 'customerEmoneyTopUps',
         'customer_va_payment_debit': 'customerVAPayments',
@@ -49,11 +51,14 @@ const getCollectionNameFromCategory = (category?: string): string | null => {
         'edc_service': 'edcServices',
         'settlement_debit': 'settlements',
         'settlement_credit': 'settlements',
+        'customer_payment': 'customerTransfers', // Default for ambiguous payments, review if causes issues.
         
         // PPOB Services
         'ppob_purchase': 'ppobTransactions', // Generic for Pulsa, Paket Data, Token Listrik
-        'ppob_pln_postpaid_payment': 'ppobPlnPostpaid',
+        'customer_payment_ppob': 'ppobTransactions', // Payment for PPOB
+        'ppob_pln_postpaid': 'ppobPlnPostpaid',
         'ppob_pln_postpaid_cashback': 'ppobPlnPostpaid',
+        'ppob_pln_postpaid_payment': 'ppobPlnPostpaid',
         'ppob_pdam_payment': 'ppobPdam',
         'ppob_pdam_cashback': 'ppobPdam',
         'ppob_bpjs_payment': 'ppobBpjs',
@@ -63,19 +68,15 @@ const getCollectionNameFromCategory = (category?: string): string | null => {
         
         // Internal & Ambiguous
         'transfer': 'internalTransfers',
-        'transfer_fee': 'internalTransfers',
+        'operational_fee': 'internalTransfers',
     };
-
-    // Special handling for 'customer_payment' which is ambiguous
-    // It's safer not to delete an audit log based on this alone unless other info is used.
-    // However, for the sake of functionality as requested by the user, we can try to guess.
-    // This is a simplified approach. A more robust solution might need to store the service type in the transaction.
-    if (category === 'customer_payment' || category === 'customer_payment_ppob') {
-        // This is a weak link. We are assuming that a payment is related to one of these services.
-        // A better approach would be to have more specific categories on the payment transactions themselves.
-        // For now, we will return null to prevent accidental deletion of the wrong audit log.
-        // The logic will still revert the balance and delete the kas transactions.
-        return null; 
+    
+    // It's crucial to also handle generic payment categories.
+    // Since 'customer_payment' could come from various services,
+    // we return null to avoid deleting the wrong audit log.
+    // The balance reversal will still happen correctly because it finds all transactions with the same auditId.
+    if (category === 'customer_payment') {
+       return null;
     }
 
     const collectionName = categoryMap[category];
@@ -178,7 +179,7 @@ export default function GlobalTransactionHistory() {
                 const auditDocRef = doc(firestore, auditCollectionName, auditId);
                 batch.delete(auditDocRef);
             } else {
-                console.warn(`No audit collection mapping found for category: ${category}. Audit doc will not be deleted.`);
+                console.warn(`No audit collection mapping found for category: ${category}. Audit doc may not be deleted.`);
             }
         } else {
              console.warn("Transaction does not have an auditId. Only the transaction itself will be deleted.");
