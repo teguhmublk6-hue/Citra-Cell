@@ -198,6 +198,13 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
     }
   }, [sourcePopoverOpen, sourceAccountId]);
 
+  // Auto-calculate service fee
+  useEffect(() => {
+    if (transferAmount !== undefined) {
+      form.setValue('serviceFee', calculateServiceFee(transferAmount), { shouldValidate: true });
+    }
+  }, [transferAmount, form]);
+
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, nextFieldRef?: React.RefObject<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -209,29 +216,36 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
   };
 
   const onSubmit = async (values: CustomerTransferFormValues) => {
-    if (!firestore) return;
+    if (!firestore || !values.sourceAccountId) return;
     setIsSaving(true);
     setFormData(values);
 
     // Check for duplicates
-    const today = new Date();
-    const startOfToday = startOfDay(today);
+    const todayStart = startOfDay(new Date()).toISOString();
+    const transactionsRef = collection(firestore, 'kasAccounts', values.sourceAccountId, 'transactions');
+    const q = query(transactionsRef, where('date', '>=', todayStart));
 
-    const q = query(
-      collection(firestore, "customerTransfers"),
-      where("sourceKasAccountId", "==", values.sourceAccountId),
-      where("destinationAccountName", "==", values.destinationAccountName),
-      where("transferAmount", "==", values.transferAmount),
-      where("date", ">=", Timestamp.fromDate(startOfToday))
-    );
+    try {
+        const querySnapshot = await getDocs(q);
+        const todaysTransactions = querySnapshot.docs.map(doc => doc.data() as Transaction);
 
-    const querySnapshot = await getDocs(q);
+        const isDuplicate = todaysTransactions.some(trx => 
+            trx.category === 'customer_transfer_debit' &&
+            trx.account === values.destinationBank && // Account field in transaction stores the bank
+            trx.name.includes(values.destinationAccountName) && // Name field stores "Trf an. {Name}"
+            trx.amount === values.transferAmount
+        );
 
-    if (!querySnapshot.empty) {
-      setIsDuplicateDialogOpen(true);
-      setIsSaving(false);
-    } else {
-      await proceedWithTransaction(values);
+        if (isDuplicate) {
+          setIsDuplicateDialogOpen(true);
+          setIsSaving(false);
+        } else {
+          await proceedWithTransaction(values);
+        }
+    } catch (error) {
+        console.error("Error checking for duplicates:", error);
+        toast({ variant: "destructive", title: "Error", description: "Gagal memeriksa duplikasi transaksi." });
+        await proceedWithTransaction(values); // Proceed anyway if check fails
     }
   };
   
@@ -325,14 +339,14 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
                     const currentLaciBalance = laciDoc.data().balance;
                     transaction.update(laciAccountRef, { balance: currentLaciBalance + totalPaymentByCustomer });
                     const creditTunaiRef = doc(collection(laciAccountRef, 'transactions'));
-                    transaction.set(creditTunaiRef, { kasAccountId: laciAccount!.id, type: 'credit', name: `Bayar Trf an. ${values.destinationAccountName}`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName, auditId });
+                    transaction.set(creditTunaiRef, { kasAccountId: laciAccount!.id, type: 'credit', name: `Bayar Trf an. ${values.destinationAccountName}`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + totalPaymentByCustomer, category: 'customer_payment_transfer', deviceName, auditId });
                     break;
                 case 'Transfer':
                     if (!paymentAccRef || !paymentDoc || !paymentDoc.exists()) throw new Error("Akun penerima pembayaran tidak valid.");
                     const currentPaymentBalance = paymentDoc.data().balance;
                     transaction.update(paymentAccRef, { balance: currentPaymentBalance + totalPaymentByCustomer });
                     const creditTransferRef = doc(collection(paymentAccRef, 'transactions'));
-                    transaction.set(creditTransferRef, { kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Trf an. ${values.destinationAccountName}`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentPaymentBalance, balanceAfter: currentPaymentBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName, auditId });
+                    transaction.set(creditTransferRef, { kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Trf an. ${values.destinationAccountName}`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentPaymentBalance, balanceAfter: currentPaymentBalance + totalPaymentByCustomer, category: 'customer_payment_transfer', deviceName, auditId });
                     break;
                 case 'Split':
                     if (!laciAccountRef || !laciDoc || !laciDoc.exists()) throw new Error("Akun Laci tidak ditemukan.");
@@ -342,12 +356,12 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
                     const currentLaciSplitBalance = laciDoc.data().balance;
                     transaction.update(laciAccountRef, { balance: currentLaciSplitBalance + values.splitTunaiAmount });
                     const creditSplitTunaiRef = doc(collection(laciAccountRef, 'transactions'));
-                    transaction.set(creditSplitTunaiRef, { kasAccountId: laciAccount!.id, type: 'credit', name: `Bayar Tunai Trf an. ${values.destinationAccountName}`, account: 'Pelanggan', date: nowISO, amount: values.splitTunaiAmount, balanceBefore: currentLaciSplitBalance, balanceAfter: currentLaciSplitBalance + values.splitTunaiAmount, category: 'customer_payment', deviceName, auditId });
+                    transaction.set(creditSplitTunaiRef, { kasAccountId: laciAccount!.id, type: 'credit', name: `Bayar Tunai Trf an. ${values.destinationAccountName}`, account: 'Pelanggan', date: nowISO, amount: values.splitTunaiAmount, balanceBefore: currentLaciSplitBalance, balanceAfter: currentLaciSplitBalance + values.splitTunaiAmount, category: 'customer_payment_transfer', deviceName, auditId });
 
                     const currentPaymentSplitBalance = paymentDoc.data().balance;
                     transaction.update(paymentAccRef, { balance: currentPaymentSplitBalance + splitTransferAmount });
                     const creditSplitTransferRef = doc(collection(paymentAccRef, 'transactions'));
-                    transaction.set(creditSplitTransferRef, { kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Trf an. ${values.destinationAccountName}`, account: 'Pelanggan', date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentSplitBalance, balanceAfter: currentPaymentSplitBalance + splitTransferAmount, category: 'customer_payment', deviceName, auditId });
+                    transaction.set(creditSplitTransferRef, { kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Trf an. ${values.destinationAccountName}`, account: 'Pelanggan', date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentSplitBalance, balanceAfter: currentPaymentSplitBalance + splitTransferAmount, category: 'customer_payment_transfer', deviceName, auditId });
                     break;
             }
         });
@@ -768,3 +782,4 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
   );
 }
 
+    
