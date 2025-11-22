@@ -314,70 +314,72 @@ export default function GlobalTransactionHistory() {
         </CardContent>
       </Card>
 
-
-      <ScrollArea className="flex-1 mt-4">
-        {isLoading && (
-          <div className="space-y-4">
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-20 w-full" />
-          </div>
-        )}
-        {!isLoading && (!transactions || transactions.length === 0) && (
-          <div className="flex flex-col items-center justify-center h-full py-20 text-center">
-            <CalendarIcon size={48} strokeWidth={1} className="text-muted-foreground mb-4" />
-            <p className="font-semibold">Belum Ada Transaksi</p>
-            <p className="text-sm text-muted-foreground">Tidak ada riwayat untuk rentang tanggal yang dipilih.</p>
-          </div>
-        )}
-        {!isLoading && transactions && transactions.length > 0 && (
-          <div className="space-y-2">
-            {transactions.map((trx) => (
-              <div key={trx.id} className="p-3 bg-card rounded-lg border flex items-start gap-3">
-                 <div className={`w-9 h-9 flex-shrink-0 rounded-full flex items-center justify-center ${trx.type === 'credit' ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
-                    {trx.type === 'credit' ? (
-                    <ArrowDownLeft size={16} strokeWidth={2.5} className="text-green-500" />
-                    ) : (
-                    <ArrowUpRight size={16} strokeWidth={2.5} className="text-red-500" />
-                    )}
-                </div>
-                <div className="flex-1 flex flex-col min-w-0">
-                    <div className="flex justify-between items-start">
-                        <p className="font-semibold text-sm flex-1 pr-2">{trx.name}</p>
-                        <p className={cn(
-                            'font-bold text-sm text-right whitespace-nowrap',
-                            trx.type === 'credit' ? 'text-green-500' : 'text-foreground'
-                        )}>
-                            {trx.type === 'credit' ? '+' : '-'} {formatToRupiah(trx.amount)}
-                        </p>
+      <div className="flex-1 mt-4 relative">
+        <ScrollArea className="absolute inset-0">
+            {isLoading && (
+            <div className="space-y-4">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+            </div>
+            )}
+            {!isLoading && (!transactions || transactions.length === 0) && (
+            <div className="flex flex-col items-center justify-center h-full py-20 text-center">
+                <CalendarIcon size={48} strokeWidth={1} className="text-muted-foreground mb-4" />
+                <p className="font-semibold">Belum Ada Transaksi</p>
+                <p className="text-sm text-muted-foreground">Tidak ada riwayat untuk rentang tanggal yang dipilih.</p>
+            </div>
+            )}
+            {!isLoading && transactions && transactions.length > 0 && (
+            <div className="space-y-2">
+                {transactions.map((trx) => (
+                <div key={trx.id} className="p-3 bg-card rounded-lg border flex items-start gap-3">
+                    <div className={`w-9 h-9 flex-shrink-0 rounded-full flex items-center justify-center ${trx.type === 'credit' ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+                        {trx.type === 'credit' ? (
+                        <ArrowDownLeft size={16} strokeWidth={2.5} className="text-green-500" />
+                        ) : (
+                        <ArrowUpRight size={16} strokeWidth={2.5} className="text-red-500" />
+                        )}
                     </div>
-                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {trx.type === 'credit' ? `ke ${trx.accountLabel}` : `dari ${trx.accountLabel}`} • {formatDateTime(trx.date)}
-                    </p>
-                    {trx.deviceName && <p className="text-xs text-muted-foreground/80 mt-0.5">Oleh: {trx.deviceName}</p>}
+                    <div className="flex-1 flex flex-col min-w-0">
+                        <div className="flex justify-between items-start">
+                            <p className="font-semibold text-sm flex-1 pr-2">{trx.name}</p>
+                            <p className={cn(
+                                'font-bold text-sm text-right whitespace-nowrap',
+                                trx.type === 'credit' ? 'text-green-500' : 'text-foreground'
+                            )}>
+                                {trx.type === 'credit' ? '+' : '-'} {formatToRupiah(trx.amount)}
+                            </p>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                        {trx.type === 'credit' ? `ke ${trx.accountLabel}` : `dari ${trx.accountLabel}`} • {formatDateTime(trx.date)}
+                        </p>
+                        {trx.deviceName && <p className="text-xs text-muted-foreground/80 mt-0.5">Oleh: {trx.deviceName}</p>}
+                    </div>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2">
+                                <MoreVertical size={16} />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem onClick={() => handleEditClick(trx)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                <span>Ubah Nama</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDeleteClick(trx)} className="text-red-500 focus:text-red-500">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Hapus</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2">
-                            <MoreVertical size={16} />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => handleEditClick(trx)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            <span>Ubah Nama</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDeleteClick(trx)} className="text-red-500 focus:text-red-500">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            <span>Hapus</span>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            ))}
-          </div>
-        )}
-      </ScrollArea>
+                ))}
+            </div>
+            )}
+        </ScrollArea>
+       </div>
+
        <DeleteTransactionDialog
             isOpen={isDeleteOpen}
             onClose={() => setIsDeleteOpen(false)}
@@ -406,3 +408,4 @@ export default function GlobalTransactionHistory() {
 
 
     
+
