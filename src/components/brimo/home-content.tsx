@@ -72,6 +72,7 @@ import DailyReport from './DailyReport';
 import DailyReportHistory from './DailyReportHistory';
 import DailyReportDetail from './DailyReportDetail';
 import CombinedReport from './CombinedReport';
+import FloatingBackButton from './FloatingBackButton';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -621,6 +622,8 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     <>
       {renderContent()}
 
+      {(activeSheet !== null || isBrilinkReportVisible || isPpobReportVisible || isProfitLossReportVisible || isOperationalCostReportVisible || isCapitalAdditionReportVisible || isShiftReconciliationReportVisible || isDailyReportVisible || isDailyReportHistoryVisible || selectedDailyReport || isCombinedReportVisible) && <FloatingBackButton />}
+
       <AdminPasscodeDialog
         isOpen={isPasscodeDialogOpen}
         onClose={() => setIsPasscodeDialogOpen(false)}
@@ -762,8 +765,3 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     </>
   );
 }
-
-
-
-
-
