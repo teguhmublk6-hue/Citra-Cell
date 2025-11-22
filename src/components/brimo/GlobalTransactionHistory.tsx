@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -23,17 +24,6 @@ import EditTransactionNameForm from './EditTransactionNameForm';
 
 
 type TransactionWithId = Transaction & { id: string, accountLabel?: string };
-
-type GroupedTransaction = {
-    isGroup: true;
-    mainTransaction: TransactionWithId;
-    feeTransaction: TransactionWithId | null;
-    totalAmount: number;
-    date: string;
-    type: 'credit' | 'debit';
-};
-
-type DisplayItem = TransactionWithId | GroupedTransaction;
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
     if (value === null || value === undefined || value === '') return 'Rp 0';
@@ -133,7 +123,7 @@ export default function GlobalTransactionHistory() {
     try {
         const transactionsGroupRef = collectionGroup(firestore, 'transactions');
         
-        const constraints = []; // No orderBy('date', 'desc')
+        const constraints = [];
         if (dateRange?.from) {
           constraints.push(where('date', '>=', startOfDay(dateRange.from).toISOString()));
         }
@@ -157,7 +147,6 @@ export default function GlobalTransactionHistory() {
           });
         });
       
-      // Sort on the client-side
       allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setTransactions(allTransactions);
 
@@ -414,3 +403,6 @@ export default function GlobalTransactionHistory() {
     </div>
   );
 }
+
+
+    
