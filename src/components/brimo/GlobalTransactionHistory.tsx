@@ -133,7 +133,7 @@ export default function GlobalTransactionHistory() {
     try {
         const transactionsGroupRef = collectionGroup(firestore, 'transactions');
         
-        const constraints = [orderBy('date', 'desc')];
+        const constraints = []; // No orderBy('date', 'desc')
         if (dateRange?.from) {
           constraints.push(where('date', '>=', startOfDay(dateRange.from).toISOString()));
         }
@@ -157,7 +157,10 @@ export default function GlobalTransactionHistory() {
           });
         });
       
+      // Sort on the client-side
+      allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setTransactions(allTransactions);
+
     } catch (error) {
       console.error("Error fetching transactions: ", error);
       if (error instanceof Error && error.message.includes("requires an index")) {
