@@ -103,7 +103,7 @@ export default function PPOBWifiForm({ onTransactionComplete, onDone }: PPOBWifi
   const onSubmit = async (values: PPOBWifiFormValues) => {
     setIsSaving(true);
     
-    if (!firestore || !sourcePPOBAccount || !kasAccounts) {
+    if (!firestore || !selectedPPOBAccount || !kasAccounts) {
         toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
         setIsSaving(false);
         return;
@@ -119,8 +119,8 @@ export default function PPOBWifiForm({ onTransactionComplete, onDone }: PPOBWifi
         return;
     }
 
-    if (sourcePPOBAccount.balance < billAmount) {
-        toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${sourcePPOBAccount.label} tidak mencukupi.` });
+    if (selectedPPOBAccount.balance < billAmount) {
+        toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${selectedPPOBAccount.label} tidak mencukupi.` });
         setIsSaving(false);
         return;
     }
@@ -151,7 +151,7 @@ export default function PPOBWifiForm({ onTransactionComplete, onDone }: PPOBWifi
         const auditId = auditDocRef.id;
 
         await runTransaction(firestore, async (transaction) => {
-            const sourcePPOBAccountRef = doc(firestore, 'kasAccounts', sourcePPOBAccount.id);
+            const sourcePPOBAccountRef = doc(firestore, 'kasAccounts', selectedPPOBAccount.id);
             const laciAccountRef = laciAccount ? doc(firestore, 'kasAccounts', laciAccount.id) : null;
             const paymentAccRef = paymentTransferAccount ? doc(firestore, 'kasAccounts', paymentTransferAccount.id) : null;
 
@@ -164,7 +164,7 @@ export default function PPOBWifiForm({ onTransactionComplete, onDone }: PPOBWifi
             if (!sourceDoc.exists()) throw new Error("Akun sumber PPOB tidak ditemukan.");
             
             const currentSourcePPOBBalance = sourceDoc.data().balance;
-            if (currentSourcePPOBBalance < billAmount) throw new Error(`Saldo ${sourcePPOBAccount.label} tidak mencukupi.`);
+            if (currentSourcePPOBBalance < billAmount) throw new Error(`Saldo ${selectedPPOBAccount.label} tidak mencukupi.`);
             
             const balanceAfterDebit = currentSourcePPOBBalance - billAmount;
             const finalSourceBalance = cashback ? balanceAfterDebit + cashback : balanceAfterDebit;
@@ -172,13 +172,13 @@ export default function PPOBWifiForm({ onTransactionComplete, onDone }: PPOBWifi
 
             const debitTxRef = doc(collection(sourcePPOBAccountRef, 'transactions'));
             transaction.set(debitTxRef, {
-                kasAccountId: sourcePPOBAccount.id, type: 'debit', name: `Bayar Tagihan Wifi`, account: values.customerName, date: nowISO, amount: billAmount, balanceBefore: currentSourcePPOBBalance, balanceAfter: balanceAfterDebit, category: 'ppob_wifi_payment', deviceName, auditId
+                kasAccountId: selectedPPOBAccount.id, type: 'debit', name: `Bayar Tagihan Wifi`, account: values.customerName, date: nowISO, amount: billAmount, balanceBefore: currentSourcePPOBBalance, balanceAfter: balanceAfterDebit, category: 'ppob_wifi_payment', deviceName, auditId
             });
 
             if (cashback && cashback > 0) {
                  const cashbackTxRef = doc(collection(sourcePPOBAccountRef, 'transactions'));
                  transaction.set(cashbackTxRef, {
-                    kasAccountId: sourcePPOBAccount.id, type: 'credit', name: `Cashback Tagihan Wifi`, account: sourcePPOBAccount.label, date: nowISO, amount: cashback, balanceBefore: balanceAfterDebit, balanceAfter: finalSourceBalance, category: 'ppob_wifi_cashback', deviceName, auditId
+                    kasAccountId: selectedPPOBAccount.id, type: 'credit', name: `Cashback Tagihan Wifi`, account: selectedPPOBAccount.label, date: nowISO, amount: cashback, balanceBefore: balanceAfterDebit, balanceAfter: finalSourceBalance, category: 'ppob_wifi_cashback', deviceName, auditId
                  });
             }
             
@@ -223,7 +223,7 @@ export default function PPOBWifiForm({ onTransactionComplete, onDone }: PPOBWifi
             }
         });
 
-        handleTransactionComplete();
+        onTransactionComplete();
     } catch (error: any) {
         console.error("Error saving PPOB Wifi transaction: ", error);
         toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });

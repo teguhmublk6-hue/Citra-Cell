@@ -102,7 +102,7 @@ export default function PPOBPlnPostpaidForm({ onTransactionComplete, onDone }: P
   const onSubmit = async (values: PPOBPlnPostpaidFormValues) => {
     setIsSaving(true);
     
-    if (!firestore || !sourcePPOBAccount || !kasAccounts) {
+    if (!firestore || !selectedPPOBAccount || !kasAccounts) {
         toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
         setIsSaving(false);
         return;
@@ -118,8 +118,8 @@ export default function PPOBPlnPostpaidForm({ onTransactionComplete, onDone }: P
         return;
     }
 
-    if (sourcePPOBAccount.balance < billAmount) {
-        toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${sourcePPOBAccount.label} tidak mencukupi.` });
+    if (selectedPPOBAccount.balance < billAmount) {
+        toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${selectedPPOBAccount.label} tidak mencukupi.` });
         setIsSaving(false);
         return;
     }
@@ -150,7 +150,7 @@ export default function PPOBPlnPostpaidForm({ onTransactionComplete, onDone }: P
         const auditId = auditDocRef.id;
 
         await runTransaction(firestore, async (transaction) => {
-            const sourcePPOBAccountRef = doc(firestore, 'kasAccounts', sourcePPOBAccount.id);
+            const sourcePPOBAccountRef = doc(firestore, 'kasAccounts', selectedPPOBAccount.id);
             const laciAccountRef = laciAccount ? doc(firestore, 'kasAccounts', laciAccount.id) : null;
             const paymentAccRef = paymentTransferAccount ? doc(firestore, 'kasAccounts', paymentTransferAccount.id) : null;
 
@@ -163,7 +163,7 @@ export default function PPOBPlnPostpaidForm({ onTransactionComplete, onDone }: P
             if (!sourceDoc.exists()) throw new Error("Akun sumber PPOB tidak ditemukan.");
             
             const currentSourcePPOBBalance = sourceDoc.data().balance;
-            if (currentSourcePPOBBalance < billAmount) throw new Error(`Saldo ${sourcePPOBAccount.label} tidak mencukupi.`);
+            if (currentSourcePPOBBalance < billAmount) throw new Error(`Saldo ${selectedPPOBAccount.label} tidak mencukupi.`);
             
             // Balance mutation
             const balanceAfterDebit = currentSourcePPOBBalance - billAmount;
@@ -173,14 +173,14 @@ export default function PPOBPlnPostpaidForm({ onTransactionComplete, onDone }: P
             // Debit transaction
             const debitTxRef = doc(collection(sourcePPOBAccountRef, 'transactions'));
             transaction.set(debitTxRef, {
-                kasAccountId: sourcePPOBAccount.id, type: 'debit', name: `Bayar Tagihan PLN`, account: values.customerName, date: nowISO, amount: billAmount, balanceBefore: currentSourcePPOBBalance, balanceAfter: balanceAfterDebit, category: 'ppob_pln_postpaid', deviceName, auditId
+                kasAccountId: selectedPPOBAccount.id, type: 'debit', name: `Bayar Tagihan PLN`, account: values.customerName, date: nowISO, amount: billAmount, balanceBefore: currentSourcePPOBBalance, balanceAfter: balanceAfterDebit, category: 'ppob_pln_postpaid', deviceName, auditId
             });
 
             // Cashback transaction
             if (cashback && cashback > 0) {
                  const cashbackTxRef = doc(collection(sourcePPOBAccountRef, 'transactions'));
                  transaction.set(cashbackTxRef, {
-                    kasAccountId: sourcePPOBAccount.id, type: 'credit', name: `Cashback Tagihan PLN`, account: sourcePPOBAccount.label, date: nowISO, amount: cashback, balanceBefore: balanceAfterDebit, balanceAfter: finalSourceBalance, category: 'ppob_pln_postpaid_cashback', deviceName, auditId
+                    kasAccountId: selectedPPOBAccount.id, type: 'credit', name: `Cashback Tagihan PLN`, account: selectedPPOBAccount.label, date: nowISO, amount: cashback, balanceBefore: balanceAfterDebit, balanceAfter: finalSourceBalance, category: 'ppob_pln_postpaid_cashback', deviceName, auditId
                  });
             }
             
@@ -408,5 +408,3 @@ export default function PPOBPlnPostpaidForm({ onTransactionComplete, onDone }: P
     </Form>
   );
 }
-
-    
