@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, getDocs, orderBy, where, Timestamp, doc, writeBatch, deleteDoc } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, where, Timestamp, doc, writeBatch, deleteDoc, collectionGroup } from 'firebase/firestore';
 import type { KasAccount, Transaction } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -123,18 +123,17 @@ export default function GlobalTransactionHistory() {
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
 
   const fetchTransactions = async () => {
-    if (!kasAccounts) {
+    if (!firestore || !kasAccounts) {
       if (firestore) setIsLoading(false);
       return;
-    };
+    }
 
     setIsLoading(true);
     let allTransactions: TransactionWithId[] = [];
     try {
-      for (const account of kasAccounts) {
-        const transactionsRef = collection(firestore, 'kasAccounts', account.id, 'transactions');
+        const transactionsGroupRef = collectionGroup(firestore, 'transactions');
         
-        const constraints = [];
+        const constraints = [orderBy('date', 'desc')];
         if (dateRange?.from) {
           constraints.push(where('date', '>=', startOfDay(dateRange.from).toISOString()));
         }
@@ -142,22 +141,30 @@ export default function GlobalTransactionHistory() {
           constraints.push(where('date', '<=', endOfDay(dateRange.to).toISOString()));
         }
 
-        const q = query(transactionsRef, ...constraints);
+        const q = query(transactionsGroupRef, ...constraints);
 
         const querySnapshot = await getDocs(q);
+        const accountLabelMap = new Map(kasAccounts.map(acc => [acc.id, acc.label]));
+
         querySnapshot.forEach((doc) => {
+          const accountId = doc.ref.parent.parent?.id;
+          const accountLabel = accountId ? accountLabelMap.get(accountId) : 'Unknown';
           allTransactions.push({ 
             ...(doc.data() as Transaction), 
             id: doc.id,
-            accountLabel: account.label
+            kasAccountId: accountId || '', // ensure kasAccountId is present
+            accountLabel: accountLabel
           });
         });
-      }
-      allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
       setTransactions(allTransactions);
     } catch (error) {
       console.error("Error fetching transactions: ", error);
-      toast({ variant: "destructive", title: "Error", description: "Gagal memuat riwayat transaksi." });
+      if (error instanceof Error && error.message.includes("requires an index")) {
+          toast({ variant: "destructive", title: "Indeks Diperlukan", description: "Mohon tunggu beberapa saat hingga indeks database selesai dibuat." });
+      } else {
+          toast({ variant: "destructive", title: "Error", description: "Gagal memuat riwayat transaksi." });
+      }
     } finally {
       setIsLoading(false);
     }
