@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, runTransaction, addDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { startOfDay } from 'date-fns';
-import type { KasAccount } from '@/lib/data';
+import type { KasAccount, Transaction } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import bankData from '@/lib/banks.json';
 import { useState, useEffect, useMemo } from 'react';
@@ -94,28 +94,41 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
   }, [kasAccounts]);
 
   const onSubmit = async (values: CustomerWithdrawalFormValues) => {
-    if (!firestore) return;
+    if (!firestore || !kasAccounts) return;
+    
+    const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
+    if (!laciAccount) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Akun kas "Laci" tidak ditemukan.' });
+      return;
+    }
+
     setIsSaving(true);
     setFormData(values);
 
-    const today = new Date();
-    const startOfToday = startOfDay(today);
+    const todayStart = startOfDay(new Date()).toISOString();
+    const transactionsRef = collection(firestore, 'kasAccounts', laciAccount.id, 'transactions');
+    const q = query(transactionsRef, where('date', '>=', todayStart));
 
-    const q = query(
-      collection(firestore, "customerWithdrawals"),
-      where("customerName", "==", values.customerName),
-      where("withdrawalAmount", "==", values.withdrawalAmount),
-      where("destinationKasAccountId", "==", values.destinationAccountId),
-      where("date", ">=", Timestamp.fromDate(startOfToday))
-    );
+    try {
+        const querySnapshot = await getDocs(q);
+        const todaysTransactions = querySnapshot.docs.map(doc => doc.data() as Transaction);
+        
+        const isDuplicate = todaysTransactions.some(trx => 
+            trx.category === 'customer_withdrawal_debit' &&
+            trx.name.includes(values.customerName) &&
+            Math.abs(trx.amount - values.withdrawalAmount) < 1 // Compare amount, allow for fee differences
+        );
 
-    const querySnapshot = await getDocs(q);
-
-    if (!querySnapshot.empty) {
-      setIsDuplicateDialogOpen(true);
-      setIsSaving(false);
-    } else {
-      await proceedWithTransaction(values);
+        if (isDuplicate) {
+          setIsDuplicateDialogOpen(true);
+          setIsSaving(false);
+        } else {
+          await proceedWithTransaction(values);
+        }
+    } catch (error) {
+        console.error("Error checking for duplicates:", error);
+        toast({ variant: "destructive", title: "Error", description: "Gagal memeriksa duplikasi transaksi." });
+        await proceedWithTransaction(values); // Proceed anyway if check fails
     }
   };
 
@@ -198,7 +211,7 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
                 const debitTrxRef = doc(collection(laciAccountRef, 'transactions'));
                 transaction.set(debitTrxRef, { kasAccountId: laciAccount.id, type: 'debit', name: `Tarik Tunai a/n ${values.customerName}`, account: 'Pelanggan', date: nowISO, amount: withdrawalAmount, balanceBefore: currentLaciBalance, balanceAfter: balanceAfterDebit, category: 'customer_withdrawal_debit', deviceName, auditId });
                 const feeTrxRef = doc(collection(laciAccountRef, 'transactions'));
-                 transaction.set(feeTrxRef, { kasAccountId: laciAccount.id, type: 'credit', name: `Biaya Jasa Tarik Tunai`, account: 'Pendapatan Jasa', date: nowISO, amount: serviceFee, balanceBefore: balanceAfterDebit, balanceAfter: finalLaciBalance, category: 'service_fee_income', deviceName, auditId });
+                 transaction.set(feeTrxRef, { kasAccountId: laciAccount.id, type: 'credit', name: `Biaya Jasa Tarik Tunai`, account: 'Pendapatan Jasa', date: nowISO, amount: serviceFee, balanceBefore: balanceAfterDebit, balanceAfter: finalLaciBalance, category: 'service_fee_income_withdrawal', deviceName, auditId });
             } else { // 'Dipotong'
                 const newLaciBalance = currentLaciBalance - cashGivenToCustomer;
                 transaction.update(laciAccountRef, { balance: newLaciBalance });
