@@ -269,6 +269,7 @@ export default function GlobalTransactionHistory() {
   };
 
   return (
+    <>
     <div className="h-full flex flex-col pt-4 px-4">
       <Card>
         <CardHeader>
@@ -314,25 +315,24 @@ export default function GlobalTransactionHistory() {
         </CardContent>
       </Card>
 
-      <div className="flex-1 mt-4 relative">
-        <ScrollArea className="absolute inset-0">
+      <div className="flex-1 mt-4 overflow-auto pb-4">
+          <div className="space-y-2">
             {isLoading && (
-            <div className="space-y-4">
+              <div className="space-y-4">
                 <Skeleton className="h-20 w-full" />
                 <Skeleton className="h-20 w-full" />
                 <Skeleton className="h-20 w-full" />
-            </div>
+              </div>
             )}
             {!isLoading && (!transactions || transactions.length === 0) && (
-            <div className="flex flex-col items-center justify-center h-full py-20 text-center">
+              <div className="flex flex-col items-center justify-center h-full py-20 text-center">
                 <CalendarIcon size={48} strokeWidth={1} className="text-muted-foreground mb-4" />
                 <p className="font-semibold">Belum Ada Transaksi</p>
                 <p className="text-sm text-muted-foreground">Tidak ada riwayat untuk rentang tanggal yang dipilih.</p>
-            </div>
+              </div>
             )}
             {!isLoading && transactions && transactions.length > 0 && (
-            <div className="space-y-2">
-                {transactions.map((trx) => (
+                transactions.map((trx) => (
                 <div key={trx.id} className="p-3 bg-card rounded-lg border flex items-start gap-3">
                     <div className={`w-9 h-9 flex-shrink-0 rounded-full flex items-center justify-center ${trx.type === 'credit' ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
                         {trx.type === 'credit' ? (
@@ -356,9 +356,9 @@ export default function GlobalTransactionHistory() {
                         </p>
                         {trx.deviceName && <p className="text-xs text-muted-foreground/80 mt-0.5">Oleh: {trx.deviceName}</p>}
                     </div>
-                    <DropdownMenu>
+                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 flex-shrink-0">
                                 <MoreVertical size={16} />
                             </Button>
                         </DropdownMenuTrigger>
@@ -374,38 +374,39 @@ export default function GlobalTransactionHistory() {
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
-                ))}
-            </div>
+                ))
             )}
-        </ScrollArea>
+          </div>
        </div>
-
-       <DeleteTransactionDialog
-            isOpen={isDeleteOpen}
-            onClose={() => setIsDeleteOpen(false)}
-            onConfirm={handleDeleteTransaction}
-            transactionName={transactionToDelete?.name}
-        />
-        <Sheet open={isEditOpen} onOpenChange={setIsEditOpen}>
-            <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
-                <SheetHeader>
-                    <SheetTitle>Ubah Nama Transaksi</SheetTitle>
-                </SheetHeader>
-                {transactionToEdit && (
-                    <EditTransactionNameForm 
-                        transaction={transactionToEdit}
-                        onDone={() => {
-                            setIsEditOpen(false);
-                            fetchTransactions();
-                        }}
-                    />
-                )}
-            </SheetContent>
-        </Sheet>
     </div>
+
+    <DeleteTransactionDialog
+      isOpen={isDeleteOpen}
+      onClose={() => setIsDeleteOpen(false)}
+      onConfirm={handleDeleteTransaction}
+      transactionName={transactionToDelete?.name}
+    />
+    <Sheet open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
+            <SheetHeader>
+                <SheetTitle>Ubah Nama Transaksi</SheetTitle>
+            </SheetHeader>
+            {transactionToEdit && (
+                <EditTransactionNameForm 
+                    transaction={transactionToEdit}
+                    onDone={() => {
+                        setIsEditOpen(false);
+                        fetchTransactions();
+                    }}
+                />
+            )}
+        </SheetContent>
+    </Sheet>
+    </>
   );
 }
 
 
     
+
 
