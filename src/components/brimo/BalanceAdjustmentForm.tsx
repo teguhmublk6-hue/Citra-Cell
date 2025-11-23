@@ -21,6 +21,7 @@ const formSchema = z.object({
     numberPreprocessor,
     z.number({ required_error: "Saldo aktual harus diisi", invalid_type_error: "Jumlah harus angka" }).min(0, "Saldo tidak boleh negatif")
   ),
+  reason: z.string().optional(),
 });
 
 interface BalanceAdjustmentFormProps {
@@ -48,6 +49,7 @@ export default function BalanceAdjustmentForm({ account, onDone }: BalanceAdjust
     resolver: zodResolver(formSchema),
     defaultValues: {
       actualBalance: undefined,
+      reason: '',
     },
   });
 
@@ -77,7 +79,7 @@ export default function BalanceAdjustmentForm({ account, onDone }: BalanceAdjust
         batch.set(transactionRef, {
             kasAccountId: account.id,
             type: difference > 0 ? 'credit' : 'debit',
-            name: 'Penyesuaian Saldo',
+            name: values.reason || 'Penyesuaian Saldo',
             account: 'Audit',
             date: now,
             amount: Math.abs(difference),
@@ -127,6 +129,20 @@ export default function BalanceAdjustmentForm({ account, onDone }: BalanceAdjust
                 </FormItem>
               )}
             />
+            
+            <FormField
+              control={form.control}
+              name="reason"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Alasan Penyesuaian (Opsional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="cth: Selisih biaya admin bank" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {actualBalance !== undefined && (
                 <Alert variant={difference === 0 ? "default" : (difference > 0 ? "default" : "destructive")} className={difference === 0 ? "border-green-500" : ""}>
@@ -151,5 +167,3 @@ export default function BalanceAdjustmentForm({ account, onDone }: BalanceAdjust
     </Form>
   );
 }
-
-    
