@@ -65,7 +65,7 @@ const getCollectionNameFromCategory = (category?: string): string | null => {
 
 export default function TransactionHistory({ account, onDone }: TransactionHistoryProps) {
   const firestore = useFirestore();
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
   const [transactions, setTransactions] = useState<TransactionWithId[]>([]);
   const [auditDetails, setAuditDetails] = useState<Map<string, AuditData>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
@@ -338,7 +338,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {dateRange?.from ? (
-                dateRange.to ? (
+                dateRange.to && dateRange.from?.getTime() !== dateRange.to?.getTime() ? (
                   <>
                     {format(dateRange.from, "LLL dd, y")} -{" "}
                     {format(dateRange.to, "LLL dd, y")}
@@ -420,3 +420,4 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     
 
     
+
