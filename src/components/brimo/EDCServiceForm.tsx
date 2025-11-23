@@ -22,6 +22,8 @@ import { useToast } from "@/hooks/use-toast";
 import type { EDCServiceFormValues } from "@/lib/types";
 import { EDCServiceFormSchema } from "@/lib/types";
 import Image from "next/image";
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
 
 interface EDCServiceFormProps {
   onDone: () => void;
@@ -42,6 +44,7 @@ const parseRupiah = (value: string | undefined | null): number => {
 export default function EDCServiceForm({ onDone }: EDCServiceFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
 
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -56,14 +59,17 @@ export default function EDCServiceForm({ onDone }: EDCServiceFormProps) {
   });
 
   const onSubmit = async (values: EDCServiceFormValues) => {
+    setIsSaving(true);
     if (!firestore || !kasAccounts) {
       toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
+      setIsSaving(false);
       return;
     }
     
     const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
     if (!laciAccount) {
       toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
+      setIsSaving(false);
       return;
     }
 
@@ -109,6 +115,8 @@ export default function EDCServiceForm({ onDone }: EDCServiceFormProps) {
     } catch (error: any) {
       console.error("Error saving EDC service transaction: ", error);
       toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
+    } finally {
+        setIsSaving(false);
     }
   };
 
@@ -182,11 +190,13 @@ export default function EDCServiceForm({ onDone }: EDCServiceFormProps) {
             variant="outline"
             onClick={onDone}
             className="w-full"
+            disabled={isSaving}
           >
             Batal
           </Button>
-          <Button type="submit" className="w-full">
-            Simpan
+          <Button type="submit" className="w-full" disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSaving ? "Menyimpan..." : "Simpan"}
           </Button>
         </div>
       </form>

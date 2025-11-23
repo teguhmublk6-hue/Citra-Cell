@@ -15,6 +15,7 @@ import { useState, useMemo } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Loader2 } from 'lucide-react';
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
 
@@ -54,6 +55,7 @@ const parseRupiah = (value: string | undefined | null): number => {
 export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
   
   const kasAccountsCollection = useMemoFirebase(() => {
     return collection(firestore, 'kasAccounts');
@@ -84,12 +86,15 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
         toast({ variant: "destructive", title: "Gagal", description: "Database tidak tersedia." });
         return;
     }
+    
+    setIsSaving(true);
 
     const sourceAccount = kasAccounts.find(acc => acc.id === values.sourceAccountId);
     const destinationAccount = kasAccounts.find(acc => acc.id === values.destinationAccountId);
 
     if (!sourceAccount || !destinationAccount) {
       toast({ variant: "destructive", title: "Gagal", description: "Akun tidak ditemukan." });
+      setIsSaving(false);
       return;
     }
 
@@ -100,15 +105,18 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
         const totalDebit = values.amount + fee;
         if (sourceAccount.balance < totalDebit) {
             form.setError('amount', { type: 'manual', message: 'Saldo sumber tidak cukup untuk transfer dan biaya.' });
+            setIsSaving(false);
             return;
         }
     } else { // 'destination'
         if (sourceAccount.balance < values.amount) {
             form.setError('amount', { type: 'manual', message: 'Saldo sumber tidak cukup untuk jumlah transfer.' });
+            setIsSaving(false);
             return;
         }
         if (values.amount < fee) {
             form.setError('amount', { type: 'manual', message: 'Jumlah transfer harus lebih besar dari biaya admin.' });
+            setIsSaving(false);
             return;
         }
     }
@@ -186,6 +194,8 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
     } catch (error) {
         console.error("Error transferring balance: ", error);
         toast({ variant: "destructive", title: "Error", description: "Terjadi kesalahan saat memproses perpindahan saldo." });
+    } finally {
+        setIsSaving(false);
     }
   };
   
@@ -368,11 +378,12 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full">
+          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>
             Batal
           </Button>
-          <Button type="submit" className="w-full">
-            Pindah Saldo
+          <Button type="submit" className="w-full" disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSaving ? "Menyimpan..." : "Pindah Saldo"}
           </Button>
         </div>
       </form>

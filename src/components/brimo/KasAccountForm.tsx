@@ -17,7 +17,7 @@ import { useEffect, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '@/lib/utils';
-import { Check, ChevronsUpDown } from 'lucide-react';
+import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '../ui/command';
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
@@ -57,6 +57,7 @@ const parseRupiah = (value: string | undefined | null): number => {
 
 export default function KasAccountForm({ account, onDone }: KasAccountFormProps) {
   const firestore = useFirestore();
+  const [isSaving, setIsSaving] = useState(false);
   const kasAccountsCollection = useMemoFirebase(() => {
     return collection(firestore, 'kasAccounts');
   }, [firestore]);
@@ -91,6 +92,7 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
   }, [account, form]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
+    setIsSaving(true);
     const selectedType = accountTypes.find(t => t.value === values.type);
     const accountData = {
       label: values.label,
@@ -111,7 +113,12 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
       const collectionRef = collection(firestore, 'kasAccounts');
       addDocumentNonBlocking(collectionRef, accountData);
     }
-    onDone();
+    
+    // Simulate save time
+    setTimeout(() => {
+      setIsSaving(false);
+      onDone();
+    }, 500);
   };
   
   return (
@@ -301,11 +308,12 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
             </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-            <Button type="button" variant="outline" onClick={onDone} className="w-full">
+            <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>
                 Batal
             </Button>
-            <Button type="submit" className="w-full">
-                Simpan
+            <Button type="submit" className="w-full" disabled={isSaving}>
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSaving ? "Menyimpan..." : "Simpan"}
             </Button>
         </div>
       </form>

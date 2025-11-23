@@ -12,8 +12,9 @@ import { useToast } from '@/hooks/use-toast';
 import type { AppConfig, MotivationFormValues } from '@/lib/types';
 import { MotivationFormSchema } from '@/lib/types';
 import { Textarea } from '../ui/textarea';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Input } from '../ui/input';
+import { Loader2 } from 'lucide-react';
 
 interface SetMotivationFormProps {
   onDone: () => void;
@@ -22,6 +23,7 @@ interface SetMotivationFormProps {
 export default function SetMotivationForm({ onDone }: SetMotivationFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
 
   const motivationDocRef = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -51,11 +53,16 @@ export default function SetMotivationForm({ onDone }: SetMotivationFormProps) {
       return;
     }
     
+    setIsSaving(true);
+    
     const docRef = doc(firestore, 'appConfig', 'motivation');
     setDocumentNonBlocking(docRef, values, { merge: true });
     
-    toast({ title: "Sukses", description: "Kutipan motivasi berhasil disimpan." });
-    onDone();
+    setTimeout(() => {
+        toast({ title: "Sukses", description: "Kutipan motivasi berhasil disimpan." });
+        setIsSaving(false);
+        onDone();
+    }, 500); // Simulate network latency
   };
   
   return (
@@ -94,11 +101,12 @@ export default function SetMotivationForm({ onDone }: SetMotivationFormProps) {
           />
         </div>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full">
+          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>
             Batal
           </Button>
-          <Button type="submit" className="w-full">
-            Simpan
+          <Button type="submit" className="w-full" disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSaving ? 'Menyimpan...' : 'Simpan'}
           </Button>
         </div>
       </form>

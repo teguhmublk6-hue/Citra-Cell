@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import { Terminal } from "lucide-react";
+import { Terminal, Loader2 } from "lucide-react";
 import { Separator } from "../ui/separator";
 
 interface SettlementReviewProps {
@@ -153,6 +153,7 @@ export default function SettlementReview({ formData, onConfirm, onBack }: Settle
                     Kembali
                 </Button>
                 <Button type="button" onClick={handleSaveTransaction} className="w-full" disabled={isSaving}>
+                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {isSaving ? "Menyimpan..." : "Konfirmasi Settlement"}
                 </Button>
             </div>

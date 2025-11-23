@@ -14,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { Check, ChevronsUpDown } from 'lucide-react';
+import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { useState } from 'react';
 
@@ -49,6 +49,7 @@ export default function AddCapitalForm({ onDone }: AddCapitalFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   const kasAccountsCollection = useMemoFirebase(() => {
     return collection(firestore, 'kasAccounts');
@@ -70,11 +71,14 @@ export default function AddCapitalForm({ onDone }: AddCapitalFormProps) {
         toast({ variant: "destructive", title: "Gagal", description: "Database tidak tersedia." });
         return;
     }
+    
+    setIsSaving(true);
 
     const destinationAccount = kasAccounts.find(acc => acc.id === values.destinationAccountId);
 
     if (!destinationAccount) {
       toast({ variant: "destructive", title: "Gagal", description: "Akun tujuan tidak ditemukan." });
+      setIsSaving(false);
       return;
     }
     
@@ -108,6 +112,8 @@ export default function AddCapitalForm({ onDone }: AddCapitalFormProps) {
     } catch (error) {
         console.error("Error adding capital: ", error);
         toast({ variant: "destructive", title: "Error", description: "Terjadi kesalahan saat menambah modal." });
+    } finally {
+        setIsSaving(false);
     }
   };
   
@@ -214,11 +220,12 @@ export default function AddCapitalForm({ onDone }: AddCapitalFormProps) {
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full">
+          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>
             Batal
           </Button>
-          <Button type="submit" className="w-full">
-            Simpan
+          <Button type="submit" className="w-full" disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSaving ? "Menyimpan..." : "Simpan"}
           </Button>
         </div>
       </form>

@@ -13,6 +13,8 @@ import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
 
@@ -44,6 +46,7 @@ const parseRupiah = (value: string | undefined | null): number => {
 export default function BalanceAdjustmentForm({ account, onDone }: BalanceAdjustmentFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -65,6 +68,8 @@ export default function BalanceAdjustmentForm({ account, onDone }: BalanceAdjust
       }
       return;
     }
+    
+    setIsSaving(true);
 
     try {
         const batch = writeBatch(firestore);
@@ -96,6 +101,8 @@ export default function BalanceAdjustmentForm({ account, onDone }: BalanceAdjust
     } catch (error) {
         console.error("Error adjusting balance: ", error);
         toast({ variant: "destructive", title: "Error", description: "Terjadi kesalahan saat menyesuaikan saldo." });
+    } finally {
+        setIsSaving(false);
     }
   };
   
@@ -156,11 +163,12 @@ export default function BalanceAdjustmentForm({ account, onDone }: BalanceAdjust
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-4 pb-4 border-t -mx-6 px-6">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full">
+          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>
             Batal
           </Button>
-          <Button type="submit" className="w-full">
-            Simpan Penyesuaian
+          <Button type="submit" className="w-full" disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSaving ? "Menyimpan..." : "Simpan Penyesuaian"}
           </Button>
         </div>
       </form>

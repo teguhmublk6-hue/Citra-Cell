@@ -35,6 +35,7 @@ export default function ShiftReconciliationForm({ onDone }: { onDone: () => void
   const { toast } = useToast();
   const [appCashIn, setAppCashIn] = useState<number | null>(null);
   const [isLoadingCash, setIsLoadingCash] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -115,6 +116,7 @@ export default function ShiftReconciliationForm({ onDone }: { onDone: () => void
   const onSubmit = async (values: ShiftReconciliationFormValues) => {
     if (!firestore || appCashIn === null) return;
     
+    setIsSaving(true);
     const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
     
     try {
@@ -136,6 +138,8 @@ export default function ShiftReconciliationForm({ onDone }: { onDone: () => void
     } catch (error) {
         console.error("Error saving shift reconciliation: ", error);
         toast({ variant: "destructive", title: "Error", description: "Gagal menyimpan data." });
+    } finally {
+        setIsSaving(false);
     }
   };
   
@@ -203,11 +207,12 @@ export default function ShiftReconciliationForm({ onDone }: { onDone: () => void
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-4 pb-4 border-t -mx-6 px-6">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full">
+          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>
             Batal
           </Button>
-          <Button type="submit" className="w-full">
-            Simpan Rekonsiliasi
+          <Button type="submit" className="w-full" disabled={isSaving}>
+             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+             {isSaving ? "Menyimpan..." : "Simpan Rekonsiliasi"}
           </Button>
         </div>
       </form>
