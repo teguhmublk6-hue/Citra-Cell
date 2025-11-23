@@ -22,6 +22,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import DeleteTransactionDialog from './DeleteTransactionDialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../ui/sheet';
 import EditTransactionNameForm from './EditTransactionNameForm';
+import { Card, CardContent } from '../ui/card';
 
 
 interface TransactionHistoryProps {
@@ -35,7 +36,7 @@ type AuditData = PPOBTransaction | PPOBPlnPostpaid | PPOBPdam | PPOBBpjs | PPOBW
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
     if (value === null || value === undefined || value === '') return 'Rp 0';
-    const num = Number(String(value).replace(/[^0-9]/g, ''));
+    const num = Number(String(value).replace(/[^0-9-]/g, ''));
     if (isNaN(num)) return 'Rp 0';
     return `Rp ${num.toLocaleString('id-ID')}`;
 };
@@ -68,6 +69,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
   const [transactions, setTransactions] = useState<TransactionWithId[]>([]);
   const [auditDetails, setAuditDetails] = useState<Map<string, AuditData>>(new Map());
+  const [openingBalance, setOpeningBalance] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const [transactionToDelete, setTransactionToDelete] = useState<TransactionWithId | null>(null);
@@ -88,7 +90,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
       const collectionsToQuery = ['ppobTransactions', 'ppobPlnPostpaid', 'ppobPdam', 'ppobBpjs', 'ppobWifi'];
       
       const CHUNK_SIZE = 30;
-      const auditIdChunks = [];
+      const auditIdChunks: string[][] = [];
       for (let i = 0; i < auditIds.length; i += CHUNK_SIZE) {
         auditIdChunks.push(auditIds.slice(i, i + CHUNK_SIZE));
       }
@@ -109,15 +111,32 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
       if (!firestore || !account || !kasAccounts) return;
       setIsLoading(true);
 
-      try {
-        let fetchedTransactions: TransactionWithId[] = [];
-        const accountsToFetchFrom = account.id === 'tunai-gabungan'
-            ? kasAccounts.filter(acc => acc.type === 'Tunai') || []
-            : [account];
+      const accountsToFetchFrom = account.id === 'tunai-gabungan'
+          ? kasAccounts.filter(acc => acc.type === 'Tunai') || []
+          : [account];
+      const accountIds = accountsToFetchFrom.map(acc => acc.id);
 
-        for (const acc of accountsToFetchFrom) {
-            const transactionsRef = collection(firestore, 'kasAccounts', acc.id, 'transactions');
-            const constraints = [orderBy('date', 'desc')];
+      try {
+        let initialBalance = 0;
+        if (dateRange?.from) {
+            for (const accId of accountIds) {
+                const openingBalanceQuery = query(
+                    collection(firestore, 'kasAccounts', accId, 'transactions'),
+                    where('date', '<', startOfDay(dateRange.from).toISOString())
+                );
+                const openingSnapshot = await getDocs(openingBalanceQuery);
+                openingSnapshot.forEach(doc => {
+                    const trx = doc.data() as Transaction;
+                    initialBalance += trx.type === 'credit' ? trx.amount : -trx.amount;
+                });
+            }
+        }
+        setOpeningBalance(initialBalance);
+
+        let fetchedTransactions: TransactionWithId[] = [];
+        for (const accId of accountIds) {
+            const transactionsRef = collection(firestore, 'kasAccounts', accId, 'transactions');
+            const constraints = [orderBy('date', 'asc')]; // Fetch in ascending order for running balance calculation
             if (dateRange?.from) constraints.push(where('date', '>=', startOfDay(dateRange.from).toISOString()));
             if (dateRange?.to) constraints.push(where('date', '<=', endOfDay(dateRange.to).toISOString()));
             
@@ -128,7 +147,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
             });
         }
         
-        fetchedTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        fetchedTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         setTransactions(fetchedTransactions);
 
         if (account.type === 'PPOB') {
@@ -254,73 +273,18 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
 
   const renderPPOBDetails = (trx: TransactionWithId) => {
     if (account.type !== 'PPOB' || !trx.auditId) return null;
-
     const detail = auditDetails.get(trx.auditId);
     if (!detail) return null;
-    
     const destination = 'destination' in detail ? detail.destination : ('customerName' in detail ? detail.customerName : null);
-
     if (!destination) return null;
-
     return (
-        <p className="text-xs text-muted-foreground mt-1">
-            Tujuan: <span className="font-medium">{destination}</span>
-        </p>
+      <p className="text-xs text-muted-foreground mt-1">
+        Tujuan: <span className="font-medium">{destination}</span>
+      </p>
     );
-  }
-
-  const renderTransactionItem = (trx: TransactionWithId) => (
-      <div key={trx.id} className="py-4">
-          <div className="flex justify-between items-start mb-2">
-              <p className="font-semibold text-sm flex-1 pr-4">{trx.name}</p>
-              <div className="flex items-center gap-1">
-                <p className={cn(
-                    'font-bold text-sm whitespace-nowrap',
-                    trx.type === 'credit' ? 'text-green-500' : 'text-foreground'
-                )}>
-                    {trx.type === 'credit' ? '+' : '-'} {formatToRupiah(trx.amount)}
-                </p>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
-                            <MoreVertical size={16} />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => handleEditClick(trx)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            <span>Ubah Nama</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDeleteClick(trx)} className="text-red-500 focus:text-red-500">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            <span>Hapus</span>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-          </div>
-          <p className="text-xs text-muted-foreground mb-1">
-            {account.id === 'tunai-gabungan' && `(${getAccountLabel(trx.kasAccountId)}) • `}
-            {formatDateTime(trx.date)}
-          </p>
-          {renderPPOBDetails(trx)}
-          
-          {trx.balanceBefore !== undefined && trx.balanceAfter !== undefined && (
-             <div className="flex items-center justify-between text-xs bg-card-foreground/5 p-3 rounded-md mt-3">
-                <div className="text-center">
-                    <p className="text-muted-foreground">Saldo Awal</p>
-                    <p className="font-medium">{formatToRupiah(trx.balanceBefore)}</p>
-                </div>
-                <ArrowRight size={16} className="text-muted-foreground" />
-                <div className="text-center">
-                    <p className="text-muted-foreground">Saldo Akhir</p>
-                    <p className="font-medium">{formatToRupiah(trx.balanceAfter)}</p>
-                </div>
-            </div>
-          )}
-           <Separator className="mt-4" />
-        </div>
-  );
+  };
+  
+  let runningBalance = openingBalance;
 
   return (
     <>
@@ -372,17 +336,73 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
             <Skeleton className="h-24 w-full" />
           </div>
         )}
-        {!isLoading && (!transactions || transactions.length === 0) && (
-          <div className="flex flex-col items-center justify-center h-full py-20 text-center">
-            <CalendarIcon size={48} strokeWidth={1} className="text-muted-foreground mb-4" />
-            <p className="font-semibold">Belum Ada Transaksi</p>
-            <p className="text-sm text-muted-foreground">Tidak ada riwayat mutasi untuk rentang tanggal yang dipilih.</p>
-          </div>
-        )}
-        {!isLoading && transactions && transactions.length > 0 && (
-          <div className="flex flex-col">
-            {transactions.map(renderTransactionItem)}
-          </div>
+        {!isLoading && (
+          <>
+            <Card className="mb-4">
+                <CardContent className="p-4 text-center">
+                    <p className="text-sm text-muted-foreground">Saldo Awal Hari Ini</p>
+                    <p className="text-2xl font-bold">{formatToRupiah(openingBalance)}</p>
+                </CardContent>
+            </Card>
+
+            {(!transactions || transactions.length === 0) && (
+              <div className="flex flex-col items-center justify-center h-full py-20 text-center">
+                <CalendarIcon size={48} strokeWidth={1} className="text-muted-foreground mb-4" />
+                <p className="font-semibold">Belum Ada Transaksi</p>
+                <p className="text-sm text-muted-foreground">Tidak ada riwayat mutasi untuk rentang tanggal yang dipilih.</p>
+              </div>
+            )}
+            
+            {transactions && transactions.length > 0 && (
+              <div className="flex flex-col">
+                {transactions.map((trx) => {
+                  runningBalance += trx.type === 'credit' ? trx.amount : -trx.amount;
+                  return (
+                    <div key={trx.id} className="py-4">
+                        <div className="flex justify-between items-start mb-2">
+                            <p className="font-semibold text-sm flex-1 pr-4">{trx.name}</p>
+                            <div className="flex items-center gap-1">
+                              <p className={cn(
+                                  'font-bold text-sm whitespace-nowrap',
+                                  trx.type === 'credit' ? 'text-green-500' : 'text-foreground'
+                              )}>
+                                  {trx.type === 'credit' ? '+' : '-'} {formatToRupiah(trx.amount)}
+                              </p>
+                              <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+                                          <MoreVertical size={16} />
+                                      </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent>
+                                      <DropdownMenuItem onClick={() => handleEditClick(trx)}>
+                                          <Pencil className="mr-2 h-4 w-4" />
+                                          <span>Ubah Nama</span>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleDeleteClick(trx)} className="text-red-500 focus:text-red-500">
+                                          <Trash2 className="mr-2 h-4 w-4" />
+                                          <span>Hapus</span>
+                                      </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          {account.id === 'tunai-gabungan' && `(${getAccountLabel(trx.kasAccountId)}) • `}
+                          {formatDateTime(trx.date)}
+                        </p>
+                        {renderPPOBDetails(trx)}
+                        
+                        <div className="text-xs text-muted-foreground mt-2">
+                            Saldo: <span className="font-semibold text-foreground">{formatToRupiah(runningBalance)}</span>
+                        </div>
+                        <Separator className="mt-4" />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </ScrollArea>
       <div className="mt-4">
@@ -415,9 +435,8 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     </>
   );
 }
-
-
     
 
     
+
 
