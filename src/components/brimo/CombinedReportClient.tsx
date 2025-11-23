@@ -320,7 +320,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     addFooter();
 
     try {
-        const pdfOutput = doc.output('data:application/pdf;base64');
+        const pdfOutput = doc.output('datauri');
         if (!pdfOutput) {
             throw new Error("Gagal membuat data PDF.");
         }
