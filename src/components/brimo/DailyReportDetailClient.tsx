@@ -78,8 +78,9 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
     };
 
     // A. Saldo Akun
+    const accountsForReport = report.accountSnapshots.filter(acc => ['Bank', 'E-Wallet', 'PPOB'].includes(acc.type));
     const sectionA_Body = [
-        ...report.accountSnapshots.map(acc => [acc.label, formatToRupiah(acc.balance)]),
+        ...accountsForReport.map(acc => [acc.label, formatToRupiah(acc.balance)]),
     ];
     finalY = addGridSection('A. Saldo Akun', [['Akun', 'Saldo']], sectionA_Body, finalY);
     autoTable(doc, {
@@ -165,7 +166,14 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
   const groupedAccounts = useMemo(() => {
     if (!report.accountSnapshots) return {};
 
-    const groups = report.accountSnapshots.reduce((acc, account) => {
+    const includedTypes = ['Bank', 'E-Wallet', 'PPOB'];
+    const filteredAccounts = report.accountSnapshots.filter(acc => includedTypes.includes(acc.type));
+    
+    filteredAccounts.sort((a, b) => {
+        return includedTypes.indexOf(a.type) - includedTypes.indexOf(b.type);
+    });
+
+    return filteredAccounts.reduce((acc, account) => {
         const type = account.type || 'Lainnya';
         if (!acc[type]) {
             acc[type] = [];
@@ -174,16 +182,11 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
         return acc;
     }, {} as Record<string, { label: string; balance: number; type: string; }[]>);
     
-    return groups;
   }, [report.accountSnapshots]);
 
   const accountTypes = useMemo(() => {
-      const order: (keyof typeof groupedAccounts)[] = ['Bank', 'E-Wallet', 'Merchant', 'PPOB', 'Tunai'];
-      const dynamicTypes = Object.keys(groupedAccounts).filter(type => !order.includes(type));
-      
-      const allSortedTypes = order.concat(dynamicTypes.sort()).filter(type => groupedAccounts[type]);
-      
-      return allSortedTypes;
+      const order: (keyof typeof groupedAccounts)[] = ['Bank', 'E-Wallet', 'PPOB'];
+      return order.filter(type => groupedAccounts[type]);
   }, [groupedAccounts]);
 
   const renderSectionA = () => (

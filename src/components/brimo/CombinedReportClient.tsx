@@ -215,7 +215,8 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
         const dailyReportFontSize = 14;
         
         // A. Saldo Akun
-        const sectionA_Body = report.accountSnapshots.map((acc, index) => [index + 1, acc.label, formatToRupiah(acc.balance)]);
+        const accountsForPdf = report.accountSnapshots.filter(acc => ['Bank', 'E-Wallet', 'PPOB'].includes(acc.type));
+        const sectionA_Body = accountsForPdf.map((acc, index) => [index + 1, acc.label, formatToRupiah(acc.balance)]);
         sectionA_Body.push([{ content: 'TOTAL SALDO AKUN', colSpan: 2, styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.totalAccountBalance), styles: { fontStyle: 'bold', halign: 'right' } }]);
         finalY = addGridSection('A. Saldo Akun', [['No', 'Akun', 'Saldo']], sectionA_Body, finalY, dailyReportFontSize, { columnStyles: { 0: { cellWidth: 10 }, 2: { halign: 'right' } } });
 
@@ -412,7 +413,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
                                 <>
                                   <div className="text-sm space-y-2">
                                     <h3 className="font-semibold text-muted-foreground">A. Saldo Akun</h3>
-                                    {reportData.dailyReport.accountSnapshots.map((acc, i) => <div key={i} className="flex justify-between"><span className="pl-2">{acc.label}</span><span>{formatToRupiah(acc.balance)}</span></div>)}
+                                    {reportData.dailyReport.accountSnapshots.filter(acc => ['Bank', 'E-Wallet', 'PPOB'].includes(acc.type)).map((acc, i) => <div key={i} className="flex justify-between"><span className="pl-2">{acc.label}</span><span>{formatToRupiah(acc.balance)}</span></div>)}
                                     <div className="font-bold flex justify-between border-t pt-2"><span className="pl-2">TOTAL</span><span>{formatToRupiah(reportData.dailyReport.totalAccountBalance)}</span></div>
                                   </div>
                                 </>

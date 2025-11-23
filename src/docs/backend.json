@@ -21,7 +21,7 @@
                 "required": ["label", "balance", "type"]
             }
         },
-        "totalAccountBalance": { "type": "number", "description": "Sum of all kas account balances at the time of report generation." },
+        "totalAccountBalance": { "type": "number", "description": "Sum of all kas account balances (excluding Tunai and Merchant) at the time of report generation." },
         "openingBalanceRotation": { "type": "number", "description": "The final liability/asset from the previous day's report." },
         "capitalAdditionToday": { "type": "number", "description": "Total capital added via 'Tambah Modal' today." },
         "liabilityBeforePayment": { "type": "number" },

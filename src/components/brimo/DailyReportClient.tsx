@@ -92,7 +92,16 @@ export default function DailyReportClient({ onDone }: DailyReportClientProps) {
   const { data: kasAccounts, isLoading: isLoadingAccounts } = useCollection<KasAccount>(kasAccountsCollection);
   
   const accountsForReport = useMemo(() => {
-    return kasAccounts?.filter(acc => acc.label.toLowerCase() !== 'laci') ?? [];
+    if (!kasAccounts) return [];
+    const includedTypes = ['Bank', 'E-Wallet', 'PPOB'];
+    const filteredAccounts = kasAccounts.filter(acc => includedTypes.includes(acc.type));
+    
+    // Sort by the specified order
+    filteredAccounts.sort((a, b) => {
+        return includedTypes.indexOf(a.type) - includedTypes.indexOf(b.type);
+    });
+
+    return filteredAccounts;
   }, [kasAccounts]);
 
   const totalAccountBalance = accountsForReport.reduce((sum, acc) => sum + acc.balance, 0) ?? 0;
@@ -239,16 +248,16 @@ export default function DailyReportClient({ onDone }: DailyReportClientProps) {
     toast({ title: 'Menyimpan...', description: 'Laporan harian sedang disimpan.' });
 
     try {
-        const accountSnapshots = accountsForReport.map(acc => ({
+        const accountSnapshots = kasAccounts?.map(acc => ({ // Save all accounts for historical completeness
             label: acc.label,
             balance: acc.balance,
             type: acc.type,
-        }));
+        })) ?? [];
 
         const reportData = {
             date: new Date(),
             accountSnapshots,
-            totalAccountBalance,
+            totalAccountBalance, // This value correctly excludes Tunai and Merchant
             openingBalanceRotation: openingBalance,
             capitalAdditionToday,
             liabilityBeforePayment,
