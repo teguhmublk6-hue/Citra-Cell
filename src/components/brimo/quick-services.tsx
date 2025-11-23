@@ -74,7 +74,7 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
                     <CardTitle className="text-lg transition-colors group-hover:text-primary">{serviceGroups[current].title}</CardTitle>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground animate-slow-blink">
                         <ChevronRight size={14} />
-                        <span className="hidden sm:inline">tekan/geser</span>
+                        <span>tekan/geser</span>
                     </div>
                  </div>
              </button>
