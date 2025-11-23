@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -117,26 +116,36 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
       const accountIds = accountsToFetchFrom.map(acc => acc.id);
 
       try {
-        let initialBalance = 0;
-        if (dateRange?.from) {
+        let finalBalance = 0;
+        if (account.id === 'tunai-gabungan') {
+            finalBalance = accountsToFetchFrom.reduce((sum, acc) => sum + (kasAccounts.find(ka => ka.id === acc.id)?.balance || 0), 0);
+        } else {
+            finalBalance = kasAccounts.find(ka => ka.id === account.id)?.balance || 0;
+        }
+
+        let transactionsAfterRange: Transaction[] = [];
+        if (dateRange?.to) {
             for (const accId of accountIds) {
-                const openingBalanceQuery = query(
+                const afterRangeQuery = query(
                     collection(firestore, 'kasAccounts', accId, 'transactions'),
-                    where('date', '<', startOfDay(dateRange.from).toISOString())
+                    where('date', '>', endOfDay(dateRange.to).toISOString())
                 );
-                const openingSnapshot = await getDocs(openingBalanceQuery);
-                openingSnapshot.forEach(doc => {
-                    const trx = doc.data() as Transaction;
-                    initialBalance += trx.type === 'credit' ? trx.amount : -trx.amount;
+                const afterSnapshot = await getDocs(afterRangeQuery);
+                afterSnapshot.forEach(doc => {
+                    transactionsAfterRange.push(doc.data() as Transaction);
                 });
             }
         }
-        setOpeningBalance(initialBalance);
+        
+        let closingBalance = finalBalance;
+        transactionsAfterRange.forEach(trx => {
+            closingBalance += trx.type === 'debit' ? trx.amount : -trx.amount;
+        });
 
         let fetchedTransactions: TransactionWithId[] = [];
         for (const accId of accountIds) {
             const transactionsRef = collection(firestore, 'kasAccounts', accId, 'transactions');
-            const constraints = [orderBy('date', 'asc')]; // Fetch in ascending order for running balance calculation
+            const constraints = [orderBy('date', 'asc')];
             if (dateRange?.from) constraints.push(where('date', '>=', startOfDay(dateRange.from).toISOString()));
             if (dateRange?.to) constraints.push(where('date', '<=', endOfDay(dateRange.to).toISOString()));
             
@@ -148,6 +157,13 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
         }
         
         fetchedTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        let openingBalanceCalc = closingBalance;
+        fetchedTransactions.slice().reverse().forEach(trx => {
+            openingBalanceCalc += trx.type === 'credit' ? -trx.amount : trx.amount;
+        });
+        
+        setOpeningBalance(openingBalanceCalc);
         setTransactions(fetchedTransactions);
 
         if (account.type === 'PPOB') {
@@ -440,3 +456,6 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     
 
 
+
+
+    
