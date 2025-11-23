@@ -257,28 +257,15 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
 
     const detail = auditDetails.get(trx.auditId);
     if (!detail) return null;
+    
+    const destination = 'destination' in detail ? detail.destination : ('customerName' in detail ? detail.customerName : null);
 
-    let serviceName = '';
-    let destination = '';
-
-    if ('serviceName' in detail) {
-        serviceName = detail.serviceName;
-        destination = detail.destination;
-    } else if ('billAmount' in detail) { // Handle bill payments
-        if (trx.category?.includes('pln')) serviceName = 'PLN Pascabayar';
-        else if (trx.category?.includes('pdam')) serviceName = 'PDAM';
-        else if (trx.category?.includes('bpjs')) serviceName = 'BPJS';
-        else if (trx.category?.includes('wifi')) serviceName = 'Wifi';
-        destination = detail.customerName;
-    }
-
-    if (!serviceName && !destination) return null;
+    if (!destination) return null;
 
     return (
-        <div className="text-xs text-muted-foreground mt-1 pl-1 border-l-2 border-muted ml-1">
-            <p className="pl-2">Layanan: <strong>{serviceName}</strong></p>
-            <p className="pl-2">Tujuan: <strong>{destination}</strong></p>
-        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+            Tujuan: <span className="font-medium">{destination}</span>
+        </p>
     );
   }
 
