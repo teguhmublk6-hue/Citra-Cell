@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -9,7 +10,7 @@ import type { PPOBTransaction, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs, PPOBWifi } f
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, ArrowRight, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { Calendar as CalendarIcon, ArrowRight, MoreVertical, Pencil, Trash2, GitCompareArrows } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -22,6 +23,7 @@ import DeleteTransactionDialog from './DeleteTransactionDialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../ui/sheet';
 import EditTransactionNameForm from './EditTransactionNameForm';
 import { Card, CardContent } from '../ui/card';
+import BalanceAdjustmentForm from './BalanceAdjustmentForm';
 
 
 interface TransactionHistoryProps {
@@ -35,7 +37,7 @@ type AuditData = PPOBTransaction | PPOBPlnPostpaid | PPOBPdam | PPOBBpjs | PPOBW
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
     if (value === null || value === undefined || value === '') return 'Rp 0';
-    const num = Number(String(value).replace(/[^0-9-]/g, ''));
+    const num = Number(String(value).replace(/[^0-9]/g, ''));
     if (isNaN(num)) return 'Rp 0';
     return `Rp ${num.toLocaleString('id-ID')}`;
 };
@@ -75,6 +77,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [transactionToEdit, setTransactionToEdit] = useState<TransactionWithId | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isAdjustmentSheetOpen, setIsAdjustmentSheetOpen] = useState(false);
 
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -89,13 +92,9 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
       const collectionsToQuery = ['ppobTransactions', 'ppobPlnPostpaid', 'ppobPdam', 'ppobBpjs', 'ppobWifi'];
       
       const CHUNK_SIZE = 30;
-      const auditIdChunks: string[][] = [];
       for (let i = 0; i < auditIds.length; i += CHUNK_SIZE) {
-        auditIdChunks.push(auditIds.slice(i, i + CHUNK_SIZE));
-      }
-
-      for (const collectionName of collectionsToQuery) {
-        for (const chunk of auditIdChunks) {
+        const chunk = auditIds.slice(i, i + CHUNK_SIZE);
+        for (const collectionName of collectionsToQuery) {
             const q = query(collection(firestore, collectionName), where('__name__', 'in', chunk));
             const querySnapshot = await getDocs(q);
             querySnapshot.forEach(doc => {
@@ -111,17 +110,21 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
       setIsLoading(true);
 
       const accountsToFetchFrom = account.id === 'tunai-gabungan'
-          ? kasAccounts.filter(acc => acc.type === 'Tunai') || []
+          ? kasAccounts.filter(acc => acc.type === 'Tunai')
           : [account];
       const accountIds = accountsToFetchFrom.map(acc => acc.id);
+      if(accountIds.length === 0 && account.id === 'tunai-gabungan') {
+        setIsLoading(false);
+        setOpeningBalance(0);
+        setTransactions([]);
+        return;
+      }
 
       try {
-        let finalBalance = 0;
-        if (account.id === 'tunai-gabungan') {
-            finalBalance = accountsToFetchFrom.reduce((sum, acc) => sum + (kasAccounts.find(ka => ka.id === acc.id)?.balance || 0), 0);
-        } else {
-            finalBalance = kasAccounts.find(ka => ka.id === account.id)?.balance || 0;
-        }
+        const currentAccountState = kasAccounts.find(ka => ka.id === account.id);
+        const finalBalance = account.id === 'tunai-gabungan'
+          ? kasAccounts.filter(a => a.type === 'Tunai').reduce((sum, acc) => sum + acc.balance, 0)
+          : currentAccountState?.balance ?? 0;
 
         let transactionsAfterRange: Transaction[] = [];
         if (dateRange?.to) {
@@ -354,10 +357,18 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
         )}
         {!isLoading && (
           <>
-            <Card className="mb-4">
-                <CardContent className="p-4 text-center">
-                    <p className="text-sm text-muted-foreground">Saldo Awal Hari Ini</p>
-                    <p className="text-2xl font-bold">{formatToRupiah(openingBalance)}</p>
+            <Card className="mb-4 sticky top-0 bg-background/95 backdrop-blur-sm z-10">
+                <CardContent className="p-0">
+                    <button className="flex w-full justify-between items-center p-4 text-left" onClick={() => setIsAdjustmentSheetOpen(true)}>
+                        <div>
+                            <p className="text-sm text-muted-foreground">Saldo Awal Hari Ini</p>
+                            <p className="text-2xl font-bold">{formatToRupiah(openingBalance)}</p>
+                        </div>
+                        <div className="flex items-center gap-2 text-primary">
+                            <GitCompareArrows size={18} />
+                            <span className="text-sm font-semibold">Cocokkan</span>
+                        </div>
+                    </button>
                 </CardContent>
             </Card>
 
@@ -448,6 +459,20 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
             )}
         </SheetContent>
     </Sheet>
+    <Sheet open={isAdjustmentSheetOpen} onOpenChange={setIsAdjustmentSheetOpen}>
+        <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
+            <SheetHeader>
+                <SheetTitle>Penyesuaian Saldo</SheetTitle>
+            </SheetHeader>
+            <BalanceAdjustmentForm 
+                account={account}
+                onDone={() => {
+                    setIsAdjustmentSheetOpen(false);
+                    fetchTransactions();
+                }}
+            />
+        </SheetContent>
+    </Sheet>
     </>
   );
 }
@@ -457,5 +482,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
 
 
 
+
+    
 
     

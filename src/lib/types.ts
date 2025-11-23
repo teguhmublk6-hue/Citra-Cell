@@ -432,3 +432,14 @@ export type PPOBPaketTelpon = {
     paymentToKasTransferAmount?: number;
     deviceName: string;
 }
+
+export const BalanceAdjustmentFormSchema = z.object({
+  actualBalance: z.preprocess(
+    numberPreprocessor,
+    z.number({ required_error: "Saldo aktual harus diisi", invalid_type_error: "Jumlah harus angka" }).min(0, "Saldo tidak boleh negatif")
+  ),
+});
+
+export type BalanceAdjustmentFormValues = z.infer<typeof BalanceAdjustmentFormSchema>;
+
+    
