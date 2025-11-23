@@ -298,7 +298,7 @@ export default function PPOBBpjsForm({ onTransactionComplete, onDone }: PPOBBpjs
                             <FormLabel>Jumlah Tagihan (Modal)</FormLabel>
                             <FormControl>
                                 <Input 
-                                    type="text" placeholder="Rp 0" {...field}
+                                    type="tel" placeholder="Rp 0" {...field}
                                     value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} 
                                     ref={inputRefs.billAmount}
                                     onKeyDown={(e) => handleKeyDown(e, 'billAmount', 'totalAmount')}
@@ -312,7 +312,7 @@ export default function PPOBBpjsForm({ onTransactionComplete, onDone }: PPOBBpjs
                             <FormLabel>Total Tagihan (Jual)</FormLabel>
                              <FormControl>
                                 <Input 
-                                    type="text" placeholder="Rp 0" {...field}
+                                    type="tel" placeholder="Rp 0" {...field}
                                     value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} 
                                     ref={inputRefs.totalAmount}
                                     onKeyDown={(e) => handleKeyDown(e, 'totalAmount', selectedPPOBAccount?.label === 'Mitra Bukalapak' ? 'cashback' : undefined)}
@@ -329,7 +329,7 @@ export default function PPOBBpjsForm({ onTransactionComplete, onDone }: PPOBBpjs
                             <FormLabel>Cashback</FormLabel>
                              <FormControl>
                                 <Input 
-                                    type="text" placeholder="Rp 0" {...field}
+                                    type="tel" placeholder="Rp 0" {...field}
                                     value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))}
                                     ref={inputRefs.cashback}
                                     onKeyDown={(e) => handleKeyDown(e, 'cashback')}
@@ -373,7 +373,7 @@ export default function PPOBBpjsForm({ onTransactionComplete, onDone }: PPOBBpjs
                         <FormField control={form.control} name="splitTunaiAmount" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Jumlah Dibayar Tunai</FormLabel>
-                                <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                                <FormControl><Input type="tel" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}/>
