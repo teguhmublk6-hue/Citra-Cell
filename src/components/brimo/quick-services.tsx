@@ -15,6 +15,7 @@ import React from 'react';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import type { CurrentShiftStatus } from '@/lib/data';
+import { ChevronRight } from 'lucide-react';
 
 type ServiceType = 'customerTransfer' | 'withdraw' | 'topUp' | 'customerVAPayment' | 'EDCService' | 'Emoney' | 'KJP' | 'Pulsa' | 'Token Listrik' | 'Data' | 'PLN' | 'PDAM' | 'BPJS' | 'Wifi' | 'Paket Telpon';
 interface QuickServicesProps {
@@ -68,8 +69,14 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
     <Card className="bg-card/80 backdrop-blur-md border-border/20 shadow-lg">
         <CardHeader>
           <div className="flex justify-between items-center">
-             <button onClick={handleTitleClick} className="text-left group focus:outline-none">
-                 <CardTitle className="text-lg transition-colors group-hover:text-primary">{serviceGroups[current].title}</CardTitle>
+             <button onClick={handleTitleClick} className="text-left group focus:outline-none flex-1 overflow-hidden">
+                 <div className="flex items-center gap-2">
+                    <CardTitle className="text-lg transition-colors group-hover:text-primary">{serviceGroups[current].title}</CardTitle>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground animate-slow-blink">
+                        <ChevronRight size={14} />
+                        <span className="hidden sm:inline">tekan/geser</span>
+                    </div>
+                 </div>
              </button>
             <div className="flex items-center justify-center space-x-2">
               {serviceGroups.map((_, index) => (

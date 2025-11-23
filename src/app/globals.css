@@ -69,4 +69,15 @@ body {
   .animate-ring-and-pulse {
     animation: ring-and-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
+  @keyframes slow-blink {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.3;
+    }
+  }
+  .animate-slow-blink {
+    animation: slow-blink 2.5s ease-in-out infinite;
+  }
 }
