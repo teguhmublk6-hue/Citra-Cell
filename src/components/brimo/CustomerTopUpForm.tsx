@@ -15,7 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { useState, useEffect, useMemo } from 'react';
-import type { CustomerTopUpFormValues } from '@/lib/types';
+import type { CustomerTopUpFormValues, CustomerTopUp } from '@/lib/types';
 import { CustomerTopUpFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
 import { cn } from '@/lib/utils';
@@ -132,23 +132,31 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
     setIsSaving(true);
     setFormData(values);
 
-    const today = new Date();
-    const startOfToday = startOfDay(today);
+    try {
+        const todayStart = startOfDay(new Date());
+        const q = query(
+            collection(firestore, "customerTopUps"),
+            where("date", ">=", Timestamp.fromDate(todayStart))
+        );
+        const querySnapshot = await getDocs(q);
+        const todaysTransactions = querySnapshot.docs.map(doc => doc.data() as CustomerTopUp);
 
-    const q = query(
-      collection(firestore, "customerTopUps"),
-      where("sourceKasAccountId", "==", values.sourceAccountId),
-      where("customerName", "==", values.customerName),
-      where("topUpAmount", "==", values.topUpAmount),
-      where("date", ">=", Timestamp.fromDate(startOfToday))
-    );
+        const isDuplicate = todaysTransactions.some(trx => 
+            trx.sourceKasAccountId === values.sourceAccountId &&
+            trx.customerName === values.customerName &&
+            trx.topUpAmount === values.topUpAmount
+        );
 
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-      setIsDuplicateDialogOpen(true);
-      setIsSaving(false);
-    } else {
-      await proceedWithTransaction(values);
+        if (isDuplicate) {
+            setIsDuplicateDialogOpen(true);
+            setIsSaving(false);
+        } else {
+            await proceedWithTransaction(values);
+        }
+    } catch (error) {
+        console.error("Error checking for duplicates:", error);
+        toast({ variant: "destructive", title: "Error", description: "Gagal memeriksa duplikasi transaksi. Melanjutkan penyimpanan..." });
+        await proceedWithTransaction(values);
     }
   };
   
@@ -572,3 +580,4 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
     </>
   );
 }
+
