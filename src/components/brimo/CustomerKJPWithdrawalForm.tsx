@@ -168,7 +168,7 @@ export default function CustomerKJPWithdrawalForm({ onTransactionComplete, onDon
 
                 const feeTrxRef = doc(collection(laciAccountRef, 'transactions'));
                 transaction.set(feeTrxRef, {
-                    kasAccountId: laciAccount.id, type: 'credit', name: `Biaya Jasa KJP a/n ${values.customerName}`, account: 'Pendapatan Jasa', date: nowISO, amount: serviceFee, balanceBefore: balanceAfterDebit, balanceAfter: finalLaciBalance, category: 'service_fee_income', deviceName, auditId
+                    kasAccountId: laciAccount.id, type: 'credit', name: `Biaya Jasa KJP a/n ${values.customerName}`, account: 'Pendapatan Jasa', date: nowISO, amount: serviceFee, balanceBefore: balanceAfterDebit, balanceAfter: finalLaciBalance, category: 'service_fee_income_kjp', deviceName, auditId
                 });
 
             } else { // 'Dipotong'
@@ -222,14 +222,14 @@ export default function CustomerKJPWithdrawalForm({ onTransactionComplete, onDon
                 <FormField control={form.control} name="withdrawalAmount" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Nominal Tarik Tunai</FormLabel>
-                        <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                        <FormControl><Input type="tel" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}/>
                 <FormField control={form.control} name="serviceFee" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Biaya Jasa (Laba)</FormLabel>
-                        <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                        <FormControl><Input type="tel" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}/>
@@ -272,3 +272,4 @@ export default function CustomerKJPWithdrawalForm({ onTransactionComplete, onDon
     </Form>
   );
 }
+
