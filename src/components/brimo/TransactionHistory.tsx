@@ -86,15 +86,21 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
   
       const detailsMap = new Map<string, AuditData>();
       const collectionsToQuery = ['ppobTransactions', 'ppobPlnPostpaid', 'ppobPdam', 'ppobBpjs', 'ppobWifi'];
-  
+      
+      const CHUNK_SIZE = 30;
+      const auditIdChunks = [];
+      for (let i = 0; i < auditIds.length; i += CHUNK_SIZE) {
+        auditIdChunks.push(auditIds.slice(i, i + CHUNK_SIZE));
+      }
+
       for (const collectionName of collectionsToQuery) {
-          // Firestore 'in' query is limited to 30 items. We might need to chunk this for very large auditId arrays.
-          // For now, assuming it's within limits for a typical date range.
-          const q = query(collection(firestore, collectionName), where('__name__', 'in', auditIds));
-          const querySnapshot = await getDocs(q);
-          querySnapshot.forEach(doc => {
-              detailsMap.set(doc.id, doc.data() as AuditData);
-          });
+        for (const chunk of auditIdChunks) {
+            const q = query(collection(firestore, collectionName), where('__name__', 'in', chunk));
+            const querySnapshot = await getDocs(q);
+            querySnapshot.forEach(doc => {
+                detailsMap.set(doc.id, doc.data() as AuditData);
+            });
+        }
       }
       return detailsMap;
   };
@@ -423,5 +429,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
   );
 }
 
+
+    
 
     
