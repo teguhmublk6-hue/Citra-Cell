@@ -47,6 +47,13 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
       setCurrent(api.selectedScrollSnap())
     })
   }, [api])
+  
+  const handleTitleClick = () => {
+    if (api) {
+      const nextSlide = (current + 1) % count;
+      api.scrollTo(nextSlide);
+    }
+  }
 
   const handleServiceClick = (serviceId: ServiceType) => {
     if (!shiftStatus?.isActive) {
@@ -61,7 +68,9 @@ export default function QuickServices({ onServiceClick }: QuickServicesProps) {
     <Card className="bg-card/80 backdrop-blur-md border-border/20 shadow-lg">
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle className="text-lg">{serviceGroups[current].title}</CardTitle>
+             <button onClick={handleTitleClick} className="text-left group focus:outline-none">
+                 <CardTitle className="text-lg transition-colors group-hover:text-primary">{serviceGroups[current].title}</CardTitle>
+             </button>
             <div className="flex items-center justify-center space-x-2">
               {serviceGroups.map((_, index) => (
                 <button
