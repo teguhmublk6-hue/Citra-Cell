@@ -96,9 +96,14 @@ export default function DailyReportClient({ onDone }: DailyReportClientProps) {
     const includedTypes = ['Bank', 'E-Wallet', 'PPOB'];
     const filteredAccounts = kasAccounts.filter(acc => includedTypes.includes(acc.type));
     
-    // Sort by the specified order
+    // Sort by type order, then alphabetically by label within each type
     filteredAccounts.sort((a, b) => {
-        return includedTypes.indexOf(a.type) - includedTypes.indexOf(b.type);
+        const typeAIndex = includedTypes.indexOf(a.type);
+        const typeBIndex = includedTypes.indexOf(b.type);
+        if (typeAIndex !== typeBIndex) {
+            return typeAIndex - typeBIndex;
+        }
+        return a.label.localeCompare(b.label);
     });
 
     return filteredAccounts;
@@ -566,3 +571,4 @@ export default function DailyReportClient({ onDone }: DailyReportClientProps) {
     
 
     
+

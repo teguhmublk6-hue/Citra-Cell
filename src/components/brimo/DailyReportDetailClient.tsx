@@ -170,7 +170,12 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
     const filteredAccounts = report.accountSnapshots.filter(acc => includedTypes.includes(acc.type));
     
     filteredAccounts.sort((a, b) => {
-        return includedTypes.indexOf(a.type) - includedTypes.indexOf(b.type);
+        const typeAIndex = includedTypes.indexOf(a.type);
+        const typeBIndex = includedTypes.indexOf(b.type);
+        if (typeAIndex !== typeBIndex) {
+            return typeAIndex - typeBIndex;
+        }
+        return a.label.localeCompare(b.label);
     });
 
     return filteredAccounts.reduce((acc, account) => {
@@ -366,3 +371,4 @@ export default function DailyReportDetailClient({ report, onDone }: DailyReportD
 }
 
     
+
