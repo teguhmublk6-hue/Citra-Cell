@@ -248,8 +248,8 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
         doc.setFontSize(10); doc.text("Tidak ada data Laporan Harian untuk tanggal ini.", pageMargin, finalY); finalY += 10;
     }
 
-    // --- PAGE 2: PROFIT/LOSS REPORT (LANDSCAPE) ---
-    doc.addPage('a4', 'landscape');
+    // --- PAGE 2: PROFIT/LOSS REPORT (PORTRAIT) ---
+    doc.addPage('a4', 'portrait');
     finalY = addReportTitle('Laporan Laba/Rugi', 15);
     
     const brilinkBody = reportData.brilinkProfitItems.map((item, index) => {
