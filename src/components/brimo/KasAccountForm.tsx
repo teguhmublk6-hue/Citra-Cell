@@ -240,7 +240,7 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
                     <FormLabel>Saldo Awal</FormLabel>
                     <FormControl>
                         <Input
-                        type="text"
+                        type="tel"
                         placeholder="Rp 0"
                         {...field}
                         value={formatToRupiah(field.value)}
@@ -273,7 +273,7 @@ export default function KasAccountForm({ account, onDone }: KasAccountFormProps)
                     <FormLabel>Saldo Minimal</FormLabel>
                     <FormControl>
                         <Input 
-                        type="text"
+                        type="tel"
                         placeholder="Rp 0"
                         {...field}
                         value={formatToRupiah(field.value)}

@@ -544,7 +544,7 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
                         <FormControl>
                             <Input
                                 ref={inputRefs.transferAmount}
-                                type="text" 
+                                type="tel" 
                                 placeholder="Rp 0" 
                                 {...field} 
                                 value={formatToRupiah(field.value)} 
@@ -561,7 +561,7 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
                         <FormControl>
                              <Input
                                 ref={inputRefs.serviceFee}
-                                type="text" 
+                                type="tel" 
                                 placeholder="Rp 0" 
                                 {...field} 
                                 value={formatToRupiah(field.value)} 
@@ -579,7 +579,7 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
                     <FormControl>
                         <Input
                             ref={inputRefs.bankAdminFee}
-                            type="text" 
+                            type="tel" 
                             placeholder="Rp 0 (Opsional)" 
                             {...field} 
                             value={formatToRupiah(field.value)} 
@@ -681,7 +681,7 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
                             <FormControl>
                                 <Input
                                     ref={inputRefs.splitTunaiAmount}
-                                    type="text" 
+                                    type="tel" 
                                     placeholder="Rp 0" 
                                     {...field} 
                                     value={formatToRupiah(field.value)} 
@@ -781,5 +781,3 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
     </>
   );
 }
-
-    

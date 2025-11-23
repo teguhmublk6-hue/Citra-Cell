@@ -387,14 +387,14 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
                 <FormField control={form.control} name="topUpAmount" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Nominal Top Up</FormLabel>
-                        <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                        <FormControl><Input type="tel" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}/>
                 <FormField control={form.control} name="serviceFee" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Biaya Jasa</FormLabel>
-                        <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                        <FormControl><Input type="tel" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}/>
@@ -487,7 +487,7 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
                     <FormField control={form.control} name="splitTunaiAmount" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Jumlah Dibayar Tunai</FormLabel>
-                            <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                            <FormControl><Input type="tel" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )}/>
@@ -580,4 +580,3 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
     </>
   );
 }
-

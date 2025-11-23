@@ -267,14 +267,14 @@ export default function PPOBPaketTelponForm({ onTransactionComplete, onDone }: P
                     <FormField control={form.control} name="costPrice" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Harga Modal</FormLabel>
-                            <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                            <FormControl><Input type="tel" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )}/>
                     <FormField control={form.control} name="sellingPrice" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Harga Jual</FormLabel>
-                            <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                            <FormControl><Input type="tel" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )}/>
@@ -360,7 +360,7 @@ export default function PPOBPaketTelponForm({ onTransactionComplete, onDone }: P
                         <FormField control={form.control} name="splitTunaiAmount" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Jumlah Dibayar Tunai</FormLabel>
-                                <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                                <FormControl><Input type="tel" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}/>

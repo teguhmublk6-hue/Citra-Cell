@@ -163,7 +163,7 @@ export default function EDCServiceForm({ onDone }: EDCServiceFormProps) {
                   <FormLabel>Biaya Jasa</FormLabel>
                   <FormControl>
                     <Input
-                      type="text"
+                      type="tel"
                       placeholder="Rp 0"
                       {...field}
                       value={formatToRupiah(field.value)}
@@ -193,5 +193,3 @@ export default function EDCServiceForm({ onDone }: EDCServiceFormProps) {
     </Form>
   );
 }
-
-    

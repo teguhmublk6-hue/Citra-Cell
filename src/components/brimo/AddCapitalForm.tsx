@@ -185,7 +185,7 @@ export default function AddCapitalForm({ onDone }: AddCapitalFormProps) {
                   <FormLabel>Jumlah</FormLabel>
                   <FormControl>
                       <Input
-                      type="text"
+                      type="tel"
                       placeholder="Rp 0"
                       {...field}
                       value={formatToRupiah(field.value)}

@@ -292,14 +292,14 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
                 <FormField control={form.control} name="withdrawalAmount" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Nominal Tarik Tunai</FormLabel>
-                        <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                        <FormControl><Input type="tel" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}/>
                 <FormField control={form.control} name="serviceFee" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Biaya Jasa (Laba)</FormLabel>
-                        <FormControl><Input type="text" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
+                        <FormControl><Input type="tel" placeholder="Rp 0" {...field} value={formatToRupiah(field.value)} onChange={(e) => field.onChange(parseRupiah(e.target.value))} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}/>
