@@ -38,7 +38,6 @@
         "posGrossProfit": { "type": "number" },
         "totalGrossProfit": { "type": "number" },
         "operationalCosts": { "type": "number" },
-        "operationalNonProfit": { "type": "number", "description": "Manual input for non-profit operational deductions." },
         "netProfit": { "type": "number" },
         "cashInDrawer": { "type": "number", "description": "Manual input for cash in the small drawer." },
         "cashInSafe": { "type": "number", "description": "Manual input for cash in the safe." },
@@ -895,3 +894,5 @@
     }
   }
 }
+
+    

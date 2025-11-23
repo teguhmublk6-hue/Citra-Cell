@@ -220,7 +220,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
         finalY = addGridSection('A. Saldo Akun', [['No', 'Akun', 'Saldo']], sectionA_Body, finalY, dailyReportFontSize, { columnStyles: { 0: { cellWidth: 10 }, 2: { halign: 'right' } } });
 
         // B. Rotasi Saldo
-        const sectionB_Body = [['Saldo Laporan Kemarin', formatToRupiah(report.openingBalanceRotation)], ['Penambahan Modal', formatToRupiah(report.capitalAdditionToday)], [{ content: report.liabilityBeforePayment < 0 ? "LIABILITAS (Kewajiban A)" : "Piutang Pihak A", styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.liabilityBeforePayment), styles: { fontStyle: 'bold' } }], ['Dana Dibayar A ke B', formatToRupiah(report.paymentToPartyB)], [{ content: report.liabilityAfterPayment < 0 ? "LIABILITAS Setelah Bayar" : "Piutang Pihak A Setelah Bayar", styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.liabilityAfterPayment), styles: { fontStyle: 'bold' } }]];
+        const sectionB_Body = [['Saldo Laporan Kemarin', formatToRupiah(report.openingBalanceRotation)], [{content: 'Penambahan Modal', styles: {textColor: '#ef4444'}}, {content: `- ${formatToRupiah(report.capitalAdditionToday)}`, styles: {textColor: '#ef4444'}}], [{ content: report.liabilityBeforePayment < 0 ? "LIABILITAS (Kewajiban A)" : "Piutang Pihak A", styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.liabilityBeforePayment), styles: { fontStyle: 'bold' } }], ['Dana Dibayar A ke B', formatToRupiah(report.paymentToPartyB)], [{ content: report.liabilityAfterPayment < 0 ? "LIABILITAS Setelah Bayar" : "Piutang Pihak A Setelah Bayar", styles: { fontStyle: 'bold' } }, { content: formatToRupiah(report.liabilityAfterPayment), styles: { fontStyle: 'bold' } }]];
         finalY = addGridSection('B. Rotasi Saldo', [], sectionB_Body, finalY, dailyReportFontSize);
 
         // C. Pembelanjaan
@@ -237,7 +237,7 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
         finalY = addGridSection('E. Laba', [], sectionE_Body, finalY, dailyReportFontSize);
 
         // F. Timbangan
-        const sectionF_Body = [['Kas Laci Kecil', formatToRupiah(report.cashInDrawer)], ['Kas Brankas', formatToRupiah(report.cashInSafe)], [{content: 'Total Kas Fisik', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.totalPhysicalCash), styles: {fontStyle: 'bold'}}], ['Total Saldo Akun', formatToRupiah(report.totalAccountBalance)], ['LIABILITAS FINAL', formatToRupiah(report.finalLiabilityForNextDay)], [{content: 'Total Laba Kotor', styles: {textColor: '#ef4444'}}, {content: `- ${formatToRupiah(report.totalGrossProfit)}`, styles: {textColor: '#ef4444'}}], [{content: 'Potongan Non Profit', styles: {textColor: '#ef4444'}}, {content: `- ${formatToRupiah(report.operationalNonProfit)}`, styles: {textColor: '#ef4444'}}], [{content: 'TOTAL KESELURUHAN', styles: {fontStyle: 'bold', textColor: '#22c55e'}}, {content: formatToRupiah(report.grandTotalBalance), styles: {fontStyle: 'bold', textColor: '#22c55e'}}], ['Aset Lancar', formatToRupiah(report.totalCurrentAssets)], [{content: 'TOTAL KEKAYAAN', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.liquidAccumulation), styles: {fontStyle: 'bold'}}] ];
+        const sectionF_Body = [['Kas Laci Kecil', formatToRupiah(report.cashInDrawer)], ['Kas Brankas', formatToRupiah(report.cashInSafe)], [{content: 'Total Kas Fisik', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.totalPhysicalCash), styles: {fontStyle: 'bold'}}], ['Total Saldo Akun', formatToRupiah(report.totalAccountBalance)], ['LIABILITAS FINAL', formatToRupiah(report.finalLiabilityForNextDay)], [{content: 'Total Laba Kotor', styles: {textColor: '#ef4444'}}, {content: `- ${formatToRupiah(report.totalGrossProfit)}`, styles: {textColor: '#ef4444'}}], [{content: 'TOTAL KESELURUHAN', styles: {fontStyle: 'bold', textColor: '#22c55e'}}, {content: formatToRupiah(report.grandTotalBalance), styles: {fontStyle: 'bold', textColor: '#22c55e'}}], ['Aset Lancar', formatToRupiah(report.totalCurrentAssets)], [{content: 'TOTAL KEKAYAAN', styles: {fontStyle: 'bold'}}, {content: formatToRupiah(report.liquidAccumulation), styles: {fontStyle: 'bold'}}] ];
         finalY = addGridSection('F. Timbangan (Neraca)', [], sectionF_Body, finalY, dailyReportFontSize);
         
         // G. Biaya Operasional
@@ -481,3 +481,5 @@ export default function CombinedReportClient({ onDone }: CombinedReportClientPro
     </div>
   );
 }
+
+    

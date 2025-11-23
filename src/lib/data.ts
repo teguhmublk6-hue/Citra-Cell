@@ -31,6 +31,7 @@ export type DailyReport = {
   grandTotalBalance: number;
   liquidAccumulation: number;
   spendingItems: { id: number; description: string; amount: number; }[];
+  operationalNonProfit?: number; // Made optional for backward compatibility
 };
 
 export type CurrentShiftStatus = {
@@ -154,3 +155,5 @@ export const accountTypes = [
     { value: 'PPOB', label: 'PPOB', color: 'bg-yellow-500' },
     { value: 'Merchant', label: 'Merchant', color: 'bg-orange-500' },
 ];
+
+    
