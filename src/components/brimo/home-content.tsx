@@ -97,6 +97,7 @@ interface HomeContentProps {
 export default function HomeContent({ revalidateData, isSyncing }: HomeContentProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
+  const [isHistoryVisible, setIsHistoryVisible] = useState(false);
   const [isRepeatDialogOpen, setIsRepeatDialogOpen] = useState(false);
   const [lastCompletedSheet, setLastCompletedSheet] = useState<FormSheet | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
@@ -187,7 +188,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
 
   const handleAccountClick = (account: KasAccountType) => {
     setSelectedAccount(account);
-    setActiveSheet('history');
+    setIsHistoryVisible(true);
   }
 
   const handleMutationMenuClick = (sheet: ActiveSheet) => {
@@ -473,6 +474,20 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
       return <StartShiftScreen onShiftStart={handleShiftStart} />;
   }
 
+    if (isHistoryVisible && selectedAccount) {
+        return (
+          <div className="h-screen w-full flex flex-col">
+            <header className="p-4 flex items-center gap-4 border-b">
+                <Button variant="ghost" size="icon" onClick={() => setIsHistoryVisible(false)}>
+                    <ArrowLeft />
+                </Button>
+                <h1 className="text-lg font-semibold">{`Riwayat Mutasi: ${selectedAccount.label}`}</h1>
+            </header>
+            <TransactionHistory account={selectedAccount} onDone={() => setIsHistoryVisible(false)} />
+          </div>
+        );
+    }
+
     if (isBrilinkReportVisible) {
         return <BookkeepingReport onDone={() => setIsBrilinkReportVisible(false)} />;
     }
@@ -653,7 +668,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
         <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
             <SheetHeader>
                 <SheetTitle>
-                  {activeSheet === 'history' && `Riwayat Mutasi: ${selectedAccount?.label}`}
                   {activeSheet === 'transfer' && 'Pindah Saldo'}
                   {activeSheet === 'addCapital' && 'Tambah Modal'}
                   {activeSheet === 'withdraw' && 'Tarik Saldo Pribadi'}
@@ -679,7 +693,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                   {activeSheet === 'shiftReconciliation' && 'Rekonsiliasi Shift'}
                 </SheetTitle>
             </SheetHeader>
-            {activeSheet === 'history' && selectedAccount && <TransactionHistory account={selectedAccount} onDone={() => setActiveSheet(null)} />}
             {activeSheet === 'transfer' && <TransferBalanceForm onDone={closeAllSheets} />}
             {activeSheet === 'addCapital' && <AddCapitalForm onDone={closeAllSheets} />}
             {activeSheet === 'withdraw' && <WithdrawBalanceForm onDone={closeAllSheets} />}

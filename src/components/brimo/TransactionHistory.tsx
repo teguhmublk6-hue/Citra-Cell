@@ -307,7 +307,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
 
   return (
     <>
-    <div className="h-full flex flex-col pt-4">
+    <div className="h-full flex flex-col pt-4 px-4">
       <div className="px-1 mb-4">
         <Popover>
           <PopoverTrigger asChild>
@@ -432,9 +432,6 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
           </>
         )}
       </ScrollArea>
-      <div className="mt-4">
-        <Button variant="outline" className="w-full" onClick={onDone}>Tutup</Button>
-      </div>
     </div>
 
     <DeleteTransactionDialog
