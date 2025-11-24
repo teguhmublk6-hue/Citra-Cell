@@ -7,7 +7,7 @@ import QuickServices from './quick-services';
 import BottomNav from './bottom-nav';
 import AdminContent from './AdminContent';
 import SettingsContent from './settings-content';
-import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw, Banknote, ArrowLeft } from 'lucide-react';
+import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw, Banknote, ArrowLeft, Briefcase } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, doc, writeBatch, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
 import type { KasAccount as KasAccountType, CurrentShiftStatus, DailyReport as DailyReportType, Transaction } from '@/lib/data';
@@ -73,6 +73,7 @@ import DailyReportHistory from './DailyReportHistory';
 import DailyReportDetail from './DailyReportDetail';
 import CombinedReport from './CombinedReport';
 import FloatingBackButton from './FloatingBackButton';
+import OperationalCostForm from './OperationalCostForm';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -85,7 +86,7 @@ export const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'laporan' | 'mutasi' | 'accounts' | 'admin';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobTokenListrik' | 'ppobPaketData' | 'ppobPlnPostpaid' | 'ppobPdam' | 'ppobBpjs' | 'ppobWifi' | 'operationalCostReport' | 'deleteAllKasAccounts' | 'ppobPaketTelpon' | 'shiftReconciliation';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'operationalCost' | 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobTokenListrik' | 'ppobPaketData' | 'ppobPlnPostpaid' | 'ppobPdam' | 'ppobBpjs' | 'ppobWifi' | 'deleteAllKasAccounts' | 'ppobPaketTelpon' | 'shiftReconciliation';
 type FormSheet = 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'ppobPulsa' | 'ppobTokenListrik' | 'ppobPaketData' | 'ppobPlnPostpaid' | 'ppobPdam' | 'ppobBpjs' | 'ppobWifi' | 'ppobPaketTelpon' | 'shiftReconciliation';
 
 
@@ -671,6 +672,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                   {activeSheet === 'transfer' && 'Pindah Saldo'}
                   {activeSheet === 'addCapital' && 'Tambah Modal'}
                   {activeSheet === 'withdraw' && 'Tarik Saldo Pribadi'}
+                  {activeSheet === 'operationalCost' && 'Catat Biaya Operasional'}
                   {activeSheet === 'customerTransfer' && 'Transfer Pelanggan'}
                   {activeSheet === 'customerWithdrawal' && 'Tarik Tunai Pelanggan'}
                   {activeSheet === 'customerTopUp' && 'Top Up E-Wallet'}
@@ -688,7 +690,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                   {activeSheet === 'ppobBpjs' && 'Bayar Tagihan BPJS'}
                   {activeSheet === 'ppobWifi' && 'Bayar Tagihan Wifi'}
                   {activeSheet === 'ppobPaketTelpon' && 'Transaksi Paket Telpon'}
-                  {activeSheet === 'operationalCostReport' && 'Laporan Biaya Operasional'}
                   {activeSheet === 'deleteAllKasAccounts' && 'Reset Semua Akun Kas'}
                   {activeSheet === 'shiftReconciliation' && 'Rekonsiliasi Shift'}
                 </SheetTitle>
@@ -696,6 +697,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
             {activeSheet === 'transfer' && <TransferBalanceForm onDone={closeAllSheets} />}
             {activeSheet === 'addCapital' && <AddCapitalForm onDone={closeAllSheets} />}
             {activeSheet === 'withdraw' && <WithdrawBalanceForm onDone={closeAllSheets} />}
+            {activeSheet === 'operationalCost' && <OperationalCostForm onDone={closeAllSheets} />}
             
             {activeSheet === 'customerTransfer' && <CustomerTransferForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
@@ -733,8 +735,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
             
             {activeSheet === 'ppobPaketTelpon' && <PPOBPaketTelponForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
 
-
-            {activeSheet === 'operationalCostReport' && <OperationalCostReport onDone={closeAllSheets} />}
             {activeSheet === 'shiftReconciliation' && <ShiftReconciliationForm onDone={closeAllSheets} />}
         </SheetContent>
       </Sheet>
@@ -751,7 +751,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                   <SheetHeader className="mb-4">
                       <SheetTitle>Menu Mutasi</SheetTitle>
                   </SheetHeader>
-                  <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="grid grid-cols-4 gap-4 text-center">
                       <button onClick={() => handleMutationMenuClick('transfer')} className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted">
                           <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
                               <ArrowRightLeft size={24} />
@@ -769,6 +769,12 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                               <TrendingDown size={24} />
                           </div>
                           <span className="text-sm font-medium">Tarik Pribadi</span>
+                      </button>
+                      <button onClick={() => handleMutationMenuClick('operationalCost')} className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted">
+                          <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
+                              <Briefcase size={24} />
+                          </div>
+                          <span className="text-sm font-medium">Biaya Operasional</span>
                       </button>
                   </div>
               </SheetContent>
