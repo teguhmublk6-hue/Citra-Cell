@@ -9,7 +9,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, doc, runTransaction, addDoc } from 'firebase/firestore';
+import { collection, doc, runTransaction, addDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { startOfDay } from 'date-fns';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
@@ -22,8 +23,6 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { Loader2 } from 'lucide-react';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { query, where, getDocs, Timestamp } from 'firebase/firestore';
-import { startOfDay } from 'date-fns';
 
 interface PPOBPulsaFormProps {
   onTransactionComplete: (transactionPromise: () => Promise<any>) => void;
@@ -58,6 +57,7 @@ const normalizeString = (str: string) => {
 export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPulsaFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [detectedProvider, setDetectedProvider] = useState<string | null>(null);
   const [isManualDenom, setIsManualDenom] = useState(false);
@@ -143,6 +143,7 @@ export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPul
   const ppobAccounts = useMemo(() => kasAccounts?.filter(acc => acc.type === 'PPOB'), [kasAccounts]);
 
   const onSubmit = (values: PPOBPulsaFormValues) => {
+    setIsSaving(true);
     onTransactionComplete(() => proceedWithTransaction(values));
   };
   
@@ -173,7 +174,6 @@ export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPul
             }
         } catch (error) {
             console.error("Error checking for duplicates:", error);
-            // Non-fatal, proceed with transaction
         }
     }
 
@@ -282,6 +282,8 @@ export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPul
     } catch (error: any) {
         console.error("Error saving PPOB Pulsa transaction: ", error);
         throw error;
+    } finally {
+        setIsSaving(false);
     }
   }, [firestore, kasAccounts, selectedPPOBAccount, toast]);
   
