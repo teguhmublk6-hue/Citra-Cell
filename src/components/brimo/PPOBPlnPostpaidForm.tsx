@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, runTransaction, addDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, runTransaction, addDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { PPOBPlnPostpaidFormValues } from '@/lib/types';
 import { PPOBPlnPostpaidFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
@@ -20,9 +20,11 @@ import Image from 'next/image';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { startOfDay } from 'date-fns';
 
 interface PPOBPlnPostpaidFormProps {
-  onTransactionComplete: () => void;
+  onTransactionComplete: (transactionPromise: () => Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -38,11 +40,14 @@ const parseRupiah = (value: string | undefined | null): number => {
     return Number(String(value).replace(/[^0-9]/g, ''));
 }
 
+const normalizeString = (str: string) => {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 
 export default function PPOBPlnPostpaidForm({ onTransactionComplete, onDone }: PPOBPlnPostpaidFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isSaving, setIsSaving] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
@@ -100,12 +105,38 @@ export default function PPOBPlnPostpaidForm({ onTransactionComplete, onDone }: P
 
 
   const onSubmit = async (values: PPOBPlnPostpaidFormValues) => {
-    setIsSaving(true);
-    
+    onTransactionComplete(() => proceedWithTransaction(values));
+  };
+  
+  const proceedWithTransaction = useCallback(async (values: PPOBPlnPostpaidFormValues, force = false): Promise<any> => {
     if (!firestore || !selectedPPOBAccount || !kasAccounts) {
         toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
-        setIsSaving(false);
-        return;
+        throw new Error("Database atau akun tidak ditemukan.");
+    }
+
+    if (!force) {
+        const transactionsRef = collection(firestore, 'ppobPlnPostpaid');
+        const todayStart = startOfDay(new Date());
+        const q = query(transactionsRef, where('date', '>=', Timestamp.fromDate(todayStart)));
+
+        try {
+            const querySnapshot = await getDocs(q);
+            const todaysTransactions = querySnapshot.docs.map(doc => doc.data() as PPOBPlnPostpaid);
+            const normalizedNewName = normalizeString(values.customerName);
+
+            const isDuplicate = todaysTransactions.some(trx => 
+                trx.sourcePPOBAccountId === values.sourcePPOBAccountId &&
+                normalizeString(trx.customerName) === normalizedNewName &&
+                trx.billAmount === values.billAmount
+            );
+
+            if (isDuplicate) {
+              return Promise.reject({ duplicate: true, onConfirm: () => proceedWithTransaction(values, true) });
+            }
+        } catch (error) {
+            console.error("Error checking for duplicates:", error);
+            // Non-fatal, proceed with transaction
+        }
     }
 
     const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
@@ -114,26 +145,21 @@ export default function PPOBPlnPostpaidForm({ onTransactionComplete, onDone }: P
 
     if (!laciAccount && (paymentMethod === 'Tunai' || paymentMethod === 'Split')) {
         toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
-        setIsSaving(false);
-        return;
+        throw new Error("Akun Laci Tidak Ditemukan");
     }
 
     if (selectedPPOBAccount.balance < billAmount) {
         toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${selectedPPOBAccount.label} tidak mencukupi.` });
-        setIsSaving(false);
-        return;
+        throw new Error(`Deposit ${selectedPPOBAccount.label} tidak mencukupi.`);
     }
 
-    toast({ title: "Memproses...", description: "Menyimpan transaksi PLN Pascabayar." });
-
     const now = new Date();
-    const nowISO = now.toISOString();
     const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
     const netProfit = (totalAmount - billAmount) + (cashback || 0);
     const splitTransferAmount = totalAmount - (splitTunaiAmount || 0);
     
     try {
-        const auditDocRef = await addDoc(collection(firestore, 'ppobPlnPostpaid'), {
+        const auditDocRef = await addDocumentNonBlocking(collection(firestore, 'ppobPlnPostpaid'), {
             date: now,
             customerName: values.customerName,
             billAmount: values.billAmount,
@@ -147,7 +173,10 @@ export default function PPOBPlnPostpaidForm({ onTransactionComplete, onDone }: P
             paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalAmount : (paymentMethod === 'Split' ? splitTransferAmount : 0),
             deviceName
         });
+        
+        if (!auditDocRef) throw new Error("Gagal membuat catatan audit.");
         const auditId = auditDocRef.id;
+        const nowISO = now.toISOString();
 
         await runTransaction(firestore, async (transaction) => {
             const sourcePPOBAccountRef = doc(firestore, 'kasAccounts', selectedPPOBAccount.id);
@@ -225,17 +254,11 @@ export default function PPOBPlnPostpaidForm({ onTransactionComplete, onDone }: P
                     break;
             }
         });
-
-        toast({ title: "Sukses", description: "Transaksi PLN Pascabayar berhasil disimpan." });
-        onTransactionComplete();
-
     } catch (error: any) {
         console.error("Error saving PPOB PLN Pascabayar transaction: ", error);
-        toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
-    } finally {
-        setIsSaving(false);
+        throw error;
     }
-  };
+  }, [firestore, kasAccounts, selectedPPOBAccount, toast]);
   
   return (
     <Form {...form}>
@@ -399,7 +422,7 @@ export default function PPOBPlnPostpaidForm({ onTransactionComplete, onDone }: P
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>Batal</Button>
+          <Button type="button" variant="outline" onClick={onDone} className="w-full">Batal</Button>
           <Button type="submit" className="w-full" disabled={isSaving || currentStep !== 2}>
             {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
           </Button>

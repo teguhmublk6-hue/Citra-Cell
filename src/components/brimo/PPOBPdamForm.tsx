@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, runTransaction, addDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, runTransaction, addDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { PPOBPdamFormValues } from '@/lib/types';
 import { PPOBPdamFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
@@ -21,9 +21,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '../ui/command';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { startOfDay } from 'date-fns';
 
 interface PPOBPdamFormProps {
-  onTransactionComplete: () => void;
+  onTransactionComplete: (transactionPromise: () => Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -39,11 +41,14 @@ const parseRupiah = (value: string | undefined | null): number => {
     return Number(String(value).replace(/[^0-9]/g, ''));
 }
 
+const normalizeString = (str: string) => {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 
 export default function PPOBPdamForm({ onTransactionComplete, onDone }: PPOBPdamFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isSaving, setIsSaving] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [paymentPopoverOpen, setPaymentPopoverOpen] = useState(false);
   
@@ -101,12 +106,38 @@ export default function PPOBPdamForm({ onTransactionComplete, onDone }: PPOBPdam
 
 
   const onSubmit = async (values: PPOBPdamFormValues) => {
-    setIsSaving(true);
-    
+    onTransactionComplete(() => proceedWithTransaction(values));
+  };
+  
+  const proceedWithTransaction = useCallback(async (values: PPOBPdamFormValues, force = false): Promise<any> => {
     if (!firestore || !selectedPPOBAccount || !kasAccounts) {
         toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
-        setIsSaving(false);
-        return;
+        throw new Error("Database atau akun tidak ditemukan.");
+    }
+
+    if (!force) {
+        const transactionsRef = collection(firestore, 'ppobPdam');
+        const todayStart = startOfDay(new Date());
+        const q = query(transactionsRef, where('date', '>=', Timestamp.fromDate(todayStart)));
+
+        try {
+            const querySnapshot = await getDocs(q);
+            const todaysTransactions = querySnapshot.docs.map(doc => doc.data() as PPOBPdam);
+            const normalizedNewName = normalizeString(values.customerName);
+
+            const isDuplicate = todaysTransactions.some(trx => 
+                trx.sourcePPOBAccountId === values.sourcePPOBAccountId &&
+                normalizeString(trx.customerName) === normalizedNewName &&
+                trx.billAmount === values.billAmount
+            );
+
+            if (isDuplicate) {
+              return Promise.reject({ duplicate: true, onConfirm: () => proceedWithTransaction(values, true) });
+            }
+        } catch (error) {
+            console.error("Error checking for duplicates:", error);
+            // Non-fatal, proceed with transaction
+        }
     }
 
     const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
@@ -115,26 +146,21 @@ export default function PPOBPdamForm({ onTransactionComplete, onDone }: PPOBPdam
 
     if (!laciAccount && (paymentMethod === 'Tunai' || paymentMethod === 'Split')) {
         toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
-        setIsSaving(false);
-        return;
+        throw new Error("Akun Laci Tidak Ditemukan");
     }
 
     if (selectedPPOBAccount.balance < billAmount) {
         toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${selectedPPOBAccount.label} tidak mencukupi.` });
-        setIsSaving(false);
-        return;
+        throw new Error(`Deposit ${selectedPPOBAccount.label} tidak mencukupi.`);
     }
 
-    toast({ title: "Memproses...", description: "Menyimpan transaksi PDAM." });
-
     const now = new Date();
-    const nowISO = now.toISOString();
     const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
     const netProfit = (totalAmount - billAmount) + (cashback || 0);
     const splitTransferAmount = totalAmount - (splitTunaiAmount || 0);
     
     try {
-        const auditDocRef = await addDoc(collection(firestore, 'ppobPdam'), {
+        const auditDocRef = await addDocumentNonBlocking(collection(firestore, 'ppobPdam'), {
             date: now,
             customerName: values.customerName,
             billAmount: values.billAmount,
@@ -148,7 +174,10 @@ export default function PPOBPdamForm({ onTransactionComplete, onDone }: PPOBPdam
             paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalAmount : (paymentMethod === 'Split' ? splitTransferAmount : 0),
             deviceName
         });
+        
+        if (!auditDocRef) throw new Error("Gagal membuat catatan audit.");
         const auditId = auditDocRef.id;
+        const nowISO = now.toISOString();
 
         await runTransaction(firestore, async (transaction) => {
             const sourcePPOBAccountRef = doc(firestore, 'kasAccounts', selectedPPOBAccount.id);
@@ -222,15 +251,11 @@ export default function PPOBPdamForm({ onTransactionComplete, onDone }: PPOBPdam
                     break;
             }
         });
-
-        onTransactionComplete();
     } catch (error: any) {
         console.error("Error saving PPOB PDAM transaction: ", error);
-        toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
-    } finally {
-        setIsSaving(false);
+        throw error;
     }
-  };
+  }, [firestore, kasAccounts, selectedPPOBAccount, toast]);
   
   return (
     <Form {...form}>
