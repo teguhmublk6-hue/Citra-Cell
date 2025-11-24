@@ -309,10 +309,25 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     if (!searchQuery) {
       return transactions;
     }
-    return transactions.filter(trx =>
-      trx.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [searchQuery, transactions]);
+    const lowercasedQuery = searchQuery.toLowerCase();
+    return transactions.filter(trx => {
+      const nameMatch = trx.name.toLowerCase().includes(lowercasedQuery);
+      const accountMatch = trx.account.toLowerCase().includes(lowercasedQuery);
+      
+      let auditDestinationMatch = false;
+      if (trx.auditId) {
+        const detail = auditDetails.get(trx.auditId);
+        if (detail) {
+          const destination = 'destination' in detail ? detail.destination : ('customerName' in detail ? detail.customerName : null);
+          if (destination) {
+            auditDestinationMatch = destination.toLowerCase().includes(lowercasedQuery);
+          }
+        }
+      }
+      
+      return nameMatch || accountMatch || auditDestinationMatch;
+    });
+  }, [searchQuery, transactions, auditDetails]);
 
   let runningBalance = openingBalance;
 
@@ -359,7 +374,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
          <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-                placeholder="Cari nama transaksi..."
+                placeholder="Cari nama, akun, atau nomor tujuan..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -508,4 +523,5 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     
 
     
+
 
