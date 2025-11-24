@@ -28,7 +28,7 @@ import { startOfDay } from "date-fns";
 import { addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 interface EDCServiceFormProps {
-  onTransactionComplete: (promise: Promise<any>) => void;
+  onTransactionComplete: (transactionPromise: () => Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -65,8 +65,7 @@ export default function EDCServiceForm({ onTransactionComplete, onDone }: EDCSer
   });
 
   const onSubmit = (values: EDCServiceFormValues) => {
-    const transactionPromise = proceedWithTransaction(values);
-    onTransactionComplete(transactionPromise);
+    onTransactionComplete(() => proceedWithTransaction(values));
   };
 
   const proceedWithTransaction = useCallback(async (values: EDCServiceFormValues, force = false): Promise<any> => {
@@ -96,6 +95,7 @@ export default function EDCServiceForm({ onTransactionComplete, onDone }: EDCSer
             }
         } catch (error) {
             console.error("Error checking for duplicates:", error);
+            // Non-fatal, proceed with transaction
         }
     }
     
@@ -145,7 +145,7 @@ export default function EDCServiceForm({ onTransactionComplete, onDone }: EDCSer
       console.error("Error saving EDC service transaction: ", error);
       throw error;
     }
-  }, [firestore, kasAccounts]);
+  }, [firestore, kasAccounts, toast]);
 
   return (
     <Form {...form}>

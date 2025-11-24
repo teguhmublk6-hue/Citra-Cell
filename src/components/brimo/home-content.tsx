@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -74,6 +73,7 @@ import DailyReportDetail from './DailyReportDetail';
 import CombinedReport from './CombinedReport';
 import FloatingBackButton from './FloatingBackButton';
 import OperationalCostForm from './OperationalCostForm';
+import DuplicateTransactionDialog from './DuplicateTransactionDialog';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -99,8 +99,10 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
   const [isHistoryVisible, setIsHistoryVisible] = useState(false);
-  const [isRepeatDialogOpen, setIsRepeatDialogOpen] = useState(false);
+  
   const [lastCompletedSheet, setLastCompletedSheet] = useState<FormSheet | null>(null);
+  const [pendingNotifications, setPendingNotifications] = useState<(() => void)[]>([]);
+
   const [selectedAccount, setSelectedAccount] = useState<KasAccountType | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -123,6 +125,10 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   const firestore = useFirestore();
+  
+  const [isRepeatDialogOpen, setIsRepeatDialogOpen] = useState(false);
+  const [duplicateDialogState, setDuplicateDialogState] = useState<{ isOpen: boolean; onConfirm: (() => void) | null }>({ isOpen: false, onConfirm: null });
+
 
   const shiftStatusDocRef = useMemoFirebase(() => doc(firestore, 'appConfig', 'currentShiftStatus'), [firestore]);
   const { data: shiftStatus, isLoading: isShiftLoading } = useDoc<CurrentShiftStatus>(shiftStatusDocRef);
@@ -133,6 +139,14 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   }, [firestore]);
 
   const { data: kasAccounts } = useCollection<KasAccountType>(kasAccountsCollection);
+  
+  useEffect(() => {
+    if (!isRepeatDialogOpen && activeSheet === null && pendingNotifications.length > 0) {
+      const nextNotification = pendingNotifications[0];
+      nextNotification(); // Show the dialog
+      setPendingNotifications(prev => prev.slice(1)); // Remove it from the queue
+    }
+  }, [isRepeatDialogOpen, activeSheet, pendingNotifications]);
 
   useEffect(() => {
     const storedName = localStorage.getItem('brimoDeviceName') || '';
@@ -242,17 +256,44 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     setActiveSheet('settlement');
   }
 
-  const handleTransactionComplete = () => {
+  const handleTransactionComplete = (transactionPromise: () => Promise<any>) => {
     revalidateData();
     let formSheet: FormSheet | null = activeSheet as FormSheet;
     setLastCompletedSheet(formSheet);
+    
+    // Show the success dialog immediately
     setIsRepeatDialogOpen(true);
+
+    // Execute the transaction in the background
+    transactionPromise().catch(error => {
+      if (error && error.duplicate) {
+        setPendingNotifications(prev => [...prev, () => {
+          setDuplicateDialogState({
+            isOpen: true,
+            onConfirm: () => {
+              error.onConfirm(); // Force save
+              setDuplicateDialogState({ isOpen: false, onConfirm: null });
+            }
+          });
+        }]);
+      } else {
+        setPendingNotifications(prev => [...prev, () => {
+           toast({
+              variant: "destructive",
+              title: "Transaksi Gagal Disimpan",
+              description: "Cek koneksi internet Anda atau coba lagi.",
+              duration: 10000,
+           });
+        }]);
+      }
+    });
   }
 
   const handleRepeatNo = () => {
     setIsRepeatDialogOpen(false);
     setLastCompletedSheet(null);
     closeAllSheets();
+    // The useEffect will now trigger to show pending notifications
   };
 
   const handleRepeatYes = () => {
@@ -646,6 +687,15 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
         onSuccess={handlePasscodeSuccess}
       />
       
+      <DuplicateTransactionDialog
+        isOpen={duplicateDialogState.isOpen}
+        onCancel={() => setDuplicateDialogState({ isOpen: false, onConfirm: null })}
+        onConfirm={() => {
+          duplicateDialogState.onConfirm?.();
+          setDuplicateDialogState({ isOpen: false, onConfirm: null });
+        }}
+      />
+      
       <RepeatTransactionDialog
         isOpen={isRepeatDialogOpen}
         onNo={handleRepeatNo}
@@ -709,7 +759,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
 
             {activeSheet === 'customerVAPayment' && <CustomerVAPaymentForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
-            {activeSheet === 'EDCService' && <EDCServiceForm onDone={closeAllSheets} />}
+            {activeSheet === 'EDCService' && <EDCServiceForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
             {activeSheet === 'settlement' && selectedAccount && <SettlementForm account={selectedAccount} onReview={() => {}} onDone={closeAllSheets} />}
 

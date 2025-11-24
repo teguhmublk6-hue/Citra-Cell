@@ -14,7 +14,7 @@ import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { CustomerTopUpFormValues, CustomerTopUp } from '@/lib/types';
 import { CustomerTopUpFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
@@ -27,7 +27,7 @@ import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 
 interface CustomerTopUpFormProps {
-  onTransactionComplete: (onConfirm: () => Promise<void>, onCancel: () => void) => void;
+  onTransactionComplete: (transactionPromise: () => Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -49,6 +49,10 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 const parseRupiah = (value: string | undefined | null): number => {
     if (!value) return 0;
     return Number(String(value).replace(/[^0-9]/g, ''));
+}
+
+const normalizeString = (str: string) => {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 const calculateServiceFee = (amount: number): number => {
@@ -124,60 +128,53 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
     });
   }, [kasAccounts]);
 
-  const onSubmit = async (values: CustomerTopUpFormValues) => {
-    setIsSaving(true);
-    
-    // Immediately call onTransactionComplete to show the repeat dialog
-    onTransactionComplete(
-      () => proceedWithTransaction(values, true), // onConfirm
-      () => setIsSaving(false) // onCancel
-    );
+  const onSubmit = (values: CustomerTopUpFormValues) => {
+    onTransactionComplete(() => proceedWithTransaction(values));
   };
   
-  const proceedWithTransaction = async (values: CustomerTopUpFormValues, force = false) => {
-    setIsSaving(true);
-
-    if (!firestore) return;
+  const proceedWithTransaction = useCallback(async (values: CustomerTopUpFormValues, force = false): Promise<any> => {
+    if (!firestore || !kasAccounts) {
+      toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
+      throw new Error("Database tidak tersedia.");
+    }
 
     if (!force) {
         const todayStart = startOfDay(new Date());
         const q = query(collection(firestore, "customerTopUps"), where("date", ">=", Timestamp.fromDate(todayStart)));
-        const querySnapshot = await getDocs(q);
-        const todaysTransactions = querySnapshot.docs.map(doc => doc.data() as CustomerTopUp);
-        const isDuplicate = todaysTransactions.some(trx => 
-            trx.sourceKasAccountId === values.sourceAccountId &&
-            trx.customerName === values.customerName &&
-            trx.topUpAmount === values.topUpAmount
-        );
-        if (isDuplicate) {
-            return Promise.reject({ duplicate: true, onConfirm: () => proceedWithTransaction(values, true) });
+        
+        try {
+            const querySnapshot = await getDocs(q);
+            const todaysTransactions = querySnapshot.docs.map(doc => doc.data() as CustomerTopUp);
+            const normalizedNewName = normalizeString(values.customerName);
+            const isDuplicate = todaysTransactions.some(trx => 
+                trx.sourceKasAccountId === values.sourceAccountId &&
+                normalizeString(trx.customerName) === normalizedNewName &&
+                trx.topUpAmount === values.topUpAmount
+            );
+            if (isDuplicate) {
+                return Promise.reject({ duplicate: true, onConfirm: () => proceedWithTransaction(values, true) });
+            }
+        } catch (error) {
+            console.error("Error checking for duplicates:", error);
+            // Non-fatal, proceed with transaction
         }
     }
     
-    if (!kasAccounts) {
-        toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
-        setIsSaving(false);
-        return Promise.reject(new Error("Database atau akun tidak ditemukan."));
-    }
-
     const sourceAccount = kasAccounts.find(acc => acc.id === values.sourceAccountId);
     const paymentTransferAccount = kasAccounts.find(acc => acc.id === values.paymentToKasTransferAccountId);
     const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
 
     if (!sourceAccount) {
         toast({ variant: "destructive", title: "Error", description: "Akun sumber tidak ditemukan." });
-        setIsSaving(false);
-        return Promise.reject(new Error("Akun sumber tidak ditemukan."));
+        throw new Error("Akun sumber tidak ditemukan.");
     }
     if (!laciAccount && (values.paymentMethod === 'Tunai' || values.paymentMethod === 'Split')) {
         toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
-        setIsSaving(false);
-        return Promise.reject(new Error("Akun Laci tidak ditemukan."));
+        throw new Error("Akun Laci tidak ditemukan.");
     }
     if (sourceAccount.balance < values.topUpAmount) {
         toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Saldo ${sourceAccount.label} tidak mencukupi untuk melakukan top up.` });
-        setIsSaving(false);
-        return Promise.reject(new Error(`Saldo ${sourceAccount.label} tidak mencukupi.`));
+        throw new Error(`Saldo ${sourceAccount.label} tidak mencukupi.`);
     }
 
     const now = new Date();
@@ -185,26 +182,26 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
     const totalPaymentByCustomer = values.topUpAmount + values.serviceFee;
     const splitTransferAmount = totalPaymentByCustomer - (values.splitTunaiAmount || 0);
     
-    const auditLogPromise = addDocumentNonBlocking(collection(firestore, 'customerTopUps'), {
-        date: now,
-        sourceKasAccountId: values.sourceAccountId,
-        destinationEwallet: values.destinationEwallet,
-        customerName: values.customerName,
-        topUpAmount: values.topUpAmount,
-        serviceFee: values.serviceFee,
-        paymentMethod: values.paymentMethod,
-        paymentToKasTunaiAmount: values.paymentMethod === 'Tunai' ? totalPaymentByCustomer : (values.paymentMethod === 'Split' ? values.splitTunaiAmount : 0),
-        paymentToKasTransferAccountId: values.paymentMethod === 'Transfer' || values.paymentMethod === 'Split' ? values.paymentToKasTransferAccountId : null,
-        paymentToKasTransferAmount: values.paymentMethod === 'Transfer' ? totalPaymentByCustomer : (values.paymentMethod === 'Split' ? splitTransferAmount : 0),
-        deviceName
-    });
+    try {
+        const auditDocRef = await addDocumentNonBlocking(collection(firestore, 'customerTopUps'), {
+            date: now,
+            sourceKasAccountId: values.sourceAccountId,
+            destinationEwallet: values.destinationEwallet,
+            customerName: values.customerName,
+            topUpAmount: values.topUpAmount,
+            serviceFee: values.serviceFee,
+            paymentMethod: values.paymentMethod,
+            paymentToKasTunaiAmount: values.paymentMethod === 'Tunai' ? totalPaymentByCustomer : (values.paymentMethod === 'Split' ? values.splitTunaiAmount : 0),
+            paymentToKasTransferAccountId: values.paymentMethod === 'Transfer' || values.paymentMethod === 'Split' ? values.paymentToKasTransferAccountId : null,
+            paymentToKasTransferAmount: values.paymentMethod === 'Transfer' ? totalPaymentByCustomer : (values.paymentMethod === 'Split' ? splitTransferAmount : 0),
+            deviceName
+        });
 
-    return auditLogPromise.then(auditDocRef => {
         if (!auditDocRef) throw new Error("Gagal membuat catatan audit.");
         const auditId = auditDocRef.id;
         const nowISO = now.toISOString();
 
-        runTransaction(firestore, async (transaction) => {
+        await runTransaction(firestore, async (transaction) => {
             const sourceAccountRef = doc(firestore, 'kasAccounts', sourceAccount.id);
             const laciAccountRef = laciAccount ? doc(firestore, 'kasAccounts', laciAccount.id) : null;
             const paymentAccRef = paymentTransferAccount ? doc(firestore, 'kasAccounts', paymentTransferAccount.id) : null;
@@ -255,9 +252,12 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
                     transaction.set(creditSplitTransferRef, { kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Top Up an. ${values.customerName}`, account: 'Pelanggan', date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentSplitBalance, balanceAfter: currentPaymentSplitBalance + splitTransferAmount, category: 'customer_payment', deviceName, auditId });
                     break;
             }
-        }).finally(() => setIsSaving(false));
-    });
-  };
+        });
+    } catch (error: any) {
+        console.error("Error saving top up transaction: ", error);
+        throw error;
+    }
+  }, [firestore, kasAccounts, toast]);
   
   return (
     <>

@@ -21,7 +21,7 @@ import { startOfDay } from 'date-fns';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 interface CustomerKJPWithdrawalFormProps {
-  onTransactionComplete: (promise: Promise<any>) => void;
+  onTransactionComplete: (transactionPromise: () => Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -80,8 +80,7 @@ export default function CustomerKJPWithdrawalForm({ onTransactionComplete, onDon
   }, [withdrawalAmount, form]);
   
   const onSubmit = (values: CustomerKJPWithdrawalFormValues) => {
-    const transactionPromise = proceedWithTransaction(values);
-    onTransactionComplete(transactionPromise);
+    onTransactionComplete(() => proceedWithTransaction(values));
   };
 
   const proceedWithTransaction = useCallback(async (values: CustomerKJPWithdrawalFormValues, force = false): Promise<any> => {
@@ -110,6 +109,7 @@ export default function CustomerKJPWithdrawalForm({ onTransactionComplete, onDon
             }
         } catch (error) {
             console.error("Error checking for duplicates:", error);
+            // Non-fatal, proceed with transaction
         }
     }
     
@@ -212,7 +212,7 @@ export default function CustomerKJPWithdrawalForm({ onTransactionComplete, onDon
         console.error("Error saving KJP withdrawal transaction: ", error);
         throw error;
     }
-  }, [firestore, kasAccounts]);
+  }, [firestore, kasAccounts, toast]);
   
   return (
     <Form {...form}>
@@ -282,7 +282,12 @@ export default function CustomerKJPWithdrawalForm({ onTransactionComplete, onDon
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onDone}
+            className="w-full"
+          >
             Batal
           </Button>
           <Button type="submit" className="w-full">
@@ -293,5 +298,6 @@ export default function CustomerKJPWithdrawalForm({ onTransactionComplete, onDon
     </Form>
   );
 }
+
 
 
