@@ -23,12 +23,11 @@ import Image from 'next/image';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '../ui/command';
-import DuplicateTransactionDialog from './DuplicateTransactionDialog';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 
 interface CustomerTopUpFormProps {
-  onTransactionComplete: () => void;
+  onTransactionComplete: (onConfirm: () => Promise<void>, onCancel: () => void) => void;
   onDone: () => void;
 }
 
@@ -67,12 +66,9 @@ const calculateServiceFee = (amount: number): number => {
 export default function CustomerTopUpForm({ onTransactionComplete, onDone }: CustomerTopUpFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [sourcePopoverOpen, setSourcePopoverOpen] = useState(false);
   const [paymentPopoverOpen, setPaymentPopoverOpen] = useState(false);
-  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
-  const [formData, setFormData] = useState<CustomerTopUpFormValues | null>(null);
-
   
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -129,62 +125,59 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
   }, [kasAccounts]);
 
   const onSubmit = async (values: CustomerTopUpFormValues) => {
-    if (!firestore) return;
-    setIsCheckingDuplicate(true);
-    setFormData(values);
+    setIsSaving(true);
+    
+    // Immediately call onTransactionComplete to show the repeat dialog
+    onTransactionComplete(
+      () => proceedWithTransaction(values, true), // onConfirm
+      () => setIsSaving(false) // onCancel
+    );
+  };
+  
+  const proceedWithTransaction = async (values: CustomerTopUpFormValues, force = false) => {
+    setIsSaving(true);
 
-    try {
+    if (!firestore) return;
+
+    if (!force) {
         const todayStart = startOfDay(new Date());
-        const q = query(
-            collection(firestore, "customerTopUps"),
-            where("date", ">=", Timestamp.fromDate(todayStart))
-        );
+        const q = query(collection(firestore, "customerTopUps"), where("date", ">=", Timestamp.fromDate(todayStart)));
         const querySnapshot = await getDocs(q);
         const todaysTransactions = querySnapshot.docs.map(doc => doc.data() as CustomerTopUp);
-
         const isDuplicate = todaysTransactions.some(trx => 
             trx.sourceKasAccountId === values.sourceAccountId &&
             trx.customerName === values.customerName &&
             trx.topUpAmount === values.topUpAmount
         );
-
         if (isDuplicate) {
-            setIsDuplicateDialogOpen(true);
-        } else {
-            proceedWithTransaction(values);
+            return Promise.reject({ duplicate: true, onConfirm: () => proceedWithTransaction(values, true) });
         }
-    } catch (error) {
-        console.error("Error checking for duplicates:", error);
-        toast({ variant: "destructive", title: "Error", description: "Gagal memeriksa duplikasi. Melanjutkan penyimpanan..." });
-        proceedWithTransaction(values);
-    } finally {
-        setIsCheckingDuplicate(false);
     }
-  };
-  
-  const proceedWithTransaction = async (values: CustomerTopUpFormValues) => {
-    setIsDuplicateDialogOpen(false);
-    onTransactionComplete(); // Immediately signal completion to UI
-
-    if (!firestore || !kasAccounts) {
+    
+    if (!kasAccounts) {
         toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
-        return;
+        setIsSaving(false);
+        return Promise.reject(new Error("Database atau akun tidak ditemukan."));
     }
+
     const sourceAccount = kasAccounts.find(acc => acc.id === values.sourceAccountId);
     const paymentTransferAccount = kasAccounts.find(acc => acc.id === values.paymentToKasTransferAccountId);
     const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
 
     if (!sourceAccount) {
         toast({ variant: "destructive", title: "Error", description: "Akun sumber tidak ditemukan." });
-        return;
+        setIsSaving(false);
+        return Promise.reject(new Error("Akun sumber tidak ditemukan."));
     }
     if (!laciAccount && (values.paymentMethod === 'Tunai' || values.paymentMethod === 'Split')) {
         toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
-        return;
+        setIsSaving(false);
+        return Promise.reject(new Error("Akun Laci tidak ditemukan."));
     }
     if (sourceAccount.balance < values.topUpAmount) {
         toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Saldo ${sourceAccount.label} tidak mencukupi untuk melakukan top up.` });
-        return;
+        setIsSaving(false);
+        return Promise.reject(new Error(`Saldo ${sourceAccount.label} tidak mencukupi.`));
     }
 
     const now = new Date();
@@ -192,7 +185,6 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
     const totalPaymentByCustomer = values.topUpAmount + values.serviceFee;
     const splitTransferAmount = totalPaymentByCustomer - (values.splitTunaiAmount || 0);
     
-    // --- NON-BLOCKING ---
     const auditLogPromise = addDocumentNonBlocking(collection(firestore, 'customerTopUps'), {
         date: now,
         sourceKasAccountId: values.sourceAccountId,
@@ -207,8 +199,8 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
         deviceName
     });
 
-    auditLogPromise.then(auditDocRef => {
-        if (!auditDocRef) return; // Error was already emitted by non-blocking function
+    return auditLogPromise.then(auditDocRef => {
+        if (!auditDocRef) throw new Error("Gagal membuat catatan audit.");
         const auditId = auditDocRef.id;
         const nowISO = now.toISOString();
 
@@ -263,10 +255,7 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
                     transaction.set(creditSplitTransferRef, { kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer Top Up an. ${values.customerName}`, account: 'Pelanggan', date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentSplitBalance, balanceAfter: currentPaymentSplitBalance + splitTransferAmount, category: 'customer_payment', deviceName, auditId });
                     break;
             }
-        });
-    }).catch(error => {
-      console.error("Non-blocking transaction failed:", error);
-      // The error emitter in non-blocking-updates will handle this
+        }).finally(() => setIsSaving(false));
     });
   };
   
@@ -554,25 +543,15 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isCheckingDuplicate}>Batal</Button>
-          <Button type="submit" className="w-full" disabled={isCheckingDuplicate}>
-            {isCheckingDuplicate ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
+          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>Batal</Button>
+          <Button type="submit" className="w-full" disabled={isSaving}>
+            {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
           </Button>
         </div>
       </form>
     </Form>
-    <DuplicateTransactionDialog
-      isOpen={isDuplicateDialogOpen}
-      onConfirm={() => {
-        if (formData) {
-          proceedWithTransaction(formData);
-        }
-      }}
-      onCancel={() => {
-        setIsDuplicateDialogOpen(false);
-        onDone();
-      }}
-    />
     </>
   );
 }
+
+    
