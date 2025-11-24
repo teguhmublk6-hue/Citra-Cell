@@ -10,7 +10,7 @@ import type { PPOBTransaction, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs, PPOBWifi } f
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, ArrowRight, MoreVertical, Pencil, Trash2, GitCompareArrows } from 'lucide-react';
+import { Calendar as CalendarIcon, ArrowRight, MoreVertical, Pencil, Trash2, GitCompareArrows, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -24,6 +24,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../ui/sheet';
 import EditTransactionNameForm from './EditTransactionNameForm';
 import { Card, CardContent } from '../ui/card';
 import BalanceAdjustmentForm from './BalanceAdjustmentForm';
+import { Input } from '../ui/input';
 
 
 interface TransactionHistoryProps {
@@ -78,6 +79,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
   const [transactionToEdit, setTransactionToEdit] = useState<TransactionWithId | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAdjustmentSheetOpen, setIsAdjustmentSheetOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -303,12 +305,21 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     );
   };
   
+  const filteredTransactions = useMemo(() => {
+    if (!searchQuery) {
+      return transactions;
+    }
+    return transactions.filter(trx =>
+      trx.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery, transactions]);
+
   let runningBalance = openingBalance;
 
   return (
     <>
     <div className="h-full flex flex-col pt-4 px-4">
-      <div className="px-1 mb-4">
+      <div className="px-1 mb-2 space-y-2">
         <Popover>
           <PopoverTrigger asChild>
             <Button
@@ -345,6 +356,15 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
             />
           </PopoverContent>
         </Popover>
+         <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+                placeholder="Cari nama transaksi..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+            />
+        </div>
       </div>
 
       <ScrollArea className="flex-1 -mx-6 px-6">
@@ -372,17 +392,22 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
                 </CardContent>
             </Card>
 
-            {(!transactions || transactions.length === 0) && (
+            {(!filteredTransactions || filteredTransactions.length === 0) && (
               <div className="flex flex-col items-center justify-center h-full py-20 text-center">
                 <CalendarIcon size={48} strokeWidth={1} className="text-muted-foreground mb-4" />
-                <p className="font-semibold">Belum Ada Transaksi</p>
-                <p className="text-sm text-muted-foreground">Tidak ada riwayat mutasi untuk rentang tanggal yang dipilih.</p>
+                <p className="font-semibold">
+                    {searchQuery ? 'Transaksi Tidak Ditemukan' : 'Belum Ada Transaksi'}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                    {searchQuery ? 'Tidak ada transaksi yang cocok dengan pencarian Anda.' : 'Tidak ada riwayat mutasi untuk rentang tanggal yang dipilih.'}
+                </p>
               </div>
             )}
             
-            {transactions && transactions.length > 0 && (
+            {filteredTransactions && filteredTransactions.length > 0 && (
               <div className="flex flex-col">
-                {transactions.map((trx) => {
+                {filteredTransactions.map((trx) => {
+                  const currentRunningBalance = runningBalance; // Capture balance before this transaction
                   runningBalance += trx.type === 'credit' ? trx.amount : -trx.amount;
                   return (
                     <div key={trx.id} className="py-4">
@@ -483,3 +508,4 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     
 
     
+
