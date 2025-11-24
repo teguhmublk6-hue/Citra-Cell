@@ -13,7 +13,7 @@ import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import type { PPOBPdamFormValues } from '@/lib/types';
+import type { PPOBPdamFormValues, PPOBPdam } from '@/lib/types';
 import { PPOBPdamFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
 import Image from 'next/image';
@@ -105,7 +105,7 @@ export default function PPOBPdamForm({ onTransactionComplete, onDone }: PPOBPdam
   };
 
 
-  const onSubmit = async (values: PPOBPdamFormValues) => {
+  const onSubmit = (values: PPOBPdamFormValues) => {
     onTransactionComplete(() => proceedWithTransaction(values));
   };
   
@@ -513,9 +513,9 @@ export default function PPOBPdamForm({ onTransactionComplete, onDone }: PPOBPdam
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>Batal</Button>
-          <Button type="submit" className="w-full" disabled={isSaving || currentStep !== 2}>
-            {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
+          <Button type="button" variant="outline" onClick={onDone} className="w-full">Batal</Button>
+          <Button type="submit" className="w-full" disabled={currentStep !== 2}>
+            Simpan Transaksi
           </Button>
         </div>
       </form>

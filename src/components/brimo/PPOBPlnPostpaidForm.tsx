@@ -13,7 +13,7 @@ import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import type { PPOBPlnPostpaidFormValues } from '@/lib/types';
+import type { PPOBPlnPostpaidFormValues, PPOBPlnPostpaid } from '@/lib/types';
 import { PPOBPlnPostpaidFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
 import Image from 'next/image';
@@ -104,7 +104,7 @@ export default function PPOBPlnPostpaidForm({ onTransactionComplete, onDone }: P
   };
 
 
-  const onSubmit = async (values: PPOBPlnPostpaidFormValues) => {
+  const onSubmit = (values: PPOBPlnPostpaidFormValues) => {
     onTransactionComplete(() => proceedWithTransaction(values));
   };
   
@@ -423,8 +423,8 @@ export default function PPOBPlnPostpaidForm({ onTransactionComplete, onDone }: P
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
           <Button type="button" variant="outline" onClick={onDone} className="w-full">Batal</Button>
-          <Button type="submit" className="w-full" disabled={isSaving || currentStep !== 2}>
-            {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
+          <Button type="submit" className="w-full" disabled={currentStep !== 2}>
+            Simpan Transaksi
           </Button>
         </div>
       </form>

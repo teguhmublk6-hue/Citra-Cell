@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, runTransaction, addDoc } from 'firebase/firestore';
+import { collection, doc, runTransaction, addDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { PPOBPaketTelponFormValues } from '@/lib/types';
 import { PPOBPaketTelponFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
@@ -21,9 +21,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '../ui/command';
+import { startOfDay } from 'date-fns';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 interface PPOBPaketTelponFormProps {
-  onTransactionComplete: () => void;
+  onTransactionComplete: (transactionPromise: () => Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -39,10 +41,13 @@ const parseRupiah = (value: string | undefined | null): number => {
     return Number(String(value).replace(/[^0-9]/g, ''));
 }
 
+const normalizeString = (str: string) => {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 export default function PPOBPaketTelponForm({ onTransactionComplete, onDone }: PPOBPaketTelponFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isSaving, setIsSaving] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [paymentPopoverOpen, setPaymentPopoverOpen] = useState(false);
   
@@ -86,12 +91,37 @@ export default function PPOBPaketTelponForm({ onTransactionComplete, onDone }: P
 
   const ppobAccounts = useMemo(() => kasAccounts?.filter(acc => acc.type === 'PPOB'), [kasAccounts]);
 
-  const onSubmit = async (values: PPOBPaketTelponFormValues) => {
-    setIsSaving(true);
+  const onSubmit = (values: PPOBPaketTelponFormValues) => {
+    onTransactionComplete(() => proceedWithTransaction(values));
+  };
+  
+  const proceedWithTransaction = useCallback(async (values: PPOBPaketTelponFormValues, force = false): Promise<any> => {
     if (!firestore || !selectedPPOBAccount || !kasAccounts) {
         toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
-        setIsSaving(false);
-        return;
+        throw new Error("Database atau akun tidak ditemukan.");
+    }
+
+    if (!force) {
+        const transactionsRef = collection(firestore, 'ppobTransactions');
+        const todayStart = startOfDay(new Date());
+        const q = query(transactionsRef, where('date', '>=', Timestamp.fromDate(todayStart)));
+
+        try {
+            const querySnapshot = await getDocs(q);
+            const todaysTransactions = querySnapshot.docs.map(doc => doc.data());
+            
+            const isDuplicate = todaysTransactions.some(trx => 
+                trx.serviceName === 'Paket Telpon' &&
+                normalizeString(trx.destination) === normalizeString(values.packageName) &&
+                trx.sourcePPOBAccountId === values.sourcePPOBAccountId
+            );
+
+            if (isDuplicate) {
+              return Promise.reject({ duplicate: true, onConfirm: () => proceedWithTransaction(values, true) });
+            }
+        } catch (error) {
+            console.error("Error checking for duplicates:", error);
+        }
     }
 
     const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
@@ -100,17 +130,13 @@ export default function PPOBPaketTelponForm({ onTransactionComplete, onDone }: P
     
     if (!laciAccount && (paymentMethod === 'Tunai' || paymentMethod === 'Split')) {
         toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
-        setIsSaving(false);
-        return;
+        throw new Error("Akun Laci Tidak Ditemukan.");
     }
 
     if (selectedPPOBAccount.balance < costPrice) {
         toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${selectedPPOBAccount.label} tidak mencukupi.` });
-        setIsSaving(false);
-        return;
+        throw new Error(`Deposit ${selectedPPOBAccount.label} tidak mencukupi.`);
     }
-
-    toast({ title: "Memproses...", description: "Menyimpan transaksi paket telpon." });
 
     const now = new Date();
     const nowISO = now.toISOString();
@@ -119,7 +145,7 @@ export default function PPOBPaketTelponForm({ onTransactionComplete, onDone }: P
     const splitTransferAmount = sellingPrice - (splitTunaiAmount || 0);
     
     try {
-        const auditDocRef = await addDoc(collection(firestore, 'ppobTransactions'), {
+        const auditDocRef = await addDocumentNonBlocking(collection(firestore, 'ppobTransactions'), {
             date: now,
             serviceName: 'Paket Telpon',
             destination: values.packageName,
@@ -134,6 +160,8 @@ export default function PPOBPaketTelponForm({ onTransactionComplete, onDone }: P
             paymentToKasTransferAmount: paymentMethod === 'Transfer' ? sellingPrice : (paymentMethod === 'Split' ? splitTransferAmount : 0),
             deviceName
         });
+        
+        if (!auditDocRef) throw new Error("Gagal membuat catatan audit.");
         const auditId = auditDocRef.id;
 
         await runTransaction(firestore, async (transaction) => {
@@ -198,16 +226,12 @@ export default function PPOBPaketTelponForm({ onTransactionComplete, onDone }: P
                     break;
             }
         });
-
-        onTransactionComplete();
     } catch (error: any) {
         console.error("Error saving PPOB Paket Telpon transaction: ", error);
-        toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
-    } finally {
-        setIsSaving(false);
+        throw error;
     }
-  };
-  
+  }, [firestore, kasAccounts, selectedPPOBAccount, toast]);
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 flex flex-col h-full">
@@ -428,9 +452,9 @@ export default function PPOBPaketTelponForm({ onTransactionComplete, onDone }: P
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>Batal</Button>
-          <Button type="submit" className="w-full" disabled={isSaving || currentStep !== 2}>
-            {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
+          <Button type="button" variant="outline" onClick={onDone} className="w-full">Batal</Button>
+          <Button type="submit" className="w-full" disabled={currentStep !== 2}>
+            Simpan Transaksi
           </Button>
         </div>
       </form>
