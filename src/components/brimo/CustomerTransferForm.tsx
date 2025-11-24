@@ -75,7 +75,7 @@ const refinedSchema = baseSchema.superRefine((data, ctx) => {
 
 
 interface CustomerTransferFormProps {
-  onTransactionComplete: (promise: Promise<any>) => void;
+  onTransactionComplete: (transactionPromise: () => Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -217,8 +217,7 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
   };
 
   const onSubmit = (values: CustomerTransferFormValues) => {
-    const transactionPromise = proceedWithTransaction(values);
-    onTransactionComplete(transactionPromise);
+    onTransactionComplete(() => proceedWithTransaction(values));
   };
   
   const proceedWithTransaction = useCallback(async (values: CustomerTransferFormValues, force = false): Promise<any> => {
@@ -756,3 +755,4 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
     </>
   );
 }
+
