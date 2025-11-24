@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm, Controller } from 'react-hook-form';
@@ -7,7 +6,6 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, writeBatch, serverTimestamp, addDoc } from 'firebase/firestore';
 import type { KasAccount } from '@/lib/data';
@@ -15,7 +13,11 @@ import { useState, useMemo } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Check, ChevronsUpDown } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
 
@@ -56,6 +58,8 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const [sourcePopoverOpen, setSourcePopoverOpen] = useState(false);
+  const [destinationPopoverOpen, setDestinationPopoverOpen] = useState(false);
   
   const kasAccountsCollection = useMemoFirebase(() => {
     return collection(firestore, 'kasAccounts');
@@ -121,23 +125,25 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
         }
     }
     
-    try {
-        const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
-        const now = new Date();
+    onDone();
+
+    const now = new Date();
+    const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
+
+    addDocumentNonBlocking(collection(firestore, "internalTransfers"), {
+        date: now,
+        sourceAccountId: values.sourceAccountId,
+        destinationAccountId: values.destinationAccountId,
+        amount: values.amount,
+        adminFee: fee,
+        description: values.description || '',
+        deviceName: deviceName,
+        feeDeductionSource: values.feeDeductionSource,
+    }).then(auditDocRef => {
+        if (!auditDocRef) throw new Error("Gagal membuat catatan audit.");
+        const auditId = auditDocRef.id;
         const nowISO = now.toISOString();
 
-        const auditDocRef = await addDoc(collection(firestore, "internalTransfers"), {
-            date: now,
-            sourceAccountId: values.sourceAccountId,
-            destinationAccountId: values.destinationAccountId,
-            amount: values.amount,
-            adminFee: fee,
-            description: values.description || '',
-            deviceName: deviceName,
-            feeDeductionSource: values.feeDeductionSource,
-        });
-        const auditId = auditDocRef.id;
-        
         const batch = writeBatch(firestore);
 
         const sourceDocRef = doc(firestore, 'kasAccounts', sourceAccount.id);
@@ -187,16 +193,11 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
             batch.set(feeTransactionRef, feeTransactionData);
         }
 
-        await batch.commit();
-
-        toast({ title: "Sukses", description: "Pindah saldo berhasil." });
-        onDone();
-    } catch (error) {
+        return batch.commit();
+    }).catch(error => {
         console.error("Error transferring balance: ", error);
-        toast({ variant: "destructive", title: "Error", description: "Terjadi kesalahan saat memproses perpindahan saldo." });
-    } finally {
-        setIsSaving(false);
-    }
+        toast({ variant: "destructive", title: "Error", description: "Gagal menyimpan. Silakan coba lagi." });
+    });
   };
   
   return (
@@ -208,20 +209,50 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
               control={form.control}
               name="sourceAccountId"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Dari Akun</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih akun sumber" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {sortedKasAccounts.map(acc => (
-                        <SelectItem key={acc.id} value={acc.id}>{acc.label} ({formatToRupiah(acc.balance)})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <Popover open={sourcePopoverOpen} onOpenChange={setSourcePopoverOpen}>
+                        <PopoverTrigger asChild>
+                        <FormControl>
+                            <Button
+                            variant="outline"
+                            role="combobox"
+                            className={cn(
+                                "w-full justify-between",
+                                !field.value && "text-muted-foreground"
+                            )}
+                            >
+                            {field.value
+                                ? sortedKasAccounts.find(acc => acc.id === field.value)?.label
+                                : "Pilih akun sumber"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
+                        <Command>
+                            <CommandInput placeholder="Cari akun sumber..." />
+                            <CommandEmpty>Akun tidak ditemukan.</CommandEmpty>
+                            <CommandGroup>
+                            <ScrollArea className="h-72">
+                                {sortedKasAccounts.map(acc => (
+                                <CommandItem
+                                    value={acc.label}
+                                    key={acc.id}
+                                    onSelect={() => {
+                                        form.setValue("sourceAccountId", acc.id)
+                                        setSourcePopoverOpen(false)
+                                    }}
+                                >
+                                    <Check className={cn("mr-2 h-4 w-4", acc.id === field.value ? "opacity-100" : "opacity-0")} />
+                                    {acc.label} ({formatToRupiah(acc.balance)})
+                                </CommandItem>
+                                ))}
+                            </ScrollArea>
+                            </CommandGroup>
+                        </Command>
+                        </PopoverContent>
+                    </Popover>
                   <FormMessage />
                 </FormItem>
               )}
@@ -230,20 +261,50 @@ export default function TransferBalanceForm({ onDone }: TransferBalanceFormProps
               control={form.control}
               name="destinationAccountId"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Ke Akun</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih akun tujuan" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {sortedKasAccounts.map(acc => (
-                        <SelectItem key={acc.id} value={acc.id}>{acc.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={destinationPopoverOpen} onOpenChange={setDestinationPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value
+                            ? sortedKasAccounts.find(acc => acc.id === field.value)?.label
+                            : "Pilih akun tujuan"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
+                      <Command>
+                        <CommandInput placeholder="Cari akun tujuan..." />
+                        <CommandEmpty>Akun tidak ditemukan.</CommandEmpty>
+                        <CommandGroup>
+                          <ScrollArea className="h-72">
+                            {sortedKasAccounts.map(acc => (
+                              <CommandItem
+                                value={acc.label}
+                                key={acc.id}
+                                onSelect={() => {
+                                    form.setValue("destinationAccountId", acc.id)
+                                    setDestinationPopoverOpen(false)
+                                }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", acc.id === field.value ? "opacity-100" : "opacity-0")}/>
+                                {acc.label}
+                              </CommandItem>
+                            ))}
+                          </ScrollArea>
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}
