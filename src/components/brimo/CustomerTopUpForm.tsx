@@ -24,6 +24,7 @@ import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '../ui/command';
 import DuplicateTransactionDialog from './DuplicateTransactionDialog';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 
 interface CustomerTopUpFormProps {
@@ -66,7 +67,7 @@ const calculateServiceFee = (amount: number): number => {
 export default function CustomerTopUpForm({ onTransactionComplete, onDone }: CustomerTopUpFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isSaving, setIsSaving] = useState(false);
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
   const [sourcePopoverOpen, setSourcePopoverOpen] = useState(false);
   const [paymentPopoverOpen, setPaymentPopoverOpen] = useState(false);
   const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
@@ -129,7 +130,7 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
 
   const onSubmit = async (values: CustomerTopUpFormValues) => {
     if (!firestore) return;
-    setIsSaving(true);
+    setIsCheckingDuplicate(true);
     setFormData(values);
 
     try {
@@ -149,22 +150,23 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
 
         if (isDuplicate) {
             setIsDuplicateDialogOpen(true);
-            setIsSaving(false);
         } else {
-            await proceedWithTransaction(values);
+            proceedWithTransaction(values);
         }
     } catch (error) {
         console.error("Error checking for duplicates:", error);
-        toast({ variant: "destructive", title: "Error", description: "Gagal memeriksa duplikasi transaksi. Melanjutkan penyimpanan..." });
-        await proceedWithTransaction(values);
+        toast({ variant: "destructive", title: "Error", description: "Gagal memeriksa duplikasi. Melanjutkan penyimpanan..." });
+        proceedWithTransaction(values);
+    } finally {
+        setIsCheckingDuplicate(false);
     }
   };
   
   const proceedWithTransaction = async (values: CustomerTopUpFormValues) => {
-    setIsSaving(true);
+    setIsDuplicateDialogOpen(false);
+
     if (!firestore || !kasAccounts) {
         toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
-        setIsSaving(false);
         return;
     }
     const sourceAccount = kasAccounts.find(acc => acc.id === values.sourceAccountId);
@@ -173,45 +175,45 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
 
     if (!sourceAccount) {
         toast({ variant: "destructive", title: "Error", description: "Akun sumber tidak ditemukan." });
-        setIsSaving(false);
         return;
     }
     if (!laciAccount && (values.paymentMethod === 'Tunai' || values.paymentMethod === 'Split')) {
         toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
-        setIsSaving(false);
         return;
     }
     if (sourceAccount.balance < values.topUpAmount) {
         toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Saldo ${sourceAccount.label} tidak mencukupi untuk melakukan top up.` });
-        setIsSaving(false);
         return;
     }
 
-    toast({ title: "Memproses...", description: "Menyimpan transaksi top up." });
+    onTransactionComplete();
 
     const now = new Date();
-    const nowISO = now.toISOString();
     const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
     const totalPaymentByCustomer = values.topUpAmount + values.serviceFee;
     const splitTransferAmount = totalPaymentByCustomer - (values.splitTunaiAmount || 0);
     
-    try {
-        const auditDocRef = await addDoc(collection(firestore, 'customerTopUps'), {
-            date: now,
-            sourceKasAccountId: values.sourceAccountId,
-            destinationEwallet: values.destinationEwallet,
-            customerName: values.customerName,
-            topUpAmount: values.topUpAmount,
-            serviceFee: values.serviceFee,
-            paymentMethod: values.paymentMethod,
-            paymentToKasTunaiAmount: values.paymentMethod === 'Tunai' ? totalPaymentByCustomer : (values.paymentMethod === 'Split' ? values.splitTunaiAmount : 0),
-            paymentToKasTransferAccountId: values.paymentMethod === 'Transfer' || values.paymentMethod === 'Split' ? values.paymentToKasTransferAccountId : null,
-            paymentToKasTransferAmount: values.paymentMethod === 'Transfer' ? totalPaymentByCustomer : (values.paymentMethod === 'Split' ? splitTransferAmount : 0),
-            deviceName
-        });
-        const auditId = auditDocRef.id;
+    // --- NON-BLOCKING ---
+    const auditLogPromise = addDocumentNonBlocking(collection(firestore, 'customerTopUps'), {
+        date: now,
+        sourceKasAccountId: values.sourceAccountId,
+        destinationEwallet: values.destinationEwallet,
+        customerName: values.customerName,
+        topUpAmount: values.topUpAmount,
+        serviceFee: values.serviceFee,
+        paymentMethod: values.paymentMethod,
+        paymentToKasTunaiAmount: values.paymentMethod === 'Tunai' ? totalPaymentByCustomer : (values.paymentMethod === 'Split' ? values.splitTunaiAmount : 0),
+        paymentToKasTransferAccountId: values.paymentMethod === 'Transfer' || values.paymentMethod === 'Split' ? values.paymentToKasTransferAccountId : null,
+        paymentToKasTransferAmount: values.paymentMethod === 'Transfer' ? totalPaymentByCustomer : (values.paymentMethod === 'Split' ? splitTransferAmount : 0),
+        deviceName
+    });
 
-        await runTransaction(firestore, async (transaction) => {
+    auditLogPromise.then(auditDocRef => {
+        if (!auditDocRef) return;
+        const auditId = auditDocRef.id;
+        const nowISO = now.toISOString();
+
+        runTransaction(firestore, async (transaction) => {
             const sourceAccountRef = doc(firestore, 'kasAccounts', sourceAccount.id);
             const laciAccountRef = laciAccount ? doc(firestore, 'kasAccounts', laciAccount.id) : null;
             const paymentAccRef = paymentTransferAccount ? doc(firestore, 'kasAccounts', paymentTransferAccount.id) : null;
@@ -263,15 +265,10 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
                     break;
             }
         });
-
-        onTransactionComplete();
-    } catch (error: any) {
-        console.error("Error saving top up transaction: ", error);
-        toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
-    } finally {
-        setIsSaving(false);
-        setIsDuplicateDialogOpen(false);
-    }
+    }).catch(error => {
+      console.error("Non-blocking transaction failed:", error);
+      // The error emitter in non-blocking-updates will handle this
+    });
   };
   
   return (
@@ -558,9 +555,9 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>Batal</Button>
-          <Button type="submit" className="w-full" disabled={isSaving}>
-            {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
+          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isCheckingDuplicate}>Batal</Button>
+          <Button type="submit" className="w-full" disabled={isCheckingDuplicate}>
+            {isCheckingDuplicate ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
           </Button>
         </div>
       </form>
