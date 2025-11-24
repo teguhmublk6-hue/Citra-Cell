@@ -13,7 +13,7 @@ import { startOfDay } from 'date-fns';
 import type { KasAccount, Transaction } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import bankData from '@/lib/banks.json';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
@@ -22,11 +22,10 @@ import type { CustomerWithdrawalFormValues } from '@/lib/types';
 import { CustomerWithdrawalFormSchema } from '@/lib/types';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import DuplicateTransactionDialog from './DuplicateTransactionDialog';
-
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 interface CustomerWithdrawalFormProps {
-  onTransactionComplete: () => void;
+  onTransactionComplete: (promise: Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -40,6 +39,10 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 const parseRupiah = (value: string | undefined | null): number => {
     if (!value) return 0;
     return Number(String(value).replace(/[^0-9]/g, ''));
+}
+
+const normalizeString = (str: string) => {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 const calculateServiceFee = (amount: number): number => {
@@ -57,12 +60,8 @@ const calculateServiceFee = (amount: number): number => {
 export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }: CustomerWithdrawalFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isSaving, setIsSaving] = useState(false);
   const [bankPopoverOpen, setBankPopoverOpen] = useState(false);
   const [destinationPopoverOpen, setDestinationPopoverOpen] = useState(false);
-  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
-  const [formData, setFormData] = useState<CustomerWithdrawalFormValues | null>(null);
-
 
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -93,83 +92,67 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
       return kasAccounts?.filter(acc => ['Bank', 'E-Wallet', 'Merchant'].includes(acc.type)) || [];
   }, [kasAccounts]);
 
-  const onSubmit = async (values: CustomerWithdrawalFormValues) => {
-    if (!firestore || !kasAccounts) return;
-    
-    const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
-    if (!laciAccount) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Akun kas "Laci" tidak ditemukan.' });
-      return;
-    }
-
-    setIsSaving(true);
-    setFormData(values);
-
-    const todayStart = startOfDay(new Date()).toISOString();
-    const transactionsRef = collection(firestore, 'kasAccounts', laciAccount.id, 'transactions');
-    const q = query(transactionsRef, where('date', '>=', todayStart));
-
-    try {
-        const querySnapshot = await getDocs(q);
-        const todaysTransactions = querySnapshot.docs.map(doc => doc.data() as Transaction);
-        
-        const isDuplicate = todaysTransactions.some(trx => 
-            trx.category === 'customer_withdrawal_debit' &&
-            trx.name.includes(values.customerName) &&
-            Math.abs(trx.amount - values.withdrawalAmount) < 1 // Compare amount, allow for fee differences
-        );
-
-        if (isDuplicate) {
-          setIsDuplicateDialogOpen(true);
-          setIsSaving(false);
-        } else {
-          await proceedWithTransaction(values);
-        }
-    } catch (error) {
-        console.error("Error checking for duplicates:", error);
-        toast({ variant: "destructive", title: "Error", description: "Gagal memeriksa duplikasi transaksi." });
-        await proceedWithTransaction(values); // Proceed anyway if check fails
-    }
+  const onSubmit = (values: CustomerWithdrawalFormValues) => {
+    const transactionPromise = proceedWithTransaction(values);
+    onTransactionComplete(transactionPromise);
   };
 
-  const proceedWithTransaction = async (values: CustomerWithdrawalFormValues) => {
-    setIsSaving(true);
+  const proceedWithTransaction = useCallback(async (values: CustomerWithdrawalFormValues, force = false): Promise<any> => {
     if (!firestore || !kasAccounts) {
-        toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
-        setIsSaving(false);
-        return;
+      toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
+      throw new Error("Database tidak tersedia.");
     }
-
-    const destinationAccount = kasAccounts.find(acc => acc.id === values.destinationAccountId);
-    const laciAccount = kasAccounts.find(acc => acc.label === 'Laci');
+    
+    const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
     const { withdrawalAmount, serviceFee, feePaymentMethod } = values;
     const cashGivenToCustomer = feePaymentMethod === 'Dipotong' ? withdrawalAmount - serviceFee : withdrawalAmount;
 
-    if (!destinationAccount) {
-      toast({ variant: "destructive", title: "Error", description: "Akun tujuan tidak ditemukan." });
-      setIsSaving(false);
-      return;
-    }
     if (!laciAccount) {
-      toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: `Silakan buat akun kas dengan nama "Laci" dan jenis "Tunai".` });
-      setIsSaving(false);
-      return;
-    }
-    if (laciAccount.balance < cashGivenToCustomer) {
-      toast({ variant: "destructive", title: "Saldo Laci Tidak Cukup", description: `Saldo ${laciAccount.label} tidak mencukupi untuk memberikan uang tunai.` });
-      setIsSaving(false);
-      return;
+      toast({ variant: 'destructive', title: 'Error', description: 'Akun kas "Laci" tidak ditemukan.' });
+      throw new Error('Akun kas "Laci" tidak ditemukan.');
     }
 
-    toast({ title: "Memproses...", description: "Menyimpan transaksi tarik tunai." });
-    
+    if (!force) {
+        const todayStart = startOfDay(new Date());
+        const q = query(collection(firestore, 'customerWithdrawals'), where("date", ">=", todayStart));
+        
+        try {
+            const querySnapshot = await getDocs(q);
+            const todaysTransactions = querySnapshot.docs.map(doc => doc.data() as CustomerWithdrawal);
+            const normalizedNewName = normalizeString(values.customerName);
+
+            const isDuplicate = todaysTransactions.some(trx => 
+                trx.destinationKasAccountId === values.destinationAccountId &&
+                trx.customerBankSource === values.customerBankSource &&
+                normalizeString(trx.customerName) === normalizedNewName &&
+                trx.withdrawalAmount === values.withdrawalAmount
+            );
+
+            if (isDuplicate) {
+              return Promise.reject({ duplicate: true, onConfirm: () => proceedWithTransaction(values, true) });
+            }
+        } catch (error) {
+            console.error("Error checking for duplicates:", error);
+        }
+    }
+
+    const destinationAccount = kasAccounts.find(acc => acc.id === values.destinationAccountId);
+
+    if (!destinationAccount) {
+      toast({ variant: "destructive", title: "Error", description: "Akun tujuan tidak ditemukan." });
+      throw new Error("Akun tujuan tidak ditemukan.");
+    }
+    if (laciAccount.balance < cashGivenToCustomer) {
+      toast({ variant: "destructive", title: "Saldo Laci Tidak Cukup", description: `Saldo ${laciAccount.label} tidak mencukupi.` });
+      throw new Error(`Saldo ${laciAccount.label} tidak mencukupi.`);
+    }
+
     const now = new Date();
-    const nowISO = now.toISOString();
     const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
     const totalTransferFromCustomer = withdrawalAmount;
 
     try {
-        const auditDocRef = await addDoc(collection(firestore, 'customerWithdrawals'), {
+        const auditDocRef = await addDocumentNonBlocking(collection(firestore, 'customerWithdrawals'), {
             date: now,
             customerName: values.customerName,
             customerBankSource: values.customerBankSource,
@@ -180,8 +163,11 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
             sourceKasTunaiAccountId: laciAccount!.id,
             deviceName: deviceName
         });
-        const auditId = auditDocRef.id;
         
+        if (!auditDocRef) throw new Error("Gagal membuat catatan audit.");
+        const auditId = auditDocRef.id;
+        const nowISO = now.toISOString();
+
         await runTransaction(firestore, async (transaction) => {
             const destAccountRef = doc(firestore, 'kasAccounts', destinationAccount.id);
             const laciAccountRef = doc(firestore, 'kasAccounts', laciAccount.id);
@@ -219,16 +205,11 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
                 transaction.set(debitTrxRef, { kasAccountId: laciAccount.id, type: 'debit', name: `Tarik Tunai a/n ${values.customerName} (Fee Dipotong)`, account: 'Pelanggan', date: nowISO, amount: cashGivenToCustomer, balanceBefore: currentLaciBalance, balanceAfter: newLaciBalance, category: 'customer_withdrawal_debit', deviceName, auditId });
             }
         });
-
-        onTransactionComplete();
     } catch (error: any) {
         console.error("Error saving withdrawal transaction: ", error);
-        toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
-    } finally {
-        setIsSaving(false);
-        setIsDuplicateDialogOpen(false);
+        throw error;
     }
-  };
+  }, [firestore, kasAccounts]);
   
   return (
     <>
@@ -387,25 +368,13 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>Batal</Button>
-          <Button type="submit" className="w-full" disabled={isSaving}>
-            {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
+          <Button type="button" variant="outline" onClick={onDone} className="w-full">Batal</Button>
+          <Button type="submit" className="w-full">
+            Simpan Transaksi
           </Button>
         </div>
       </form>
     </Form>
-    <DuplicateTransactionDialog 
-        isOpen={isDuplicateDialogOpen}
-        onConfirm={() => {
-            if(formData) {
-                proceedWithTransaction(formData);
-            }
-        }}
-        onCancel={() => {
-            setIsDuplicateDialogOpen(false);
-            onDone();
-        }}
-    />
     </>
   );
 }

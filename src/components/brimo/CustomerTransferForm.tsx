@@ -15,13 +15,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import bankData from '@/lib/banks.json';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CustomerTransferFormValues, CustomerTransfer } from '@/lib/types';
 import DuplicateTransactionDialog from './DuplicateTransactionDialog';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
@@ -74,7 +75,7 @@ const refinedSchema = baseSchema.superRefine((data, ctx) => {
 
 
 interface CustomerTransferFormProps {
-  onTransactionComplete: () => void;
+  onTransactionComplete: (promise: Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -88,6 +89,10 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 const parseRupiah = (value: string | undefined | null): number => {
     if (!value) return 0;
     return Number(String(value).replace(/[^0-9]/g, ''));
+}
+
+const normalizeString = (str: string) => {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 const calculateServiceFee = (amount: number): number => {
@@ -120,14 +125,10 @@ const sourceToBankMap: Record<string, string> = {
 export default function CustomerTransferForm({ onTransactionComplete, onDone }: CustomerTransferFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isSaving, setIsSaving] = useState(false);
   const [bankPopoverOpen, setBankPopoverOpen] = useState(false);
   const [bankSearch, setBankSearch] = useState('');
   const [sourcePopoverOpen, setSourcePopoverOpen] = useState(false);
   const [paymentPopoverOpen, setPaymentPopoverOpen] = useState(false);
-  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
-  const [formData, setFormData] = useState<CustomerTransferFormValues | null>(null);
-
   
   const inputRefs = {
     destinationAccountName: useRef<HTMLInputElement>(null),
@@ -215,82 +216,71 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
     }
   };
 
-  const onSubmit = async (values: CustomerTransferFormValues) => {
-    if (!firestore || !values.sourceAccountId) return;
-    setIsSaving(true);
-    setFormData(values);
-
-    // Check for duplicates
-    const todayStart = startOfDay(new Date()).toISOString();
-    const transactionsRef = collection(firestore, 'kasAccounts', values.sourceAccountId, 'transactions');
-    const q = query(transactionsRef, where('date', '>=', todayStart));
-
-    try {
-        const querySnapshot = await getDocs(q);
-        const todaysTransactions = querySnapshot.docs.map(doc => doc.data() as Transaction);
-
-        const isDuplicate = todaysTransactions.some(trx => 
-            trx.category === 'customer_transfer_debit' &&
-            trx.account === values.destinationBank && // Account field in transaction stores the bank
-            trx.name.includes(values.destinationAccountName) && // Name field stores "Trf an. {Name}"
-            trx.amount === values.transferAmount
-        );
-
-        if (isDuplicate) {
-          setIsDuplicateDialogOpen(true);
-          setIsSaving(false);
-        } else {
-          await proceedWithTransaction(values);
-        }
-    } catch (error) {
-        console.error("Error checking for duplicates:", error);
-        toast({ variant: "destructive", title: "Error", description: "Gagal memeriksa duplikasi transaksi." });
-        await proceedWithTransaction(values); // Proceed anyway if check fails
-    }
+  const onSubmit = (values: CustomerTransferFormValues) => {
+    const transactionPromise = proceedWithTransaction(values);
+    onTransactionComplete(transactionPromise);
   };
   
-  const proceedWithTransaction = async (values: CustomerTransferFormValues) => {
-    setIsSaving(true);
+  const proceedWithTransaction = useCallback(async (values: CustomerTransferFormValues, force = false): Promise<any> => {
     if (!firestore || !kasAccounts) {
       toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
-      setIsSaving(false);
-      return;
+      throw new Error("Database tidak tersedia.");
     }
     
+    if (!force) {
+        const transactionsRef = collection(firestore, 'customerTransfers');
+        const todayStart = startOfDay(new Date());
+        const q = query(transactionsRef, where('date', '>=', todayStart));
+
+        try {
+            const querySnapshot = await getDocs(q);
+            const todaysTransactions = querySnapshot.docs.map(doc => doc.data() as CustomerTransfer);
+            
+            const normalizedNewName = normalizeString(values.destinationAccountName);
+
+            const isDuplicate = todaysTransactions.some(trx => 
+                trx.sourceKasAccountId === values.sourceAccountId &&
+                trx.destinationBankName === values.destinationBank &&
+                normalizeString(trx.destinationAccountName) === normalizedNewName &&
+                trx.transferAmount === values.transferAmount
+            );
+
+            if (isDuplicate) {
+              return Promise.reject({ duplicate: true, onConfirm: () => proceedWithTransaction(values, true) });
+            }
+        } catch (error) {
+            console.error("Error checking for duplicates:", error);
+        }
+    }
+
     const sourceAccount = kasAccounts.find(acc => acc.id === values.sourceAccountId);
     const paymentTransferAccount = kasAccounts.find(acc => acc.id === values.paymentToKasTransferAccountId);
     const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
 
     if (!sourceAccount) {
       toast({ variant: "destructive", title: "Error", description: "Akun sumber tidak ditemukan." });
-      setIsSaving(false);
-      return;
+      throw new Error("Akun sumber tidak ditemukan.");
     }
     if (!laciAccount && (values.paymentMethod === 'Tunai' || values.paymentMethod === 'Split')) {
         toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
-        setIsSaving(false);
-        return;
+        throw new Error("Akun Laci tidak ditemukan.");
     }
 
     const totalDebitFromSource = values.transferAmount + (values.bankAdminFee || 0);
 
     if (sourceAccount.balance < totalDebitFromSource) {
-      toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Saldo ${sourceAccount.label} tidak mencukupi untuk melakukan transfer ini.` });
-      setIsSaving(false);
-      return;
+      toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Saldo ${sourceAccount.label} tidak mencukupi untuk transfer ini.` });
+      throw new Error(`Saldo ${sourceAccount.label} tidak mencukupi.`);
     }
 
-    toast({ title: "Memproses...", description: "Menyimpan transaksi transfer." });
-
     const now = new Date();
-    const nowISO = now.toISOString();
     const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
     const totalPaymentByCustomer = values.transferAmount + values.serviceFee;
     const netProfit = values.serviceFee - (values.bankAdminFee || 0);
     const splitTransferAmount = totalPaymentByCustomer - (values.splitTunaiAmount || 0);
     
     try {
-        const auditDocRef = await addDoc(collection(firestore, 'customerTransfers'), {
+        const auditDocRef = await addDocumentNonBlocking(collection(firestore, 'customerTransfers'), {
             date: now,
             sourceKasAccountId: values.sourceAccountId,
             destinationBankName: values.destinationBank,
@@ -305,7 +295,10 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
             paymentToKasTransferAmount: values.paymentMethod === 'Transfer' ? totalPaymentByCustomer : (values.paymentMethod === 'Split' ? splitTransferAmount : 0),
             deviceName
         });
+        
+        if (!auditDocRef) throw new Error("Gagal membuat catatan audit.");
         const auditId = auditDocRef.id;
+        const nowISO = now.toISOString();
 
         await runTransaction(firestore, async (transaction) => {
             const sourceAccountRef = doc(firestore, 'kasAccounts', sourceAccount.id);
@@ -365,17 +358,11 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
                     break;
             }
         });
-
-        onTransactionComplete();
-
     } catch (error: any) {
-      console.error("Error saving transaction:", error);
-      toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
-    } finally {
-      setIsSaving(false);
-      setIsDuplicateDialogOpen(false);
+        console.error("Error saving transaction:", error);
+        throw error;
     }
-  };
+  }, [firestore, kasAccounts]);
   
   return (
     <>
@@ -759,25 +746,13 @@ export default function CustomerTransferForm({ onTransactionComplete, onDone }: 
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>Batal</Button>
-          <Button type="submit" className="w-full" disabled={isSaving}>
-            {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
+          <Button type="button" variant="outline" onClick={onDone} className="w-full">Batal</Button>
+          <Button type="submit" className="w-full">
+            Simpan Transaksi
           </Button>
         </div>
       </form>
     </Form>
-    <DuplicateTransactionDialog 
-        isOpen={isDuplicateDialogOpen}
-        onConfirm={() => {
-            if(formData) {
-                proceedWithTransaction(formData);
-            }
-        }}
-        onCancel={() => {
-            setIsDuplicateDialogOpen(false);
-            onDone();
-        }}
-    />
     </>
   );
 }
