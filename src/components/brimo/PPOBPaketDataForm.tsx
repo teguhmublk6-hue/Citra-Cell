@@ -9,11 +9,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, doc, runTransaction, addDoc } from 'firebase/firestore';
+import { collection, doc, runTransaction, addDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { startOfDay } from 'date-fns';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { PPOBPaketDataFormValues } from '@/lib/types';
 import { PPOBPaketDataFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
@@ -23,9 +24,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 interface PPOBPaketDataFormProps {
-  onTransactionComplete: () => void;
+  onTransactionComplete: (transactionPromise: () => Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -49,6 +51,10 @@ const providers = [
     { name: 'Tri', prefixes: ['0895', '0896', '0897', '0898', '0899'] },
     { name: 'Smartfren', prefixes: ['0881', '0882', '0883', '0884', '0885', '0886', '0887', '0888', '0889'] },
 ];
+
+const normalizeString = (str: string) => {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
 
 export default function PPOBPaketDataForm({ onTransactionComplete, onDone }: PPOBPaketDataFormProps) {
   const firestore = useFirestore();
@@ -138,13 +144,38 @@ export default function PPOBPaketDataForm({ onTransactionComplete, onDone }: PPO
 
   const ppobAccounts = useMemo(() => kasAccounts?.filter(acc => acc.type === 'PPOB'), [kasAccounts]);
 
-  const onSubmit = async (values: PPOBPaketDataFormValues) => {
-    setIsSaving(true);
-    
+  const onSubmit = (values: PPOBPaketDataFormValues) => {
+    onTransactionComplete(() => proceedWithTransaction(values));
+  };
+  
+  const proceedWithTransaction = useCallback(async (values: PPOBPaketDataFormValues, force = false): Promise<any> => {
     if (!firestore || !selectedPPOBAccount || !kasAccounts) {
         toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
-        setIsSaving(false);
-        return;
+        throw new Error("Database atau akun tidak ditemukan.");
+    }
+    
+    if (!force) {
+        const transactionsRef = collection(firestore, 'ppobTransactions');
+        const todayStart = startOfDay(new Date());
+        const q = query(transactionsRef, where('date', '>=', Timestamp.fromDate(todayStart)));
+
+        try {
+            const querySnapshot = await getDocs(q);
+            const todaysTransactions = querySnapshot.docs.map(doc => doc.data());
+            
+            const isDuplicate = todaysTransactions.some(trx => 
+                trx.serviceName === 'Paket Data' &&
+                trx.destination === values.phoneNumber &&
+                normalizeString(trx.description) === normalizeString(`Paket Data ${values.packageName}`) &&
+                trx.sourcePPOBAccountId === values.sourcePPOBAccountId
+            );
+
+            if (isDuplicate) {
+              return Promise.reject({ duplicate: true, onConfirm: () => proceedWithTransaction(values, true) });
+            }
+        } catch (error) {
+            console.error("Error checking for duplicates:", error);
+        }
     }
 
     const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
@@ -153,17 +184,13 @@ export default function PPOBPaketDataForm({ onTransactionComplete, onDone }: PPO
 
     if (!laciAccount && (paymentMethod === 'Tunai' || paymentMethod === 'Split')) {
         toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
-        setIsSaving(false);
-        return;
+        throw new Error("Akun Laci Tidak Ditemukan");
     }
     
     if (selectedPPOBAccount.balance < costPrice) {
         toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${selectedPPOBAccount.label} tidak mencukupi.` });
-        setIsSaving(false);
-        return;
+        throw new Error(`Deposit ${selectedPPOBAccount.label} tidak mencukupi.`);
     }
-
-    toast({ title: "Memproses...", description: "Menyimpan transaksi paket data." });
 
     const now = new Date();
     const nowISO = now.toISOString();
@@ -172,11 +199,11 @@ export default function PPOBPaketDataForm({ onTransactionComplete, onDone }: PPO
     const splitTransferAmount = sellingPrice - (splitTunaiAmount || 0);
     
     try {
-        const auditDocRef = await addDoc(collection(firestore, 'ppobTransactions'), {
+        const auditDocRef = await addDocumentNonBlocking(collection(firestore, 'ppobTransactions'), {
             date: now,
             serviceName: 'Paket Data',
             destination: values.phoneNumber,
-            description: values.packageName,
+            description: `Paket Data ${values.packageName}`,
             costPrice: values.costPrice,
             sellingPrice: values.sellingPrice,
             profit,
@@ -187,6 +214,8 @@ export default function PPOBPaketDataForm({ onTransactionComplete, onDone }: PPO
             paymentToKasTransferAmount: paymentMethod === 'Transfer' ? sellingPrice : (paymentMethod === 'Split' ? splitTransferAmount : 0),
             deviceName
         });
+        
+        if (!auditDocRef) throw new Error("Gagal membuat catatan audit.");
         const auditId = auditDocRef.id;
 
         await runTransaction(firestore, async (transaction) => {
@@ -251,16 +280,11 @@ export default function PPOBPaketDataForm({ onTransactionComplete, onDone }: PPO
                     break;
             }
         });
-
-        onTransactionComplete();
-
     } catch (error: any) {
         console.error("Error saving PPOB Paket Data transaction: ", error);
-        toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
-    } finally {
-        setIsSaving(false);
+        throw error;
     }
-  };
+  }, [firestore, kasAccounts, selectedPPOBAccount, toast]);
   
   const handlePackageSelect = (pkg: string) => {
     form.setValue('packageName', pkg, { shouldValidate: true });
