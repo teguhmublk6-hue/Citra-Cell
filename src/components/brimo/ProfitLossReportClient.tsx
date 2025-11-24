@@ -136,6 +136,44 @@ export default function ProfitLossReportClient({ onDone }: ProfitLossReportProps
   useEffect(() => {
     fetchReports();
   }, [firestore, dateRange]);
+  
+  const brilinkTotals = brilinkReports.reduce((acc, report) => {
+    if (report.transactionType === 'Transfer') {
+        acc.nominal += report.transferAmount;
+        acc.adminBank += report.bankAdminFee;
+        acc.jasa += report.serviceFee;
+        acc.labaRugi += report.netProfit;
+    } else if (report.transactionType === 'Tarik Tunai' || report.transactionType === 'Top Up' || report.transactionType === 'Top Up E-Money' || report.transactionType === 'Layanan EDC' || report.transactionType === 'Tarik Tunai KJP') {
+        acc.nominal += 'withdrawalAmount' in report ? report.withdrawalAmount : ('topUpAmount' in report ? report.topUpAmount : 0);
+        acc.jasa += report.serviceFee;
+        acc.labaRugi += report.serviceFee;
+    } else if (report.transactionType === 'VA Payment') {
+        acc.nominal += report.paymentAmount;
+        acc.adminBank += report.adminFee;
+        acc.jasa += report.serviceFee;
+        acc.labaRugi += report.netProfit;
+    }
+    return acc;
+  }, { nominal: 0, adminBank: 0, jasa: 0, labaRugi: 0 });
+
+  const ppobTotals = ppobReports.reduce((acc, report) => {
+    acc.costPrice += report.costPrice;
+    acc.sellingPrice += report.sellingPrice;
+    acc.profit += report.profit;
+    return acc;
+  }, { costPrice: 0, sellingPrice: 0, profit: 0 });
+  
+  const ppobBillTotals = ppobBillReports.reduce((acc, report) => {
+    acc.costPrice += report.billAmount;
+    acc.sellingPrice += report.totalAmount;
+    acc.profit += report.netProfit;
+    acc.cashback += report.cashback || 0;
+    return acc;
+  }, { costPrice: 0, sellingPrice: 0, profit: 0, cashback: 0 });
+  
+  const totalPpobProfit = ppobTotals.profit + ppobBillTotals.profit;
+
+  const totalNetProfit = brilinkTotals.labaRugi + totalPpobProfit;
 
   const handleDownloadPDF = async () => {
     if (brilinkReports.length === 0 && ppobReports.length === 0 && ppobBillReports.length === 0) return;
@@ -175,15 +213,20 @@ export default function ProfitLossReportClient({ onDone }: ProfitLossReportProps
                     formatToRupiah(labaRugi)
                 ]
             }),
+            foot: [
+                [{ content: 'Total', colSpan: 4, styles: { fontStyle: 'bold', halign: 'center' } }, 
+                 { content: formatToRupiah(brilinkTotals.nominal), styles: { fontStyle: 'bold', halign: 'right' } },
+                 { content: formatToRupiah(brilinkTotals.adminBank), styles: { fontStyle: 'bold', halign: 'right' } },
+                 { content: formatToRupiah(brilinkTotals.jasa), styles: { fontStyle: 'bold', halign: 'right' } },
+                 { content: formatToRupiah(brilinkTotals.labaRugi), styles: { fontStyle: 'bold', halign: 'right' } }]
+            ],
             startY: 32,
             theme: 'grid',
             headStyles: { fillColor: [22, 160, 133], fontSize: 8 },
+            footStyles: { fillColor: [236, 240, 241] },
             styles: { fontSize: 7 },
             columnStyles: {
-                4: { halign: 'right' },
-                5: { halign: 'right' },
-                6: { halign: 'right' },
-                7: { halign: 'right' },
+                4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' },
             },
             didDrawPage: (data) => { finalY = data.cursor?.y || 0; }
         });
@@ -215,25 +258,26 @@ export default function ProfitLossReportClient({ onDone }: ProfitLossReportProps
                     formatToRupiah(report.netProfit)
                 ])
             ],
+            foot: [
+                [{ content: 'Total', colSpan: 3, styles: { fontStyle: 'bold', halign: 'center' } },
+                 { content: formatToRupiah(ppobTotals.costPrice + ppobBillTotals.costPrice), styles: { fontStyle: 'bold', halign: 'right' } },
+                 { content: formatToRupiah(ppobTotals.sellingPrice + ppobBillTotals.sellingPrice), styles: { fontStyle: 'bold', halign: 'right' } },
+                 { content: formatToRupiah(ppobBillTotals.cashback), styles: { fontStyle: 'bold', halign: 'right' } },
+                 { content: formatToRupiah(totalPpobProfit), styles: { fontStyle: 'bold', halign: 'right' } }]
+            ],
             startY: finalY + 12,
             theme: 'grid',
             headStyles: { fillColor: [41, 128, 185], fontSize: 8 },
+            footStyles: { fillColor: [236, 240, 241] },
             styles: { fontSize: 7 },
             columnStyles: {
-                3: { halign: 'right' },
-                4: { halign: 'right' },
-                5: { halign: 'right' },
-                6: { halign: 'right' },
+                3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' },
             },
             didDrawPage: (data) => { finalY = data.cursor?.y || 0; }
         });
     }
     
-    // Totals
-    const brilinkTotalProfit = brilinkReports.reduce((sum, report) => sum + ('netProfit' in report ? report.netProfit : report.serviceFee), 0);
-    const ppobTotalProfit = ppobReports.reduce((sum, report) => sum + report.profit, 0) + ppobBillReports.reduce((sum, report) => sum + report.netProfit, 0);
-    const totalNetProfit = brilinkTotalProfit + ppobTotalProfit;
-
+    // Grand Totals
     doc.setFontSize(12);
     doc.text('Total Laba Bersih Keseluruhan:', 14, finalY + 15);
     doc.setFontSize(14);
@@ -254,45 +298,7 @@ export default function ProfitLossReportClient({ onDone }: ProfitLossReportProps
     if (!accountId) return 'N/A';
     return kasAccounts?.find(acc => acc.id === accountId)?.label || accountId;
   };
-  
-  const brilinkTotals = brilinkReports.reduce((acc, report) => {
-    if (report.transactionType === 'Transfer') {
-        acc.nominal += report.transferAmount;
-        acc.adminBank += report.bankAdminFee;
-        acc.jasa += report.serviceFee;
-        acc.labaRugi += report.netProfit;
-    } else if (report.transactionType === 'Tarik Tunai' || report.transactionType === 'Top Up' || report.transactionType === 'Top Up E-Money' || report.transactionType === 'Layanan EDC' || report.transactionType === 'Tarik Tunai KJP') {
-        acc.nominal += 'withdrawalAmount' in report ? report.withdrawalAmount : ('topUpAmount' in report ? report.topUpAmount : 0);
-        acc.jasa += report.serviceFee;
-        acc.labaRugi += report.serviceFee;
-    } else if (report.transactionType === 'VA Payment') {
-        acc.nominal += report.paymentAmount;
-        acc.adminBank += report.adminFee;
-        acc.jasa += report.serviceFee;
-        acc.labaRugi += report.netProfit;
-    }
-    return acc;
-  }, { nominal: 0, adminBank: 0, jasa: 0, labaRugi: 0 });
 
-  const ppobTotals = ppobReports.reduce((acc, report) => {
-    acc.costPrice += report.costPrice;
-    acc.sellingPrice += report.sellingPrice;
-    acc.profit += report.profit;
-    return acc;
-  }, { costPrice: 0, sellingPrice: 0, profit: 0 });
-  
-  const ppobBillTotals = ppobBillReports.reduce((acc, report) => {
-    acc.costPrice += report.billAmount;
-    acc.sellingPrice += report.totalAmount;
-    acc.profit += report.netProfit;
-    acc.cashback += report.cashback || 0;
-    return acc;
-  }, { costPrice: 0, sellingPrice: 0, profit: 0, cashback: 0 });
-  
-  const totalPpobProfit = ppobTotals.profit + ppobBillTotals.profit;
-
-  const totalNetProfit = brilinkTotals.labaRugi + totalPpobProfit;
-  
   const getBrilinkBankInfo = (report: BrilinkReportItem) => {
     switch (report.transactionType) {
         case 'Transfer':
