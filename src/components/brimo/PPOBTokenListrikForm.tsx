@@ -8,11 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, doc, runTransaction, addDoc } from 'firebase/firestore';
+import { collection, doc, runTransaction, addDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { startOfDay } from 'date-fns';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { PPOBTokenListrikFormValues } from '@/lib/types';
 import { PPOBTokenListrikFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
@@ -20,9 +21,10 @@ import Image from 'next/image';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 interface PPOBTokenListrikFormProps {
-  onTransactionComplete: () => void;
+  onTransactionComplete: (transactionPromise: () => Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -36,6 +38,10 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 const parseRupiah = (value: string | undefined | null): number => {
     if (!value) return 0;
     return Number(String(value).replace(/[^0-9]/g, ''));
+}
+
+const normalizeString = (str: string) => {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 export default function PPOBTokenListrikForm({ onTransactionComplete, onDone }: PPOBTokenListrikFormProps) {
@@ -116,13 +122,38 @@ export default function PPOBTokenListrikForm({ onTransactionComplete, onDone }: 
     return kasAccounts?.filter(acc => acc.type === 'PPOB' && ['Mitra Shopee', 'Mitra Bukalapak'].includes(acc.label));
   }, [kasAccounts]);
 
-  const onSubmit = async (values: PPOBTokenListrikFormValues) => {
-    setIsSaving(true);
-    
+  const onSubmit = (values: PPOBTokenListrikFormValues) => {
+    onTransactionComplete(() => proceedWithTransaction(values));
+  };
+  
+  const proceedWithTransaction = useCallback(async (values: PPOBTokenListrikFormValues, force = false): Promise<any> => {
     if (!firestore || !selectedPPOBAccount || !kasAccounts) {
         toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
-        setIsSaving(false);
-        return;
+        throw new Error("Database atau akun tidak ditemukan.");
+    }
+    
+    if (!force) {
+        const transactionsRef = collection(firestore, 'ppobTransactions');
+        const todayStart = startOfDay(new Date());
+        const q = query(transactionsRef, where('date', '>=', Timestamp.fromDate(todayStart)));
+
+        try {
+            const querySnapshot = await getDocs(q);
+            const todaysTransactions = querySnapshot.docs.map(doc => doc.data());
+            
+            const isDuplicate = todaysTransactions.some(trx => 
+                trx.serviceName === 'Token Listrik' &&
+                trx.destination === values.customerName &&
+                normalizeString(trx.description) === normalizeString(`Token ${values.denomination} an. ${values.customerName}`) &&
+                trx.sourcePPOBAccountId === values.sourcePPOBAccountId
+            );
+
+            if (isDuplicate) {
+              return Promise.reject({ duplicate: true, onConfirm: () => proceedWithTransaction(values, true) });
+            }
+        } catch (error) {
+            console.error("Error checking for duplicates:", error);
+        }
     }
 
     const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
@@ -131,17 +162,13 @@ export default function PPOBTokenListrikForm({ onTransactionComplete, onDone }: 
 
     if (!laciAccount && (paymentMethod === 'Tunai' || paymentMethod === 'Split')) {
         toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
-        setIsSaving(false);
-        return;
+        throw new Error("Akun Laci Tidak Ditemukan");
     }
 
     if (selectedPPOBAccount.balance < costPrice) {
         toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${selectedPPOBAccount.label} tidak mencukupi.` });
-        setIsSaving(false);
-        return;
+        throw new Error(`Deposit ${selectedPPOBAccount.label} tidak mencukupi.`);
     }
-
-    toast({ title: "Memproses...", description: "Menyimpan transaksi Token Listrik." });
 
     const now = new Date();
     const nowISO = now.toISOString();
@@ -150,7 +177,7 @@ export default function PPOBTokenListrikForm({ onTransactionComplete, onDone }: 
     const splitTransferAmount = sellingPrice - (splitTunaiAmount || 0);
     
     try {
-        const auditDocRef = await addDoc(collection(firestore, 'ppobTransactions'), {
+        const auditDocRef = await addDocumentNonBlocking(collection(firestore, 'ppobTransactions'), {
             date: now,
             serviceName: 'Token Listrik',
             destination: values.customerName,
@@ -165,6 +192,8 @@ export default function PPOBTokenListrikForm({ onTransactionComplete, onDone }: 
             paymentToKasTransferAmount: paymentMethod === 'Transfer' ? sellingPrice : (paymentMethod === 'Split' ? splitTransferAmount : 0),
             deviceName
         });
+        
+        if (!auditDocRef) throw new Error("Gagal membuat catatan audit.");
         const auditId = auditDocRef.id;
 
         await runTransaction(firestore, async (transaction) => {
@@ -229,17 +258,13 @@ export default function PPOBTokenListrikForm({ onTransactionComplete, onDone }: 
                     break;
             }
         });
-
-        toast({ title: "Sukses", description: "Transaksi Token Listrik berhasil disimpan." });
-        onTransactionComplete();
-
     } catch (error: any) {
         console.error("Error saving PPOB Token Listrik transaction: ", error);
-        toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
+        throw error;
     } finally {
         setIsSaving(false);
     }
-  };
+  }, [firestore, kasAccounts, selectedPPOBAccount, toast]);
   
   const handleDenomClick = (denom: string) => {
     form.setValue('denomination', denom, { shouldValidate: true });
