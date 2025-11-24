@@ -14,16 +14,19 @@ import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { PPOBPulsaFormValues } from '@/lib/types';
 import { PPOBPulsaFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { Loader2 } from 'lucide-react';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { startOfDay } from 'date-fns';
 
 interface PPOBPulsaFormProps {
-  onTransactionComplete: () => void;
+  onTransactionComplete: (transactionPromise: () => Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -48,13 +51,16 @@ const providers = [
     { name: 'Smartfren', prefixes: ['0881', '0882', '0883', '0884', '0885', '0886', '0887', '0888', '0889'] },
 ];
 
+const normalizeString = (str: string) => {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPulsaFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [detectedProvider, setDetectedProvider] = useState<string | null>(null);
   const [isManualDenom, setIsManualDenom] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -136,13 +142,39 @@ export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPul
 
   const ppobAccounts = useMemo(() => kasAccounts?.filter(acc => acc.type === 'PPOB'), [kasAccounts]);
 
-  const onSubmit = async (values: PPOBPulsaFormValues) => {
-    setIsSaving(true);
-    
+  const onSubmit = (values: PPOBPulsaFormValues) => {
+    onTransactionComplete(() => proceedWithTransaction(values));
+  };
+  
+  const proceedWithTransaction = useCallback(async (values: PPOBPulsaFormValues, force = false): Promise<any> => {
     if (!firestore || !selectedPPOBAccount || !kasAccounts) {
         toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
-        setIsSaving(false);
-        return;
+        throw new Error("Database atau akun tidak ditemukan.");
+    }
+    
+    if (!force) {
+        const transactionsRef = collection(firestore, 'ppobTransactions');
+        const todayStart = startOfDay(new Date());
+        const q = query(transactionsRef, where('date', '>=', Timestamp.fromDate(todayStart)));
+
+        try {
+            const querySnapshot = await getDocs(q);
+            const todaysTransactions = querySnapshot.docs.map(doc => doc.data());
+            
+            const isDuplicate = todaysTransactions.some(trx => 
+                trx.serviceName === 'Pulsa' &&
+                trx.destination === values.phoneNumber &&
+                normalizeString(trx.description) === normalizeString(`Pulsa ${values.denomination}`) &&
+                trx.sourcePPOBAccountId === values.sourcePPOBAccountId
+            );
+
+            if (isDuplicate) {
+              return Promise.reject({ duplicate: true, onConfirm: () => proceedWithTransaction(values, true) });
+            }
+        } catch (error) {
+            console.error("Error checking for duplicates:", error);
+            // Non-fatal, proceed with transaction
+        }
     }
 
     const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
@@ -151,17 +183,13 @@ export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPul
 
     if (!laciAccount && (paymentMethod === 'Tunai' || paymentMethod === 'Split')) {
         toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
-        setIsSaving(false);
-        return;
+        throw new Error("Akun Laci Tidak Ditemukan");
     }
     
     if (selectedPPOBAccount.balance < costPrice) {
         toast({ variant: "destructive", title: "Deposit Tidak Cukup", description: `Deposit ${selectedPPOBAccount.label} tidak mencukupi.` });
-        setIsSaving(false);
-        return;
+        throw new Error(`Deposit ${selectedPPOBAccount.label} tidak mencukupi.`);
     }
-
-    toast({ title: "Memproses...", description: "Menyimpan transaksi pulsa." });
 
     const now = new Date();
     const nowISO = now.toISOString();
@@ -170,7 +198,7 @@ export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPul
     const splitTransferAmount = sellingPrice - (splitTunaiAmount || 0);
     
     try {
-        const auditDocRef = await addDoc(collection(firestore, 'ppobTransactions'), {
+        const auditDocRef = await addDocumentNonBlocking(collection(firestore, 'ppobTransactions'), {
             date: now,
             serviceName: 'Pulsa',
             destination: values.phoneNumber,
@@ -185,6 +213,8 @@ export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPul
             paymentToKasTransferAmount: paymentMethod === 'Transfer' ? sellingPrice : (paymentMethod === 'Split' ? splitTransferAmount : 0),
             deviceName
         });
+        
+        if (!auditDocRef) throw new Error("Gagal membuat catatan audit.");
         const auditId = auditDocRef.id;
 
         await runTransaction(firestore, async (transaction) => {
@@ -249,16 +279,11 @@ export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPul
                     break;
             }
         });
-
-        onTransactionComplete();
-
     } catch (error: any) {
         console.error("Error saving PPOB Pulsa transaction: ", error);
-        toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
-    } finally {
-        setIsSaving(false);
+        throw error;
     }
-  };
+  }, [firestore, kasAccounts, selectedPPOBAccount, toast]);
   
   const handleDenomClick = (denom: string) => {
     form.setValue('denomination', denom, { shouldValidate: true });
@@ -294,7 +319,7 @@ export default function PPOBPulsaForm({ onTransactionComplete, onDone }: PPOBPul
                         >
                             <CardContent className="p-0 flex flex-col items-center justify-center h-full text-center">
                                {acc.iconUrl ? (
-                                    <Image src={acc.iconUrl} alt={acc.label} fill className="object-cover" />
+                                    <Image src={acc.iconUrl} alt={acc.label} fill className="object-cover" data-ai-hint={`${acc.label} logo`}/>
                                 ) : (
                                     <div className="p-2">
                                         <p className="font-semibold text-lg">{acc.label}</p>
