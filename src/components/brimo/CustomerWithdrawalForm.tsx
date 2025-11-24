@@ -18,14 +18,14 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { CustomerWithdrawalFormValues } from '@/lib/types';
+import type { CustomerWithdrawalFormValues, CustomerWithdrawal } from '@/lib/types';
 import { CustomerWithdrawalFormSchema } from '@/lib/types';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 interface CustomerWithdrawalFormProps {
-  onTransactionComplete: (promise: Promise<any>) => void;
+  onTransactionComplete: (transactionPromise: () => Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -93,8 +93,7 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
   }, [kasAccounts]);
 
   const onSubmit = (values: CustomerWithdrawalFormValues) => {
-    const transactionPromise = proceedWithTransaction(values);
-    onTransactionComplete(transactionPromise);
+    onTransactionComplete(() => proceedWithTransaction(values));
   };
 
   const proceedWithTransaction = useCallback(async (values: CustomerWithdrawalFormValues, force = false): Promise<any> => {
@@ -103,18 +102,10 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
       throw new Error("Database tidak tersedia.");
     }
     
-    const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
-    const { withdrawalAmount, serviceFee, feePaymentMethod } = values;
-    const cashGivenToCustomer = feePaymentMethod === 'Dipotong' ? withdrawalAmount - serviceFee : withdrawalAmount;
-
-    if (!laciAccount) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Akun kas "Laci" tidak ditemukan.' });
-      throw new Error('Akun kas "Laci" tidak ditemukan.');
-    }
-
     if (!force) {
+        const transactionsRef = collection(firestore, 'customerWithdrawals');
         const todayStart = startOfDay(new Date());
-        const q = query(collection(firestore, 'customerWithdrawals'), where("date", ">=", todayStart));
+        const q = query(transactionsRef, where("date", ">=", todayStart));
         
         try {
             const querySnapshot = await getDocs(q);
@@ -134,6 +125,15 @@ export default function CustomerWithdrawalForm({ onTransactionComplete, onDone }
         } catch (error) {
             console.error("Error checking for duplicates:", error);
         }
+    }
+
+    const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
+    const { withdrawalAmount, serviceFee, feePaymentMethod } = values;
+    const cashGivenToCustomer = feePaymentMethod === 'Dipotong' ? withdrawalAmount - serviceFee : withdrawalAmount;
+
+    if (!laciAccount) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Akun kas "Laci" tidak ditemukan.' });
+      throw new Error('Akun kas "Laci" tidak ditemukan.');
     }
 
     const destinationAccount = kasAccounts.find(acc => acc.id === values.destinationAccountId);
