@@ -198,32 +198,35 @@ export default function ProfitLossReportClient({ onDone }: ProfitLossReportProps
     if (brilinkReports.length > 0) {
         doc.setFontSize(12);
         doc.text('A. BRILink', 14, 30);
+        
+        const brilinkBody = brilinkReports.map((report, index) => {
+            const labaRugi = 'netProfit' in report ? report.netProfit : report.serviceFee;
+            return [
+                index + 1,
+                report.transactionType,
+                'destinationAccountName' in report ? report.destinationAccountName : report.customerName,
+                getBrilinkBankInfo(report),
+                formatToRupiah('transferAmount' in report ? report.transferAmount : ('withdrawalAmount' in report ? report.withdrawalAmount : ('topUpAmount' in report ? report.topUpAmount : ('paymentAmount' in report ? report.paymentAmount : 0)))),
+                formatToRupiah('bankAdminFee' in report ? report.bankAdminFee : ('adminFee' in report ? report.adminFee : 0)),
+                formatToRupiah(report.serviceFee),
+                formatToRupiah(labaRugi)
+            ]
+        });
+
+        brilinkBody.push([
+            { content: 'Total', colSpan: 4, styles: { fontStyle: 'bold', halign: 'center' } }, 
+            { content: formatToRupiah(brilinkTotals.nominal), styles: { fontStyle: 'bold', halign: 'right' } },
+            { content: formatToRupiah(brilinkTotals.adminBank), styles: { fontStyle: 'bold', halign: 'right' } },
+            { content: formatToRupiah(brilinkTotals.jasa), styles: { fontStyle: 'bold', halign: 'right' } },
+            { content: formatToRupiah(brilinkTotals.labaRugi), styles: { fontStyle: 'bold', halign: 'right' } }
+        ]);
+
         autoTable(doc, {
             head: [['No', 'Deskripsi', 'Nama', 'Bank/Tujuan', 'Nominal', 'Admin', 'Jasa', 'Laba/Rugi']],
-            body: brilinkReports.map((report, index) => {
-                const labaRugi = 'netProfit' in report ? report.netProfit : report.serviceFee;
-                return [
-                    index + 1,
-                    report.transactionType,
-                    'destinationAccountName' in report ? report.destinationAccountName : report.customerName,
-                    getBrilinkBankInfo(report),
-                    formatToRupiah('transferAmount' in report ? report.transferAmount : ('withdrawalAmount' in report ? report.withdrawalAmount : ('topUpAmount' in report ? report.topUpAmount : ('paymentAmount' in report ? report.paymentAmount : 0)))),
-                    formatToRupiah('bankAdminFee' in report ? report.bankAdminFee : ('adminFee' in report ? report.adminFee : 0)),
-                    formatToRupiah(report.serviceFee),
-                    formatToRupiah(labaRugi)
-                ]
-            }),
-            foot: [
-                [{ content: 'Total', colSpan: 4, styles: { fontStyle: 'bold', halign: 'center' } }, 
-                 { content: formatToRupiah(brilinkTotals.nominal), styles: { fontStyle: 'bold', halign: 'right' } },
-                 { content: formatToRupiah(brilinkTotals.adminBank), styles: { fontStyle: 'bold', halign: 'right' } },
-                 { content: formatToRupiah(brilinkTotals.jasa), styles: { fontStyle: 'bold', halign: 'right' } },
-                 { content: formatToRupiah(brilinkTotals.labaRugi), styles: { fontStyle: 'bold', halign: 'right' } }]
-            ],
+            body: brilinkBody,
             startY: 32,
             theme: 'grid',
             headStyles: { fillColor: [22, 160, 133], fontSize: 8 },
-            footStyles: { fillColor: [236, 240, 241] },
             styles: { fontSize: 7 },
             columnStyles: {
                 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' },
@@ -236,39 +239,42 @@ export default function ProfitLossReportClient({ onDone }: ProfitLossReportProps
     if (ppobReports.length > 0 || ppobBillReports.length > 0) {
         doc.setFontSize(12);
         doc.text('B. PPOB', 14, finalY + 10);
+        
+        const ppobBody = [
+            ...ppobReports.map((report, index) => [
+                index + 1,
+                report.serviceName,
+                report.destination,
+                formatToRupiah(report.costPrice),
+                formatToRupiah(report.sellingPrice),
+                formatToRupiah(0),
+                formatToRupiah(report.profit)
+            ]),
+            ...ppobBillReports.map((report, index) => [
+                ppobReports.length + index + 1,
+                report.serviceName,
+                report.customerName,
+                formatToRupiah(report.billAmount),
+                formatToRupiah(report.totalAmount),
+                formatToRupiah(report.cashback),
+                formatToRupiah(report.netProfit)
+            ])
+        ];
+        
+        ppobBody.push([
+            { content: 'Total', colSpan: 3, styles: { fontStyle: 'bold', halign: 'center' } },
+            { content: formatToRupiah(ppobTotals.costPrice + ppobBillTotals.costPrice), styles: { fontStyle: 'bold', halign: 'right' } },
+            { content: formatToRupiah(ppobTotals.sellingPrice + ppobBillTotals.sellingPrice), styles: { fontStyle: 'bold', halign: 'right' } },
+            { content: formatToRupiah(ppobBillTotals.cashback), styles: { fontStyle: 'bold', halign: 'right' } },
+            { content: formatToRupiah(totalPpobProfit), styles: { fontStyle: 'bold', halign: 'right' } }
+        ]);
+
         autoTable(doc, {
             head: [['No.', 'Layanan', 'Tujuan', 'Modal', 'Jual', 'Cashback', 'Laba/Rugi']],
-            body: [
-                ...ppobReports.map((report, index) => [
-                    index + 1,
-                    report.serviceName,
-                    report.destination,
-                    formatToRupiah(report.costPrice),
-                    formatToRupiah(report.sellingPrice),
-                    formatToRupiah(0),
-                    formatToRupiah(report.profit)
-                ]),
-                ...ppobBillReports.map((report, index) => [
-                    ppobReports.length + index + 1,
-                    report.serviceName,
-                    report.customerName,
-                    formatToRupiah(report.billAmount),
-                    formatToRupiah(report.totalAmount),
-                    formatToRupiah(report.cashback),
-                    formatToRupiah(report.netProfit)
-                ])
-            ],
-            foot: [
-                [{ content: 'Total', colSpan: 3, styles: { fontStyle: 'bold', halign: 'center' } },
-                 { content: formatToRupiah(ppobTotals.costPrice + ppobBillTotals.costPrice), styles: { fontStyle: 'bold', halign: 'right' } },
-                 { content: formatToRupiah(ppobTotals.sellingPrice + ppobBillTotals.sellingPrice), styles: { fontStyle: 'bold', halign: 'right' } },
-                 { content: formatToRupiah(ppobBillTotals.cashback), styles: { fontStyle: 'bold', halign: 'right' } },
-                 { content: formatToRupiah(totalPpobProfit), styles: { fontStyle: 'bold', halign: 'right' } }]
-            ],
+            body: ppobBody,
             startY: finalY + 12,
             theme: 'grid',
             headStyles: { fillColor: [41, 128, 185], fontSize: 8 },
-            footStyles: { fillColor: [236, 240, 241] },
             styles: { fontSize: 7 },
             columnStyles: {
                 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' },
