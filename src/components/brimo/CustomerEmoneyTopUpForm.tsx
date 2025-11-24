@@ -172,7 +172,7 @@ export default function CustomerEmoneyTopUpForm({ onTransactionComplete, onDone 
     
     try {
         const auditDocRef = await addDocumentNonBlocking(collection(firestore, 'customerEmoneyTopUps'), {
-            date: now,
+            date: Timestamp.fromDate(now),
             sourceKasAccountId: values.sourceAccountId,
             destinationEmoney: values.destinationEmoney,
             topUpAmount: values.topUpAmount,
