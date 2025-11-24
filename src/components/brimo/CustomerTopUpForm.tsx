@@ -164,6 +164,7 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
   
   const proceedWithTransaction = async (values: CustomerTopUpFormValues) => {
     setIsDuplicateDialogOpen(false);
+    onTransactionComplete(); // Immediately signal completion to UI
 
     if (!firestore || !kasAccounts) {
         toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
@@ -186,8 +187,6 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
         return;
     }
 
-    onTransactionComplete();
-
     const now = new Date();
     const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
     const totalPaymentByCustomer = values.topUpAmount + values.serviceFee;
@@ -209,7 +208,7 @@ export default function CustomerTopUpForm({ onTransactionComplete, onDone }: Cus
     });
 
     auditLogPromise.then(auditDocRef => {
-        if (!auditDocRef) return;
+        if (!auditDocRef) return; // Error was already emitted by non-blocking function
         const auditId = auditDocRef.id;
         const nowISO = now.toISOString();
 

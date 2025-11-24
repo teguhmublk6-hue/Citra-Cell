@@ -21,6 +21,7 @@ import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CustomerVAPaymentFormValues } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 
 const numberPreprocessor = (val: unknown) => (val === "" || val === undefined || val === null) ? undefined : Number(String(val).replace(/[^0-9]/g, ""));
@@ -150,11 +151,10 @@ export default function CustomerVAPaymentForm({ onTransactionComplete, onDone }:
   }, [paymentAmount, form]);
 
   const onSubmit = async (values: CustomerVAPaymentFormValues) => {
-    setIsSaving(true);
-    
+    onTransactionComplete(); // Fire immediately for non-blocking UI
+
     if (!firestore || !kasAccounts) {
       toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
-      setIsSaving(false);
       return;
     }
     
@@ -169,46 +169,43 @@ export default function CustomerVAPaymentForm({ onTransactionComplete, onDone }:
 
     if (!sourceAccount) {
       toast({ variant: "destructive", title: "Error", description: "Akun sumber tidak ditemukan." });
-      setIsSaving(false);
       return;
     }
     if (!laciAccount && (paymentMethod === 'Tunai' || paymentMethod === 'Split')) {
         toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
-        setIsSaving(false);
         return;
     }
 
     if (sourceAccount.balance < totalDebitFromSource) {
         toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Saldo ${sourceAccount.label} tidak mencukupi untuk pembayaran ini.` });
-        setIsSaving(false);
         return;
     }
 
-    toast({ title: "Memproses...", description: "Menyimpan transaksi pembayaran VA." });
-
     const now = new Date();
-    const nowISO = now.toISOString();
     const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
     
-    try {
-        const auditDocRef = await addDoc(collection(firestore, 'customerVAPayments'), {
-            date: now,
-            sourceKasAccountId: values.sourceAccountId,
-            serviceProvider: values.serviceProvider,
-            recipientName: values.recipientName,
-            paymentAmount: values.paymentAmount,
-            adminFee: values.adminFee || 0,
-            serviceFee: values.serviceFee,
-            netProfit,
-            paymentMethod: values.paymentMethod,
-            paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
-            paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? values.paymentToKasTransferAccountId : null,
-            paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTransferAmount : 0),
-            deviceName
-        });
-        const auditId = auditDocRef.id;
+    const auditLogPromise = addDocumentNonBlocking(collection(firestore, 'customerVAPayments'), {
+        date: now,
+        sourceKasAccountId: values.sourceAccountId,
+        serviceProvider: values.serviceProvider,
+        recipientName: values.recipientName,
+        paymentAmount: values.paymentAmount,
+        adminFee: values.adminFee || 0,
+        serviceFee: values.serviceFee,
+        netProfit,
+        paymentMethod: values.paymentMethod,
+        paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
+        paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? values.paymentToKasTransferAccountId : null,
+        paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTransferAmount : 0),
+        deviceName
+    });
 
-        await runTransaction(firestore, async (transaction) => {
+    auditLogPromise.then(auditDocRef => {
+        if (!auditDocRef) return;
+        const auditId = auditDocRef.id;
+        const nowISO = now.toISOString();
+
+        runTransaction(firestore, async (transaction) => {
             const sourceAccountRef = doc(firestore, 'kasAccounts', sourceAccount.id);
             const laciAccountRef = laciAccount ? doc(firestore, 'kasAccounts', laciAccount.id) : null;
             const paymentAccRef = paymentTransferAccount ? doc(firestore, 'kasAccounts', paymentTransferAccount.id) : null;
@@ -280,15 +277,9 @@ export default function CustomerVAPaymentForm({ onTransactionComplete, onDone }:
                     break;
             }
         });
-
-        onTransactionComplete();
-
-    } catch (error: any) {
-        console.error("Error saving VA payment:", error);
-        toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
-    } finally {
-        setIsSaving(false);
-    }
+    }).catch(error => {
+      console.error("Non-blocking transaction failed:", error);
+    });
   };
 
   const filteredProviders = vaProviderData.filter(provider =>
@@ -524,11 +515,11 @@ export default function CustomerVAPaymentForm({ onTransactionComplete, onDone }:
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>
+          <Button type="button" variant="outline" onClick={onDone} className="w-full">
             Batal
           </Button>
-          <Button type="submit" className="w-full" disabled={isSaving}>
-            {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
+          <Button type="submit" className="w-full">
+            Simpan Transaksi
           </Button>
         </div>
       </form>
