@@ -8,13 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, runTransaction, addDoc } from 'firebase/firestore';
+import { collection, doc, runTransaction, addDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { startOfDay } from 'date-fns';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { useState, useEffect, useMemo } from 'react';
-import type { CustomerEmoneyTopUpFormValues } from '@/lib/types';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import type { CustomerEmoneyTopUpFormValues, CustomerEmoneyTopUp } from '@/lib/types';
 import { CustomerEmoneyTopUpFormSchema } from '@/lib/types';
 import { Card, CardContent } from '../ui/card';
 import { cn } from '@/lib/utils';
@@ -23,10 +24,11 @@ import emoneyCardsData from '@/lib/emoney-cards.json';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '../ui/command';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 
 interface CustomerEmoneyTopUpFormProps {
-  onTransactionComplete: () => void;
+  onTransactionComplete: (promise: Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -40,6 +42,10 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 const parseRupiah = (value: string | undefined | null): number => {
     if (!value) return 0;
     return Number(String(value).replace(/[^0-9]/g, ''));
+}
+
+const normalizeString = (str: string) => {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 const calculateServiceFee = (amount: number): number => {
@@ -57,7 +63,6 @@ const calculateServiceFee = (amount: number): number => {
 export default function CustomerEmoneyTopUpForm({ onTransactionComplete, onDone }: CustomerEmoneyTopUpFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isSaving, setIsSaving] = useState(false);
   const [sourcePopoverOpen, setSourcePopoverOpen] = useState(false);
   const [paymentPopoverOpen, setPaymentPopoverOpen] = useState(false);
   
@@ -108,15 +113,40 @@ export default function CustomerEmoneyTopUpForm({ onTransactionComplete, onDone 
       return kasAccounts?.filter(acc => ['Bank', 'E-Wallet'].includes(acc.type));
   }, [kasAccounts]);
 
-  const onSubmit = async (values: CustomerEmoneyTopUpFormValues) => {
-    setIsSaving(true);
-
+  const onSubmit = (values: CustomerEmoneyTopUpFormValues) => {
+    const transactionPromise = proceedWithTransaction(values);
+    onTransactionComplete(transactionPromise);
+  };
+  
+  const proceedWithTransaction = useCallback(async (values: CustomerEmoneyTopUpFormValues, force = false): Promise<any> => {
     if (!firestore || !kasAccounts) {
-      toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
-      setIsSaving(false);
-      return;
+      toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
+      throw new Error("Database tidak tersedia.");
     }
     
+    if (!force) {
+        const transactionsRef = collection(firestore, 'customerEmoneyTopUps');
+        const todayStart = startOfDay(new Date());
+        const q = query(transactionsRef, where('date', '>=', todayStart));
+
+        try {
+            const querySnapshot = await getDocs(q);
+            const todaysTransactions = querySnapshot.docs.map(doc => doc.data() as CustomerEmoneyTopUp);
+            
+            const isDuplicate = todaysTransactions.some(trx => 
+                trx.sourceKasAccountId === values.sourceAccountId &&
+                trx.destinationEmoney === values.destinationEmoney &&
+                trx.topUpAmount === values.topUpAmount
+            );
+
+            if (isDuplicate) {
+              return Promise.reject({ duplicate: true, onConfirm: () => proceedWithTransaction(values, true) });
+            }
+        } catch (error) {
+            console.error("Error checking for duplicates:", error);
+        }
+    }
+
     const sourceAccount = kasAccounts.find(acc => acc.id === values.sourceAccountId);
     const paymentTransferAccount = kasAccounts.find(acc => acc.id === values.paymentToKasTransferAccountId);
     const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
@@ -126,28 +156,22 @@ export default function CustomerEmoneyTopUpForm({ onTransactionComplete, onDone 
 
     if (!sourceAccount) {
       toast({ variant: "destructive", title: "Error", description: "Akun sumber tidak ditemukan." });
-      setIsSaving(false);
-      return;
+      throw new Error("Akun sumber tidak ditemukan.");
     }
     if (!laciAccount && (paymentMethod === 'Tunai' || paymentMethod === 'Split')) {
         toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
-        setIsSaving(false);
-        return;
+        throw new Error("Akun Laci tidak ditemukan.");
     }
     if (sourceAccount.balance < topUpAmount) {
         toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Saldo ${sourceAccount.label} tidak mencukupi untuk melakukan top up.` });
-        setIsSaving(false);
-        return;
+        throw new Error(`Saldo ${sourceAccount.label} tidak mencukupi.`);
     }
 
-    toast({ title: "Memproses...", description: "Menyimpan transaksi top up." });
-
     const now = new Date();
-    const nowISO = now.toISOString();
     const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
     
     try {
-        const auditDocRef = await addDoc(collection(firestore, 'customerEmoneyTopUps'), {
+        const auditDocRef = await addDocumentNonBlocking(collection(firestore, 'customerEmoneyTopUps'), {
             date: now,
             sourceKasAccountId: values.sourceAccountId,
             destinationEmoney: values.destinationEmoney,
@@ -159,7 +183,10 @@ export default function CustomerEmoneyTopUpForm({ onTransactionComplete, onDone 
             paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTransferAmount : 0),
             deviceName
         });
+        
+        if (!auditDocRef) throw new Error("Gagal membuat catatan audit.");
         const auditId = auditDocRef.id;
+        const nowISO = now.toISOString();
 
         await runTransaction(firestore, async (transaction) => {
             const sourceAccountRef = doc(firestore, 'kasAccounts', sourceAccount.id);
@@ -186,14 +213,14 @@ export default function CustomerEmoneyTopUpForm({ onTransactionComplete, onDone 
                     const currentLaciBalance = laciDoc.data().balance;
                     transaction.update(laciAccountRef, { balance: currentLaciBalance + totalPaymentByCustomer });
                     const creditTunaiRef = doc(collection(laciAccountRef, 'transactions'));
-                    transaction.set(creditTunaiRef, { kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Top Up E-Money`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName, auditId });
+                    transaction.set(creditTunaiRef, { kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Top Up E-Money`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentLaciBalance, balanceAfter: currentLaciBalance + totalPaymentByCustomer, category: 'customer_payment_emoney', deviceName, auditId });
                     break;
                 case 'Transfer':
                     if (!paymentAccRef || !paymentDoc || !paymentDoc.exists()) throw new Error("Akun penerima pembayaran tidak valid.");
                     const currentPaymentBalance = paymentDoc.data().balance;
                     transaction.update(paymentAccRef, { balance: currentPaymentBalance + totalPaymentByCustomer });
                     const creditTransferRef = doc(collection(paymentAccRef, 'transactions'));
-                    transaction.set(creditTransferRef, { kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Top Up E-Money`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentPaymentBalance, balanceAfter: currentPaymentBalance + totalPaymentByCustomer, category: 'customer_payment', deviceName, auditId });
+                    transaction.set(creditTransferRef, { kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Top Up E-Money`, account: 'Pelanggan', date: nowISO, amount: totalPaymentByCustomer, balanceBefore: currentPaymentBalance, balanceAfter: currentPaymentBalance + totalPaymentByCustomer, category: 'customer_payment_emoney', deviceName, auditId });
                     break;
                 case 'Split':
                     if (!laciAccountRef || !laciDoc || !laciDoc.exists()) throw new Error("Akun Laci tidak ditemukan.");
@@ -202,23 +229,20 @@ export default function CustomerEmoneyTopUpForm({ onTransactionComplete, onDone 
                     const currentLaciSplitBalance = laciDoc.data().balance;
                     transaction.update(laciAccountRef, { balance: currentLaciSplitBalance + splitTunaiAmount });
                     const creditSplitTunaiRef = doc(collection(laciAccountRef, 'transactions'));
-                    transaction.set(creditSplitTunaiRef, { kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Tunai E-Money`, account: 'Pelanggan', date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciSplitBalance, balanceAfter: currentLaciSplitBalance + splitTunaiAmount, category: 'customer_payment', deviceName, auditId });
+                    transaction.set(creditSplitTunaiRef, { kasAccountId: laciAccount.id, type: 'credit', name: `Bayar Tunai E-Money`, account: 'Pelanggan', date: nowISO, amount: splitTunaiAmount, balanceBefore: currentLaciSplitBalance, balanceAfter: currentLaciSplitBalance + splitTunaiAmount, category: 'customer_payment_emoney', deviceName, auditId });
                     const currentPaymentSplitBalance = paymentDoc.data().balance;
                     transaction.update(paymentAccRef, { balance: currentPaymentSplitBalance + splitTransferAmount });
                     const creditSplitTransferRef = doc(collection(paymentAccRef, 'transactions'));
-                    transaction.set(creditSplitTransferRef, { kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer E-Money`, account: 'Pelanggan', date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentSplitBalance, balanceAfter: currentPaymentSplitBalance + splitTransferAmount, category: 'customer_payment', deviceName, auditId });
+                    transaction.set(creditSplitTransferRef, { kasAccountId: paymentTransferAccount!.id, type: 'credit', name: `Bayar Transfer E-Money`, account: 'Pelanggan', date: nowISO, amount: splitTransferAmount, balanceBefore: currentPaymentSplitBalance, balanceAfter: currentPaymentSplitBalance + splitTransferAmount, category: 'customer_payment_emoney', deviceName, auditId });
                     break;
             }
         });
 
-        onTransactionComplete();
     } catch (error: any) {
         console.error("Error saving e-money top up transaction: ", error);
-        toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
-    } finally {
-        setIsSaving(false);
+        throw error;
     }
-  };
+  }, [firestore, kasAccounts]);
   
   return (
     <Form {...form}>
@@ -494,9 +518,9 @@ export default function CustomerEmoneyTopUpForm({ onTransactionComplete, onDone 
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>Batal</Button>
-          <Button type="submit" className="w-full" disabled={isSaving}>
-            {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
+          <Button type="button" variant="outline" onClick={onDone} className="w-full">Batal</Button>
+          <Button type="submit" className="w-full">
+            Simpan Transaksi
           </Button>
         </div>
       </form>

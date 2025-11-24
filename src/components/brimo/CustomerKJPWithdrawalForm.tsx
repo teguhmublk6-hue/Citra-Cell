@@ -7,19 +7,21 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useEffect, useState } from 'react';
-import type { CustomerKJPWithdrawalFormValues } from '@/lib/types';
+import { useEffect, useState, useCallback } from 'react';
+import type { CustomerKJPWithdrawalFormValues, CustomerKJPWithdrawal } from '@/lib/types';
 import { CustomerKJPWithdrawalFormSchema } from '@/lib/types';
 import Image from 'next/image';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import type { KasAccount } from '@/lib/data';
-import { addDoc, collection, doc, runTransaction } from 'firebase/firestore';
+import { addDoc, collection, doc, runTransaction, query, where, getDocs } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
+import { startOfDay } from 'date-fns';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 interface CustomerKJPWithdrawalFormProps {
-  onTransactionComplete: () => void;
+  onTransactionComplete: (promise: Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -33,6 +35,10 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 const parseRupiah = (value: string | undefined | null): number => {
     if (!value) return 0;
     return Number(String(value).replace(/[^0-9]/g, ''));
+}
+
+const normalizeString = (str: string) => {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 const calculateServiceFee = (amount: number): number => {
@@ -49,7 +55,6 @@ const calculateServiceFee = (amount: number): number => {
 export default function CustomerKJPWithdrawalForm({ onTransactionComplete, onDone }: CustomerKJPWithdrawalFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isSaving, setIsSaving] = useState(false);
   
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -74,13 +79,38 @@ export default function CustomerKJPWithdrawalForm({ onTransactionComplete, onDon
     }
   }, [withdrawalAmount, form]);
   
-  const onSubmit = async (values: CustomerKJPWithdrawalFormValues) => {
-    setIsSaving(true);
+  const onSubmit = (values: CustomerKJPWithdrawalFormValues) => {
+    const transactionPromise = proceedWithTransaction(values);
+    onTransactionComplete(transactionPromise);
+  };
 
+  const proceedWithTransaction = useCallback(async (values: CustomerKJPWithdrawalFormValues, force = false): Promise<any> => {
     if (!firestore || !kasAccounts) {
       toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
-      setIsSaving(false);
-      return;
+      throw new Error("Database tidak tersedia.");
+    }
+    
+    if (!force) {
+        const transactionsRef = collection(firestore, 'customerKJPWithdrawals');
+        const todayStart = startOfDay(new Date());
+        const q = query(transactionsRef, where('date', '>=', todayStart));
+
+        try {
+            const querySnapshot = await getDocs(q);
+            const todaysTransactions = querySnapshot.docs.map(doc => doc.data() as CustomerKJPWithdrawal);
+            const normalizedNewName = normalizeString(values.customerName);
+
+            const isDuplicate = todaysTransactions.some(trx => 
+                normalizeString(trx.customerName) === normalizedNewName &&
+                trx.withdrawalAmount === values.withdrawalAmount
+            );
+
+            if (isDuplicate) {
+              return Promise.reject({ duplicate: true, onConfirm: () => proceedWithTransaction(values, true) });
+            }
+        } catch (error) {
+            console.error("Error checking for duplicates:", error);
+        }
     }
     
     const laciAccount = kasAccounts.find(acc => acc.label === 'Laci');
@@ -90,31 +120,25 @@ export default function CustomerKJPWithdrawalForm({ onTransactionComplete, onDon
 
     if (!laciAccount) {
         toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
-        setIsSaving(false);
-        return;
+        throw new Error("Akun Laci tidak ditemukan.");
     }
 
     if (!agenDKIAccount) {
         toast({ variant: "destructive", title: "Akun Agen DKI Tidak Ditemukan", description: "Pastikan akun kas 'Agen DKI' dengan tipe 'Merchant' sudah dibuat." });
-        setIsSaving(false);
-        return;
+        throw new Error("Akun Agen DKI tidak ditemukan.");
     }
 
     if (laciAccount.balance < cashGivenToCustomer) {
         toast({ variant: "destructive", title: "Saldo Laci Tidak Cukup", description: `Saldo ${laciAccount.label} tidak mencukupi untuk penarikan ini.` });
-        setIsSaving(false);
-        return;
+        throw new Error(`Saldo ${laciAccount.label} tidak mencukupi.`);
     }
-
-    toast({ title: "Memproses...", description: "Menyimpan transaksi tarik tunai KJP." });
     
     const now = new Date();
-    const nowISO = now.toISOString();
     const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
     const totalReceivedByMerchant = withdrawalAmount;
 
     try {
-        const auditDocRef = await addDoc(collection(firestore, 'customerKJPWithdrawals'), {
+        const auditDocRef = await addDocumentNonBlocking(collection(firestore, 'customerKJPWithdrawals'), {
             date: now,
             customerName: values.customerName,
             withdrawalAmount: values.withdrawalAmount,
@@ -124,7 +148,10 @@ export default function CustomerKJPWithdrawalForm({ onTransactionComplete, onDon
             sourceKasTunaiAccountId: laciAccount.id,
             deviceName: deviceName
         });
+        
+        if (!auditDocRef) throw new Error("Gagal membuat catatan audit.");
         const auditId = auditDocRef.id;
+        const nowISO = now.toISOString();
 
         await runTransaction(firestore, async (transaction) => {
             
@@ -181,17 +208,11 @@ export default function CustomerKJPWithdrawalForm({ onTransactionComplete, onDon
                 });
             }
         });
-
-        toast({ title: "Sukses", description: "Transaksi tarik tunai KJP berhasil disimpan." });
-        onTransactionComplete();
-
     } catch (error: any) {
         console.error("Error saving KJP withdrawal transaction: ", error);
-        toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
-    } finally {
-        setIsSaving(false);
+        throw error;
     }
-  };
+  }, [firestore, kasAccounts]);
   
   return (
     <Form {...form}>
@@ -261,15 +282,16 @@ export default function CustomerKJPWithdrawalForm({ onTransactionComplete, onDon
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-0 pb-4 border-t border-border -mx-6 px-6 pt-4">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>
+          <Button type="button" variant="outline" onClick={onDone} className="w-full">
             Batal
           </Button>
-          <Button type="submit" className="w-full" disabled={isSaving}>
-            {isSaving ? <Loader2 className="animate-spin" /> : "Simpan Transaksi"}
+          <Button type="submit" className="w-full">
+            Simpan Transaksi
           </Button>
         </div>
       </form>
     </Form>
   );
 }
+
 

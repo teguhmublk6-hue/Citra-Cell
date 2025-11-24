@@ -19,13 +19,16 @@ import { collection, doc, runTransaction, addDoc, query, where, getDocs } from "
 import type { KasAccount } from "@/lib/data";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import type { EDCServiceFormValues } from "@/lib/types";
+import type { EDCServiceFormValues, EDCService } from "@/lib/types";
 import { EDCServiceFormSchema } from "@/lib/types";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Loader2 } from "lucide-react";
+import { startOfDay } from "date-fns";
+import { addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 interface EDCServiceFormProps {
+  onTransactionComplete: (promise: Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -41,10 +44,13 @@ const parseRupiah = (value: string | undefined | null): number => {
   return Number(String(value).replace(/[^0-9]/g, ""));
 };
 
-export default function EDCServiceForm({ onDone }: EDCServiceFormProps) {
+const normalizeString = (str: string) => {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+export default function EDCServiceForm({ onTransactionComplete, onDone }: EDCServiceFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isSaving, setIsSaving] = useState(false);
 
   const kasAccountsCollection = useMemoFirebase(() => collection(firestore, 'kasAccounts'), [firestore]);
   const { data: kasAccounts } = useCollection<KasAccount>(kasAccountsCollection);
@@ -58,29 +64,52 @@ export default function EDCServiceForm({ onDone }: EDCServiceFormProps) {
     },
   });
 
-  const onSubmit = async (values: EDCServiceFormValues) => {
-    setIsSaving(true);
+  const onSubmit = (values: EDCServiceFormValues) => {
+    const transactionPromise = proceedWithTransaction(values);
+    onTransactionComplete(transactionPromise);
+  };
+
+  const proceedWithTransaction = useCallback(async (values: EDCServiceFormValues, force = false): Promise<any> => {
     if (!firestore || !kasAccounts) {
       toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
-      setIsSaving(false);
-      return;
+      throw new Error("Database tidak tersedia.");
+    }
+    
+    if (!force) {
+        const transactionsRef = collection(firestore, 'edcServices');
+        const todayStart = startOfDay(new Date());
+        const q = query(transactionsRef, where('date', '>=', todayStart));
+
+        try {
+            const querySnapshot = await getDocs(q);
+            const todaysTransactions = querySnapshot.docs.map(doc => doc.data() as EDCService);
+            const normalizedNewName = normalizeString(values.customerName);
+
+            const isDuplicate = todaysTransactions.some(trx => 
+                normalizeString(trx.customerName) === normalizedNewName &&
+                trx.machineUsed === values.machineUsed &&
+                trx.serviceFee === values.serviceFee
+            );
+
+            if (isDuplicate) {
+              return Promise.reject({ duplicate: true, onConfirm: () => proceedWithTransaction(values, true) });
+            }
+        } catch (error) {
+            console.error("Error checking for duplicates:", error);
+        }
     }
     
     const laciAccount = kasAccounts.find(acc => acc.label === "Laci");
     if (!laciAccount) {
       toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
-      setIsSaving(false);
-      return;
+      throw new Error("Akun Laci tidak ditemukan.");
     }
 
-    toast({ title: "Memproses...", description: "Menyimpan transaksi Layanan EDC." });
-
     const now = new Date();
-    const nowISO = now.toISOString();
     const deviceName = localStorage.getItem("brimoDeviceName") || "Unknown Device";
 
     try {
-      const auditDocRef = await addDoc(collection(firestore, "edcServices"), {
+      const auditDocRef = await addDocumentNonBlocking(collection(firestore, "edcServices"), {
         date: now,
         customerName: values.customerName,
         machineUsed: values.machineUsed,
@@ -88,7 +117,10 @@ export default function EDCServiceForm({ onDone }: EDCServiceFormProps) {
         paymentToKasTunaiAccountId: laciAccount.id,
         deviceName,
       });
+      
+      if (!auditDocRef) throw new Error("Gagal membuat catatan audit.");
       const auditId = auditDocRef.id;
+      const nowISO = now.toISOString();
 
       await runTransaction(firestore, async (transaction) => {
         const laciAccountRef = doc(firestore, 'kasAccounts', laciAccount.id);
@@ -109,16 +141,11 @@ export default function EDCServiceForm({ onDone }: EDCServiceFormProps) {
         });
       });
 
-      toast({ title: "Sukses", description: "Layanan EDC berhasil dicatat." });
-      onDone();
-
     } catch (error: any) {
       console.error("Error saving EDC service transaction: ", error);
-      toast({ variant: "destructive", title: "Error", description: error.message || "Gagal menyimpan transaksi." });
-    } finally {
-        setIsSaving(false);
+      throw error;
     }
-  };
+  }, [firestore, kasAccounts]);
 
   return (
     <Form {...form}>
@@ -190,13 +217,11 @@ export default function EDCServiceForm({ onDone }: EDCServiceFormProps) {
             variant="outline"
             onClick={onDone}
             className="w-full"
-            disabled={isSaving}
           >
             Batal
           </Button>
-          <Button type="submit" className="w-full" disabled={isSaving}>
-            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isSaving ? "Menyimpan..." : "Simpan"}
+          <Button type="submit" className="w-full">
+            Simpan
           </Button>
         </div>
       </form>

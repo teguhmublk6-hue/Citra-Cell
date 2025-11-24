@@ -9,17 +9,18 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, runTransaction, addDoc } from 'firebase/firestore';
+import { collection, doc, runTransaction, addDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { startOfDay } from 'date-fns';
 import type { KasAccount } from '@/lib/data';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import vaProviderData from '@/lib/va-providers.json';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { CustomerVAPaymentFormValues } from '@/lib/types';
+import type { CustomerVAPaymentFormValues, CustomerVAPayment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
@@ -79,7 +80,7 @@ const refinedSchema = baseSchema.superRefine((data, ctx) => {
 
 
 interface CustomerVAPaymentFormProps {
-  onTransactionComplete: () => void;
+  onTransactionComplete: (promise: Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -93,6 +94,10 @@ const formatToRupiah = (value: number | string | undefined | null): string => {
 const parseRupiah = (value: string | undefined | null): number => {
     if (!value) return 0;
     return Number(String(value).replace(/[^0-9]/g, ''));
+}
+
+const normalizeString = (str: string) => {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 const calculateServiceFee = (amount: number): number => {
@@ -110,7 +115,6 @@ const calculateServiceFee = (amount: number): number => {
 export default function CustomerVAPaymentForm({ onTransactionComplete, onDone }: CustomerVAPaymentFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isSaving, setIsSaving] = useState(false);
   const [providerPopoverOpen, setProviderPopoverOpen] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState("");
 
@@ -150,12 +154,40 @@ export default function CustomerVAPaymentForm({ onTransactionComplete, onDone }:
     }
   }, [paymentAmount, form]);
 
-  const onSubmit = async (values: CustomerVAPaymentFormValues) => {
-    onTransactionComplete(); // Fire immediately for non-blocking UI
-
+  const onSubmit = (values: CustomerVAPaymentFormValues) => {
+    const transactionPromise = proceedWithTransaction(values);
+    onTransactionComplete(transactionPromise);
+  };
+  
+  const proceedWithTransaction = useCallback(async (values: CustomerVAPaymentFormValues, force = false): Promise<any> => {
     if (!firestore || !kasAccounts) {
-      toast({ variant: "destructive", title: "Error", description: "Database atau akun tidak ditemukan." });
-      return;
+      toast({ variant: "destructive", title: "Error", description: "Database tidak tersedia." });
+      throw new Error("Database tidak tersedia.");
+    }
+
+    if (!force) {
+        const transactionsRef = collection(firestore, 'customerVAPayments');
+        const todayStart = startOfDay(new Date());
+        const q = query(transactionsRef, where('date', '>=', todayStart));
+
+        try {
+            const querySnapshot = await getDocs(q);
+            const todaysTransactions = querySnapshot.docs.map(doc => doc.data() as CustomerVAPayment);
+            const normalizedNewName = normalizeString(values.recipientName);
+
+            const isDuplicate = todaysTransactions.some(trx => 
+                trx.sourceKasAccountId === values.sourceAccountId &&
+                trx.serviceProvider === values.serviceProvider &&
+                normalizeString(trx.recipientName) === normalizedNewName &&
+                trx.paymentAmount === values.paymentAmount
+            );
+
+            if (isDuplicate) {
+              return Promise.reject({ duplicate: true, onConfirm: () => proceedWithTransaction(values, true) });
+            }
+        } catch (error) {
+            console.error("Error checking for duplicates:", error);
+        }
     }
     
     const sourceAccount = kasAccounts.find(acc => acc.id === values.sourceAccountId);
@@ -169,43 +201,42 @@ export default function CustomerVAPaymentForm({ onTransactionComplete, onDone }:
 
     if (!sourceAccount) {
       toast({ variant: "destructive", title: "Error", description: "Akun sumber tidak ditemukan." });
-      return;
+      throw new Error("Akun sumber tidak ditemukan.");
     }
     if (!laciAccount && (paymentMethod === 'Tunai' || paymentMethod === 'Split')) {
         toast({ variant: "destructive", title: "Akun Laci Tidak Ditemukan", description: "Pastikan akun kas 'Laci' dengan tipe 'Tunai' sudah dibuat." });
-        return;
+        throw new Error("Akun Laci tidak ditemukan.");
     }
 
     if (sourceAccount.balance < totalDebitFromSource) {
         toast({ variant: "destructive", title: "Saldo Tidak Cukup", description: `Saldo ${sourceAccount.label} tidak mencukupi untuk pembayaran ini.` });
-        return;
+        throw new Error(`Saldo ${sourceAccount.label} tidak mencukupi.`);
     }
 
     const now = new Date();
     const deviceName = localStorage.getItem('brimoDeviceName') || 'Unknown Device';
     
-    const auditLogPromise = addDocumentNonBlocking(collection(firestore, 'customerVAPayments'), {
-        date: now,
-        sourceKasAccountId: values.sourceAccountId,
-        serviceProvider: values.serviceProvider,
-        recipientName: values.recipientName,
-        paymentAmount: values.paymentAmount,
-        adminFee: values.adminFee || 0,
-        serviceFee: values.serviceFee,
-        netProfit,
-        paymentMethod: values.paymentMethod,
-        paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
-        paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? values.paymentToKasTransferAccountId : null,
-        paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTransferAmount : 0),
-        deviceName
-    });
-
-    auditLogPromise.then(auditDocRef => {
-        if (!auditDocRef) return;
+    try {
+        const auditDocRef = await addDocumentNonBlocking(collection(firestore, 'customerVAPayments'), {
+            date: now,
+            sourceKasAccountId: values.sourceAccountId,
+            serviceProvider: values.serviceProvider,
+            recipientName: values.recipientName,
+            paymentAmount: values.paymentAmount,
+            adminFee: values.adminFee || 0,
+            serviceFee: values.serviceFee,
+            netProfit,
+            paymentMethod: values.paymentMethod,
+            paymentToKasTunaiAmount: paymentMethod === 'Tunai' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTunaiAmount : 0),
+            paymentToKasTransferAccountId: paymentMethod === 'Transfer' || paymentMethod === 'Split' ? values.paymentToKasTransferAccountId : null,
+            paymentToKasTransferAmount: paymentMethod === 'Transfer' ? totalPaymentByCustomer : (paymentMethod === 'Split' ? splitTransferAmount : 0),
+            deviceName
+        });
+        if (!auditDocRef) throw new Error("Gagal membuat catatan audit.");
         const auditId = auditDocRef.id;
         const nowISO = now.toISOString();
 
-        runTransaction(firestore, async (transaction) => {
+        await runTransaction(firestore, async (transaction) => {
             const sourceAccountRef = doc(firestore, 'kasAccounts', sourceAccount.id);
             const laciAccountRef = laciAccount ? doc(firestore, 'kasAccounts', laciAccount.id) : null;
             const paymentAccRef = paymentTransferAccount ? doc(firestore, 'kasAccounts', paymentTransferAccount.id) : null;
@@ -277,10 +308,12 @@ export default function CustomerVAPaymentForm({ onTransactionComplete, onDone }:
                     break;
             }
         });
-    }).catch(error => {
-      console.error("Non-blocking transaction failed:", error);
-    });
-  };
+
+    } catch (error: any) {
+        console.error("Error saving VA payment:", error);
+        throw error;
+    }
+  }, [firestore, kasAccounts]);
 
   const filteredProviders = vaProviderData.filter(provider =>
     provider.name.toLowerCase().includes(searchKeyword.toLowerCase())
