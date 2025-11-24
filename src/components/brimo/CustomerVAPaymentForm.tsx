@@ -80,7 +80,7 @@ const refinedSchema = baseSchema.superRefine((data, ctx) => {
 
 
 interface CustomerVAPaymentFormProps {
-  onTransactionComplete: (promise: Promise<any>) => void;
+  onTransactionComplete: (transactionPromise: () => Promise<any>) => void;
   onDone: () => void;
 }
 
@@ -155,8 +155,7 @@ export default function CustomerVAPaymentForm({ onTransactionComplete, onDone }:
   }, [paymentAmount, form]);
 
   const onSubmit = (values: CustomerVAPaymentFormValues) => {
-    const transactionPromise = proceedWithTransaction(values);
-    onTransactionComplete(transactionPromise);
+    onTransactionComplete(() => proceedWithTransaction(values));
   };
   
   const proceedWithTransaction = useCallback(async (values: CustomerVAPaymentFormValues, force = false): Promise<any> => {
