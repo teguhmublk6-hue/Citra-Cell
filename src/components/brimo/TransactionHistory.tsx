@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, getDocs, orderBy, where, Timestamp, doc, writeBatch, deleteDoc } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, where, Timestamp, doc, writeBatch, deleteDoc, collectionGroup } from 'firebase/firestore';
 import type { KasAccount, Transaction } from '@/lib/data';
 import type { PPOBTransaction, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs, PPOBWifi } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -344,11 +344,13 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
   }, [filteredTransactions]);
 
   const calculatedClosingBalance = openingBalance + totalCredit - totalDebit;
-  const actualClosingBalance = filteredTransactions.reduce(
-    (balance, trx) => balance + (trx.type === 'credit' ? trx.amount : -trx.amount),
-    openingBalance
-  );
-  const balanceDifference = calculatedClosingBalance - actualClosingBalance;
+  
+  const actualClosingBalance = account.id === 'tunai-gabungan'
+    ? (kasAccounts?.filter(a => a.type === 'Tunai').reduce((sum, acc) => sum + acc.balance, 0) ?? 0)
+    : account.balance;
+    
+  const isPeriodToday = dateRange?.to ? endOfDay(dateRange.to).getTime() >= startOfDay(new Date()).getTime() : true;
+  const balanceDifference = isPeriodToday ? calculatedClosingBalance - actualClosingBalance : 0;
 
 
   let runningBalance = openingBalance;
@@ -433,16 +435,23 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
                       <span>Saldo Akhir (Hitungan)</span>
                       <span>{formatToRupiah(calculatedClosingBalance)}</span>
                    </div>
-                    {balanceDifference === 0 ? (
-                        <div className="flex items-center gap-2 text-xs text-green-500 font-semibold pt-1">
-                            <CheckCircle2 size={16} />
-                            <span>Perhitungan Saldo Akurat</span>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-2 text-xs text-destructive font-semibold pt-1">
-                            <AlertCircle size={16} />
-                            <span>Selisih: {formatToRupiah(balanceDifference)}</span>
-                        </div>
+                    {isPeriodToday && (
+                        balanceDifference === 0 ? (
+                            <div className="flex items-center gap-2 text-xs text-green-500 font-semibold pt-1">
+                                <CheckCircle2 size={16} />
+                                <span>Saldo Akurat & Sesuai</span>
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-between gap-2 text-xs text-destructive font-semibold pt-1">
+                                <div className="flex items-center gap-2">
+                                  <AlertCircle size={16} />
+                                  <span>Selisih: {formatToRupiah(balanceDifference)}</span>
+                                </div>
+                                <Button size="xs" variant="destructive" onClick={() => setIsAdjustmentSheetOpen(true)}>
+                                  Perbaiki
+                                </Button>
+                            </div>
+                        )
                     )}
                 </CardContent>
             </Card>
@@ -563,6 +572,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     
 
     
+
 
 
 
