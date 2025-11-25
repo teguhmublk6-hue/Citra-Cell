@@ -76,6 +76,7 @@ import FloatingBackButton from './FloatingBackButton';
 import OperationalCostForm from './OperationalCostForm';
 import DuplicateTransactionDialog from './DuplicateTransactionDialog';
 import MonthlyRecapReport from './MonthlyRecapReport';
+import SettlementReview from './SettlementReview';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -131,6 +132,10 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   
   const [isRepeatDialogOpen, setIsRepeatDialogOpen] = useState(false);
   const [duplicateDialogState, setDuplicateDialogState] = useState<{ isOpen: boolean; onConfirm: (() => void) | null }>({ isOpen: false, onConfirm: null });
+
+  // State for review step
+  const [reviewData, setReviewData] = useState<any>(null);
+  const [isReviewing, setIsReviewing] = useState(false);
 
 
   const shiftStatusDocRef = useMemoFirebase(() => doc(firestore, 'appConfig', 'currentShiftStatus'), [firestore]);
@@ -221,37 +226,12 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   }
   
   const handleQuickServiceClick = (serviceId: ServiceType) => {
-    if (serviceId === 'customerTransfer') {
-      setActiveSheet('customerTransfer');
-    } else if (serviceId === 'withdraw') {
-      setActiveSheet('customerWithdrawal');
-    } else if (serviceId === 'topUp') {
-      setActiveSheet('customerTopUp');
-    } else if (serviceId === 'customerVAPayment') {
-      setActiveSheet('customerVAPayment');
-    } else if (serviceId === 'EDCService') {
-      setActiveSheet('EDCService');
-    } else if (serviceId === 'Emoney') {
-      setActiveSheet('customerEmoneyTopUp');
-    } else if (serviceId === 'KJP') {
-      setActiveSheet('customerKJP');
-    } else if (serviceId === 'Pulsa') {
-      setActiveSheet('ppobPulsa');
-    } else if (serviceId === 'Token Listrik') {
-        setActiveSheet('ppobTokenListrik');
-    } else if (serviceId === 'Data') {
-        setActiveSheet('ppobPaketData');
-    } else if (serviceId === 'PLN') {
-        setActiveSheet('ppobPlnPostpaid');
-    } else if (serviceId === 'PDAM') {
-        setActiveSheet('ppobPdam');
-    } else if (serviceId === 'BPJS') {
-        setActiveSheet('ppobBpjs');
-    } else if (serviceId === 'Wifi') {
-        setActiveSheet('ppobWifi');
-    } else if (serviceId === 'Paket Telpon') {
-        setActiveSheet('ppobPaketTelpon');
+    if (!shiftStatus?.isActive) {
+        // Optionally, show a toast or message that a shift needs to be started
+        console.warn("Shift is not active. Cannot perform service.");
+        return;
     }
+    setActiveSheet(serviceId as ActiveSheet);
   }
   
   const handleSettlementClick = (account: KasAccountType) => {
@@ -309,6 +289,8 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   
   const closeAllSheets = () => {
     setActiveSheet(null);
+    setIsReviewing(false);
+    setReviewData(null);
     revalidateData();
   }
   
@@ -727,77 +709,95 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
        />
 
 
-      <Sheet open={!!activeSheet} onOpenChange={(isOpen) => !isOpen && closeAllSheets()}>
+      <Sheet open={!!activeSheet || isReviewing} onOpenChange={(isOpen) => !isOpen && closeAllSheets()}>
         <SheetContent side="bottom" className="max-w-md mx-auto rounded-t-2xl h-[90vh]">
             <SheetHeader>
                 <SheetTitle>
-                  {activeSheet === 'transfer' && 'Pindah Saldo'}
-                  {activeSheet === 'addCapital' && 'Tambah Modal'}
-                  {activeSheet === 'withdraw' && 'Tarik Saldo Pribadi'}
-                  {activeSheet === 'operationalCost' && 'Catat Biaya Operasional'}
-                  {activeSheet === 'customerTransfer' && 'Transfer Pelanggan'}
-                  {activeSheet === 'customerWithdrawal' && 'Tarik Tunai Pelanggan'}
-                  {activeSheet === 'customerTopUp' && 'Top Up E-Wallet'}
-                  {activeSheet === 'customerEmoneyTopUp' && 'Top Up E-Money'}
-                  {activeSheet === 'customerKJP' && 'Tarik Tunai KJP'}
-                  {activeSheet === 'settlement' && `Settlement: ${selectedAccount?.label}`}
-                  {activeSheet === 'setMotivation' && 'Atur Motivasi Harian'}
-                  {activeSheet === 'manageKasAccounts' && 'Manajemen Akun Kas'}
-                  {activeSheet === 'managePPOBPricing' && 'Kelola Harga PPOB'}
-                  {activeSheet === 'ppobPulsa' && 'Transaksi Pulsa'}
-                  {activeSheet === 'ppobTokenListrik' && 'Transaksi Token Listrik'}
-                  {activeSheet === 'ppobPaketData' && 'Transaksi Paket Data'}
-                  {activeSheet === 'ppobPlnPostpaid' && 'Bayar Tagihan PLN'}
-                  {activeSheet === 'ppobPdam' && 'Bayar Tagihan PDAM'}
-                  {activeSheet === 'ppobBpjs' && 'Bayar Tagihan BPJS'}
-                  {activeSheet === 'ppobWifi' && 'Bayar Tagihan Wifi'}
-                  {activeSheet === 'ppobPaketTelpon' && 'Transaksi Paket Telpon'}
-                  {activeSheet === 'deleteAllKasAccounts' && 'Reset Semua Akun Kas'}
-                  {activeSheet === 'shiftReconciliation' && 'Rekonsiliasi Shift'}
+                  {isReviewing && activeSheet === 'settlement' && 'Review Settlement'}
+                  {!isReviewing && activeSheet === 'transfer' && 'Pindah Saldo'}
+                  {!isReviewing && activeSheet === 'addCapital' && 'Tambah Modal'}
+                  {!isReviewing && activeSheet === 'withdraw' && 'Tarik Saldo Pribadi'}
+                  {!isReviewing && activeSheet === 'operationalCost' && 'Catat Biaya Operasional'}
+                  {!isReviewing && activeSheet === 'customerTransfer' && 'Transfer Pelanggan'}
+                  {!isReviewing && activeSheet === 'customerWithdrawal' && 'Tarik Tunai Pelanggan'}
+                  {!isReviewing && activeSheet === 'customerTopUp' && 'Top Up E-Wallet'}
+                  {!isReviewing && activeSheet === 'customerEmoneyTopUp' && 'Top Up E-Money'}
+                  {!isReviewing && activeSheet === 'customerKJP' && 'Tarik Tunai KJP'}
+                  {!isReviewing && activeSheet === 'settlement' && `Settlement: ${selectedAccount?.label}`}
+                  {!isReviewing && activeSheet === 'setMotivation' && 'Atur Motivasi Harian'}
+                  {!isReviewing && activeSheet === 'manageKasAccounts' && 'Manajemen Akun Kas'}
+                  {!isReviewing && activeSheet === 'managePPOBPricing' && 'Kelola Harga PPOB'}
+                  {!isReviewing && activeSheet === 'ppobPulsa' && 'Transaksi Pulsa'}
+                  {!isReviewing && activeSheet === 'ppobTokenListrik' && 'Transaksi Token Listrik'}
+                  {!isReviewing && activeSheet === 'ppobPaketData' && 'Transaksi Paket Data'}
+                  {!isReviewing && activeSheet === 'ppobPlnPostpaid' && 'Bayar Tagihan PLN'}
+                  {!isReviewing && activeSheet === 'ppobPdam' && 'Bayar Tagihan PDAM'}
+                  {!isReviewing && activeSheet === 'ppobBpjs' && 'Bayar Tagihan BPJS'}
+                  {!isReviewing && activeSheet === 'ppobWifi' && 'Bayar Tagihan Wifi'}
+                  {!isReviewing && activeSheet === 'ppobPaketTelpon' && 'Transaksi Paket Telpon'}
+                  {!isReviewing && activeSheet === 'deleteAllKasAccounts' && 'Reset Semua Akun Kas'}
+                  {!isReviewing && activeSheet === 'shiftReconciliation' && 'Rekonsiliasi Shift'}
                 </SheetTitle>
             </SheetHeader>
-            {activeSheet === 'transfer' && <TransferBalanceForm onDone={closeAllSheets} />}
-            {activeSheet === 'addCapital' && <AddCapitalForm onDone={closeAllSheets} />}
-            {activeSheet === 'withdraw' && <WithdrawBalanceForm onDone={closeAllSheets} />}
-            {activeSheet === 'operationalCost' && <OperationalCostForm onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'transfer' && <TransferBalanceForm onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'addCapital' && <AddCapitalForm onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'withdraw' && <WithdrawBalanceForm onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'operationalCost' && <OperationalCostForm onDone={closeAllSheets} />}
             
-            {activeSheet === 'customerTransfer' && <CustomerTransferForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'customerTransfer' && <CustomerTransferForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
-            {activeSheet === 'customerWithdrawal' && <CustomerWithdrawalForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'customerWithdrawal' && <CustomerWithdrawalForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
 
-            {activeSheet === 'customerTopUp' && <CustomerTopUpForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'customerTopUp' && <CustomerTopUpForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
-            {activeSheet === 'customerEmoneyTopUp' && <CustomerEmoneyTopUpForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'customerEmoneyTopUp' && <CustomerEmoneyTopUpForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
 
-            {activeSheet === 'customerVAPayment' && <CustomerVAPaymentForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'customerVAPayment' && <CustomerVAPaymentForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
-            {activeSheet === 'EDCService' && <EDCServiceForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'EDCService' && <EDCServiceForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
-            {activeSheet === 'settlement' && selectedAccount && <SettlementForm account={selectedAccount} onReview={() => {}} onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'settlement' && selectedAccount && (
+              <SettlementForm 
+                account={selectedAccount} 
+                onReview={(data) => {
+                  setReviewData(data);
+                  setIsReviewing(true);
+                }} 
+                onDone={closeAllSheets} 
+              />
+            )}
 
-            {activeSheet === 'customerKJP' && <CustomerKJPWithdrawalForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
-            
-            {activeSheet === 'setMotivation' && <SetMotivationForm onDone={closeAllSheets} />}
-            {activeSheet === 'manageKasAccounts' && <KasManagement onResetAll={handleResetAllAccountsClick} />}
-            {activeSheet === 'managePPOBPricing' && <PPOBPricingManager onDone={closeAllSheets} />}
-            
-            {activeSheet === 'ppobPulsa' && <PPOBPulsaForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+            {isReviewing && activeSheet === 'settlement' && (
+              <SettlementReview
+                formData={reviewData}
+                onBack={() => setIsReviewing(false)}
+                onConfirm={closeAllSheets}
+              />
+            )}
 
-            {activeSheet === 'ppobTokenListrik' && <PPOBTokenListrikForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'customerKJP' && <CustomerKJPWithdrawalForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
-            {activeSheet === 'ppobPaketData' && <PPOBPaketDataForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'setMotivation' && <SetMotivationForm onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'manageKasAccounts' && <KasManagement onResetAll={handleResetAllAccountsClick} />}
+            {!isReviewing && activeSheet === 'managePPOBPricing' && <PPOBPricingManager onDone={closeAllSheets} />}
             
-            {activeSheet === 'ppobPlnPostpaid' && <PPOBPlnPostpaidForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'ppobPulsa' && <PPOBPulsaForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
 
-            {activeSheet === 'ppobPdam' && <PPOBPdamForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'ppobTokenListrik' && <PPOBTokenListrikForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
-            {activeSheet === 'ppobBpjs' && <PPOBBpjsForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'ppobPaketData' && <PPOBPaketDataForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
-            {activeSheet === 'ppobWifi' && <PPOBWifiForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
-            
-            {activeSheet === 'ppobPaketTelpon' && <PPOBPaketTelponForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'ppobPlnPostpaid' && <PPOBPlnPostpaidForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
 
-            {activeSheet === 'shiftReconciliation' && <ShiftReconciliationForm onDone={closeAllSheets} />}
+            {!isReviewing && activeSheet === 'ppobPdam' && <PPOBPdamForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+            
+            {!isReviewing && activeSheet === 'ppobBpjs' && <PPOBBpjsForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+            
+            {!isReviewing && activeSheet === 'ppobWifi' && <PPOBWifiForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+            
+            {!isReviewing && activeSheet === 'ppobPaketTelpon' && <PPOBPaketTelponForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
+
+            {!isReviewing && activeSheet === 'shiftReconciliation' && <ShiftReconciliationForm onDone={closeAllSheets} />}
         </SheetContent>
       </Sheet>
 
