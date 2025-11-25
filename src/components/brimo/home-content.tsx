@@ -7,7 +7,7 @@ import QuickServices from './quick-services';
 import BottomNav from './bottom-nav';
 import AdminContent from './AdminContent';
 import SettingsContent from './settings-content';
-import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw, Banknote, ArrowLeft, Briefcase } from 'lucide-react';
+import { ArrowRightLeft, TrendingUp, TrendingDown, RotateCw, Banknote, ArrowLeft, Briefcase, GitCompareArrows } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, doc, writeBatch, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
 import type { KasAccount as KasAccountType, CurrentShiftStatus, DailyReport as DailyReportType, Transaction } from '@/lib/data';
@@ -77,6 +77,8 @@ import OperationalCostForm from './OperationalCostForm';
 import DuplicateTransactionDialog from './DuplicateTransactionDialog';
 import MonthlyRecapReport from './MonthlyRecapReport';
 import SettlementReview from './SettlementReview';
+import BalanceAdjustmentForm from './BalanceAdjustmentForm';
+import AccountSelectionForm from './AccountSelectionForm';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -89,7 +91,7 @@ export const iconMap: { [key: string]: React.ElementType } = {
 };
 
 export type ActiveTab = 'home' | 'laporan' | 'mutasi' | 'accounts' | 'admin';
-type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'operationalCost' | 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobTokenListrik' | 'ppobPaketData' | 'ppobPlnPostpaid' | 'ppobPdam' | 'ppobBpjs' | 'ppobWifi' | 'deleteAllKasAccounts' | 'ppobPaketTelpon' | 'shiftReconciliation';
+type ActiveSheet = null | 'history' | 'transfer' | 'addCapital' | 'withdraw' | 'operationalCost' | 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'setMotivation' | 'manageKasAccounts' | 'managePPOBPricing' | 'ppobPulsa' | 'ppobTokenListrik' | 'ppobPaketData' | 'ppobPlnPostpaid' | 'ppobPdam' | 'ppobBpjs' | 'ppobWifi' | 'deleteAllKasAccounts' | 'ppobPaketTelpon' | 'shiftReconciliation' | 'balanceAdjustment';
 type FormSheet = 'customerTransfer' | 'customerWithdrawal' | 'customerTopUp' | 'customerVAPayment' | 'EDCService' | 'customerEmoneyTopUp' | 'customerKJP' | 'settlement' | 'ppobPulsa' | 'ppobTokenListrik' | 'ppobPaketData' | 'ppobPlnPostpaid' | 'ppobPdam' | 'ppobBpjs' | 'ppobWifi' | 'ppobPaketTelpon' | 'shiftReconciliation';
 
 
@@ -128,7 +130,6 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const [deviceName, setDeviceName] = useState('');
   const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
-  const firestore = useFirestore();
   
   const [isRepeatDialogOpen, setIsRepeatDialogOpen] = useState(false);
   const [duplicateDialogState, setDuplicateDialogState] = useState<{ isOpen: boolean; onConfirm: (() => void) | null }>({ isOpen: false, onConfirm: null });
@@ -137,6 +138,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const [reviewData, setReviewData] = useState<any>(null);
   const [isReviewing, setIsReviewing] = useState(false);
 
+  const firestore = useFirestore();
 
   const shiftStatusDocRef = useMemoFirebase(() => doc(firestore, 'appConfig', 'currentShiftStatus'), [firestore]);
   const { data: shiftStatus, isLoading: isShiftLoading } = useDoc<CurrentShiftStatus>(shiftStatusDocRef);
@@ -353,6 +355,14 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   
   const handleResetAllAccountsClick = () => {
     setActiveSheet('deleteAllKasAccounts');
+  }
+  
+  const handleBalanceAdjustment = (accountId: string) => {
+    const account = kasAccounts?.find(acc => acc.id === accountId);
+    if(account) {
+        setSelectedAccount(account);
+        setActiveSheet('balanceAdjustment');
+    }
   }
 
   const handleEndShift = async () => {
@@ -718,6 +728,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                   {!isReviewing && activeSheet === 'addCapital' && 'Tambah Modal'}
                   {!isReviewing && activeSheet === 'withdraw' && 'Tarik Saldo Pribadi'}
                   {!isReviewing && activeSheet === 'operationalCost' && 'Catat Biaya Operasional'}
+                  {!isReviewing && activeSheet === 'balanceAdjustment' && 'Penyesuaian Saldo'}
                   {!isReviewing && activeSheet === 'customerTransfer' && 'Transfer Pelanggan'}
                   {!isReviewing && activeSheet === 'customerWithdrawal' && 'Tarik Tunai Pelanggan'}
                   {!isReviewing && activeSheet === 'customerTopUp' && 'Top Up E-Wallet'}
@@ -734,8 +745,8 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                   {!isReviewing && activeSheet === 'ppobPdam' && 'Bayar Tagihan PDAM'}
                   {!isReviewing && activeSheet === 'ppobBpjs' && 'Bayar Tagihan BPJS'}
                   {!isReviewing && activeSheet === 'ppobWifi' && 'Bayar Tagihan Wifi'}
-                  {!isReviewing && activeSheet === 'ppobPaketTelpon' && 'Transaksi Paket Telpon'}
                   {!isReviewing && activeSheet === 'deleteAllKasAccounts' && 'Reset Semua Akun Kas'}
+                  {!isReviewing && activeSheet === 'ppobPaketTelpon' && 'Transaksi Paket Telpon'}
                   {!isReviewing && activeSheet === 'shiftReconciliation' && 'Rekonsiliasi Shift'}
                 </SheetTitle>
             </SheetHeader>
@@ -744,6 +755,11 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
             {!isReviewing && activeSheet === 'withdraw' && <WithdrawBalanceForm onDone={closeAllSheets} />}
             {!isReviewing && activeSheet === 'operationalCost' && <OperationalCostForm onDone={closeAllSheets} />}
             
+            {!isReviewing && activeSheet === 'balanceAdjustment' && (selectedAccount ? 
+                <BalanceAdjustmentForm account={selectedAccount} onDone={closeAllSheets} /> : 
+                <AccountSelectionForm onAccountSelect={handleBalanceAdjustment} onDone={closeAllSheets} />
+            )}
+
             {!isReviewing && activeSheet === 'customerTransfer' && <CustomerTransferForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
             
             {!isReviewing && activeSheet === 'customerWithdrawal' && <CustomerWithdrawalForm onTransactionComplete={handleTransactionComplete} onDone={closeAllSheets} />}
@@ -825,6 +841,12 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                               <TrendingUp size={24} />
                           </div>
                           <span className="text-sm font-medium">Tambah Modal</span>
+                      </button>
+                      <button onClick={() => handleMutationMenuClick('balanceAdjustment')} className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted">
+                          <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
+                              <GitCompareArrows size={24} />
+                          </div>
+                          <span className="text-sm font-medium">Penyesuaian</span>
                       </button>
                       <button onClick={() => handleMutationMenuClick('withdraw')} className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted">
                           <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
