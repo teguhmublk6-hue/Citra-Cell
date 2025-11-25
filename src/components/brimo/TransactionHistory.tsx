@@ -22,7 +22,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import DeleteTransactionDialog from './DeleteTransactionDialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../ui/sheet';
 import EditTransactionNameForm from './EditTransactionNameForm';
-import { Card, CardContent } from '../ui/card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import BalanceAdjustmentForm from './BalanceAdjustmentForm';
 import { Input } from '../ui/input';
 
@@ -416,8 +416,21 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
         )}
         {!isLoading && (
           <>
-            <Card className="mb-4 sticky top-0 bg-background/95 backdrop-blur-sm z-10">
-                <CardContent className="p-4 space-y-3 text-sm">
+            <Accordion type="single" collapsible className="w-full mb-4 sticky top-0 bg-background/95 backdrop-blur-sm z-10">
+              <AccordionItem value="audit" className="border rounded-lg">
+                <AccordionTrigger className="p-4">
+                  <div className="flex flex-col items-start text-left">
+                     <span className="text-xs text-muted-foreground font-normal">Audit Saldo</span>
+                      <div className={cn(
+                          "flex items-center gap-2 font-semibold text-sm",
+                          balanceDifference === 0 ? "text-green-500" : "text-destructive"
+                      )}>
+                          {balanceDifference === 0 ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                          {balanceDifference === 0 ? "Saldo Akurat" : `Selisih ${formatToRupiah(balanceDifference)}`}
+                      </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="p-4 pt-0 space-y-3 text-sm">
                    <div className="flex justify-between font-medium">
                       <span>Saldo Awal Periode</span>
                       <span>{formatToRupiah(openingBalance)}</span>
@@ -436,25 +449,19 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
                       <span>{formatToRupiah(calculatedClosingBalance)}</span>
                    </div>
                     {isPeriodToday && (
-                        balanceDifference === 0 ? (
-                            <div className="flex items-center gap-2 text-xs text-green-500 font-semibold pt-1">
-                                <CheckCircle2 size={16} />
-                                <span>Saldo Akurat & Sesuai</span>
-                            </div>
-                        ) : (
+                        balanceDifference !== 0 && (
                             <div className="flex items-center justify-between gap-2 text-xs text-destructive font-semibold pt-1">
-                                <div className="flex items-center gap-2">
-                                  <AlertCircle size={16} />
-                                  <span>Selisih: {formatToRupiah(balanceDifference)}</span>
-                                </div>
+                                <span>Selisih: {formatToRupiah(balanceDifference)}</span>
                                 <Button size="xs" variant="destructive" onClick={() => setIsAdjustmentSheetOpen(true)}>
                                   Perbaiki
                                 </Button>
                             </div>
                         )
                     )}
-                </CardContent>
-            </Card>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+
 
             {(!filteredTransactions || filteredTransactions.length === 0) && (
               <div className="flex flex-col items-center justify-center h-full py-20 text-center">
@@ -572,6 +579,7 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     
 
     
+
 
 
 
