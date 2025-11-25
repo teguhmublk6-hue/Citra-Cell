@@ -842,7 +842,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                           </div>
                           <span className="text-sm font-medium">Tambah Modal</span>
                       </button>
-                      <button onClick={() => handleMutationMenuClick('balanceAdjustment')} className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted">
+                       <button onClick={() => handleMutationMenuClick('balanceAdjustment')} className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-muted">
                           <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
                               <GitCompareArrows size={24} />
                           </div>
