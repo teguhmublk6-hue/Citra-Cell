@@ -1,6 +1,24 @@
 
+
 {
   "entities": {
+    "MonthlyRecap": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MonthlyRecap",
+      "type": "object",
+      "description": "Represents a single day's entry for the monthly financial recap.",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time", "description": "The specific date for which this recap applies." },
+        "grossProfit": { "type": "number", "description": "The gross profit for the day, auto-filled but editable." },
+        "expenditures": { "type": "number", "description": "Operational costs for the day, auto-filled and not editable." },
+        "rentalCost": { "type": "number", "description": "Daily rental cost, editable with a default value." },
+        "compensation": { "type": "number", "description": "Daily compensation cost, editable with a default value." },
+        "wages": { "type": "number", "description": "Daily wages, editable with a default value." },
+        "notes": { "type": "string", "description": "Optional notes for the day's recap." }
+      },
+      "required": ["date", "grossProfit", "expenditures", "rentalCost", "compensation", "wages"]
+    },
     "DailyReport": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "DailyReport",
@@ -760,6 +778,12 @@
     }
   },
   "firestore": {
+    "/monthlyRecaps/{recapId}": {
+      "schema": {
+        "$ref": "#/entities/MonthlyRecap"
+      },
+      "description": "Stores daily recap data for the monthly report feature. Each document represents a single day."
+    },
     "/dailyReports/{reportId}": {
       "schema": {
         "$ref": "#/entities/DailyReport"

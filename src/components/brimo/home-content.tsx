@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -74,6 +75,7 @@ import CombinedReport from './CombinedReport';
 import FloatingBackButton from './FloatingBackButton';
 import OperationalCostForm from './OperationalCostForm';
 import DuplicateTransactionDialog from './DuplicateTransactionDialog';
+import MonthlyRecapReport from './MonthlyRecapReport';
 
 
 export const iconMap: { [key: string]: React.ElementType } = {
@@ -118,6 +120,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const [isDailyReportHistoryVisible, setIsDailyReportHistoryVisible] = useState(false);
   const [selectedDailyReport, setSelectedDailyReport] = useState<DailyReportType | null>(null);
   const [isCombinedReportVisible, setIsCombinedReportVisible] = useState(false);
+  const [isMonthlyRecapReportVisible, setIsMonthlyRecapReportVisible] = useState(false);
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isDeleteReportsDialogOpen, setIsDeleteReportsDialogOpen] = useState(false);
   const [isDeleteAllAccountsDialogOpen, setIsDeleteAllAccountsDialogOpen] = useState(false);
@@ -341,6 +344,10 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
   const handleCombinedReportClick = () => {
     setIsCombinedReportVisible(true);
   };
+  
+  const handleMonthlyRecapReportClick = () => {
+    setIsMonthlyRecapReportVisible(true);
+  }
 
   const handleShiftReconciliationReportClick = () => {
     setIsShiftReconciliationReportVisible(true);
@@ -570,6 +577,10 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
         return <CombinedReport onDone={() => setIsCombinedReportVisible(false)} />;
     }
     
+    if (isMonthlyRecapReportVisible) {
+        return <MonthlyRecapReport onDone={() => setIsMonthlyRecapReportVisible(false)} />;
+    }
+
     if (isSettingsVisible) {
         return <SettingsContent onBack={() => setIsSettingsVisible(false)} />;
     }
@@ -665,6 +676,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
                 onDailyReportClick={handleDailyReportClick}
                 onDailyReportHistoryClick={handleDailyReportHistoryClick}
                 onCombinedReportClick={handleCombinedReportClick}
+                onMonthlyRecapReportClick={handleMonthlyRecapReportClick}
               />
             </div>
           </div>
@@ -679,7 +691,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     <>
       {renderContent()}
 
-      {(activeSheet !== null || isBrilinkReportVisible || isPpobReportVisible || isProfitLossReportVisible || isOperationalCostReportVisible || isCapitalAdditionReportVisible || isShiftReconciliationReportVisible || isDailyReportVisible || isDailyReportHistoryVisible || selectedDailyReport || isCombinedReportVisible) && <FloatingBackButton />}
+      {(activeSheet !== null || isBrilinkReportVisible || isPpobReportVisible || isProfitLossReportVisible || isOperationalCostReportVisible || isCapitalAdditionReportVisible || isShiftReconciliationReportVisible || isDailyReportVisible || isDailyReportHistoryVisible || selectedDailyReport || isCombinedReportVisible || isMonthlyRecapReportVisible) && <FloatingBackButton />}
 
       <AdminPasscodeDialog
         isOpen={isPasscodeDialogOpen}
