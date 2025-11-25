@@ -10,7 +10,7 @@ import type { PPOBTransaction, PPOBPlnPostpaid, PPOBPdam, PPOBBpjs, PPOBWifi } f
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, ArrowRight, MoreVertical, Pencil, Trash2, GitCompareArrows, Search } from 'lucide-react';
+import { Calendar as CalendarIcon, ArrowRight, MoreVertical, Pencil, Trash2, GitCompareArrows, Search, CheckCircle2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -329,6 +329,28 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     });
   }, [searchQuery, transactions, auditDetails]);
 
+  const { totalCredit, totalDebit } = useMemo(() => {
+    return filteredTransactions.reduce(
+      (acc, trx) => {
+        if (trx.type === 'credit') {
+          acc.totalCredit += trx.amount;
+        } else {
+          acc.totalDebit += trx.amount;
+        }
+        return acc;
+      },
+      { totalCredit: 0, totalDebit: 0 }
+    );
+  }, [filteredTransactions]);
+
+  const calculatedClosingBalance = openingBalance + totalCredit - totalDebit;
+  const actualClosingBalance = filteredTransactions.reduce(
+    (balance, trx) => balance + (trx.type === 'credit' ? trx.amount : -trx.amount),
+    openingBalance
+  );
+  const balanceDifference = calculatedClosingBalance - actualClosingBalance;
+
+
   let runningBalance = openingBalance;
 
   return (
@@ -393,17 +415,35 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
         {!isLoading && (
           <>
             <Card className="mb-4 sticky top-0 bg-background/95 backdrop-blur-sm z-10">
-                <CardContent className="p-0">
-                    <button className="flex w-full justify-between items-center p-4 text-left" onClick={() => setIsAdjustmentSheetOpen(true)}>
-                        <div>
-                            <p className="text-sm text-muted-foreground">Saldo Awal Hari Ini</p>
-                            <p className="text-2xl font-bold">{formatToRupiah(openingBalance)}</p>
+                <CardContent className="p-4 space-y-3 text-sm">
+                   <div className="flex justify-between font-medium">
+                      <span>Saldo Awal Periode</span>
+                      <span>{formatToRupiah(openingBalance)}</span>
+                   </div>
+                   <div className="flex justify-between text-green-500">
+                      <span>Total Pemasukan</span>
+                      <span>+ {formatToRupiah(totalCredit)}</span>
+                   </div>
+                   <div className="flex justify-between text-destructive">
+                      <span>Total Pengeluaran</span>
+                      <span>- {formatToRupiah(totalDebit)}</span>
+                   </div>
+                   <Separator />
+                   <div className="flex justify-between font-bold">
+                      <span>Saldo Akhir (Hitungan)</span>
+                      <span>{formatToRupiah(calculatedClosingBalance)}</span>
+                   </div>
+                    {balanceDifference === 0 ? (
+                        <div className="flex items-center gap-2 text-xs text-green-500 font-semibold pt-1">
+                            <CheckCircle2 size={16} />
+                            <span>Perhitungan Saldo Akurat</span>
                         </div>
-                        <div className="flex items-center gap-2 text-primary">
-                            <GitCompareArrows size={18} />
-                            <span className="text-sm font-semibold">Cocokkan</span>
+                    ) : (
+                        <div className="flex items-center gap-2 text-xs text-destructive font-semibold pt-1">
+                            <AlertCircle size={16} />
+                            <span>Selisih: {formatToRupiah(balanceDifference)}</span>
                         </div>
-                    </button>
+                    )}
                 </CardContent>
             </Card>
 
@@ -523,5 +563,6 @@ export default function TransactionHistory({ account, onDone }: TransactionHisto
     
 
     
+
 
 
