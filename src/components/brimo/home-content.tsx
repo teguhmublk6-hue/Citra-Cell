@@ -293,6 +293,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     setActiveSheet(null);
     setIsReviewing(false);
     setReviewData(null);
+    setSelectedAccount(null); // Reset selected account on close
     revalidateData();
   }
   
@@ -361,9 +362,13 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
     const account = kasAccounts?.find(acc => acc.id === accountId);
     if(account) {
         setSelectedAccount(account);
-        setActiveSheet('balanceAdjustment');
+        // No need to set activeSheet here, the ternary in the JSX will handle it
     }
   }
+
+  const handleBackFromAdjustmentForm = () => {
+    setSelectedAccount(null); // This is the key fix
+  };
 
   const handleEndShift = async () => {
     await setDoc(shiftStatusDocRef, { isActive: false }, { merge: true });
@@ -756,7 +761,7 @@ export default function HomeContent({ revalidateData, isSyncing }: HomeContentPr
             {!isReviewing && activeSheet === 'operationalCost' && <OperationalCostForm onDone={closeAllSheets} />}
             
             {!isReviewing && activeSheet === 'balanceAdjustment' && (selectedAccount ? 
-                <BalanceAdjustmentForm account={selectedAccount} onDone={closeAllSheets} /> : 
+                <BalanceAdjustmentForm account={selectedAccount} onDone={closeAllSheets} onBack={handleBackFromAdjustmentForm} /> : 
                 <AccountSelectionForm onAccountSelect={handleBalanceAdjustment} onDone={closeAllSheets} />
             )}
 

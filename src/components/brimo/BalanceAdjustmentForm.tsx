@@ -29,6 +29,7 @@ const formSchema = z.object({
 interface BalanceAdjustmentFormProps {
   account: KasAccount;
   onDone: () => void;
+  onBack: () => void;
 }
 
 const formatToRupiah = (value: number | string | undefined | null): string => {
@@ -43,7 +44,7 @@ const parseRupiah = (value: string | undefined | null): number => {
     return Number(String(value).replace(/[^0-9]/g, ''));
 }
 
-export default function BalanceAdjustmentForm({ account, onDone }: BalanceAdjustmentFormProps) {
+export default function BalanceAdjustmentForm({ account, onDone, onBack }: BalanceAdjustmentFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
@@ -163,8 +164,8 @@ export default function BalanceAdjustmentForm({ account, onDone }: BalanceAdjust
           </div>
         </ScrollArea>
         <div className="flex gap-2 pt-4 pb-4 border-t -mx-6 px-6">
-          <Button type="button" variant="outline" onClick={onDone} className="w-full" disabled={isSaving}>
-            Batal
+          <Button type="button" variant="outline" onClick={onBack} className="w-full" disabled={isSaving}>
+            Kembali
           </Button>
           <Button type="submit" className="w-full" disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
