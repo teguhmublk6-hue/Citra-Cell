@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -8,11 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ArrowLeft, ChevronLeft, ChevronRight, Download, RotateCw, Save } from 'lucide-react';
-import { addDays, subDays, startOfDay, endOfDay, format, getMonth, getYear, isWithinInterval } from 'date-fns';
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, RotateCw, Save, Loader2 } from 'lucide-react';
+import { addDays, subDays, startOfDay, endOfDay, format, getMonth, getYear, isWithinInterval, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '../ui/skeleton';
+import { Label } from '../ui/label';
 
 interface MonthlyRecapReportClientProps {
   onDone: () => void;
@@ -34,18 +36,49 @@ export default function MonthlyRecapReportClient({ onDone }: MonthlyRecapReportC
   const firestore = useFirestore();
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [recapData, setRecapData] = useState<Partial<MonthlyRecapType>>({
-    grossProfit: 0,
-    expenditures: 0,
-    rentalCost: 70000,
-    compensation: 10000,
-    wages: 100000,
-    notes: ''
-  });
+  const [recapData, setRecapData] = useState<Partial<MonthlyRecapType>>({});
   const [docId, setDocId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const isToday = startOfDay(currentDate).getTime() === startOfDay(new Date()).getTime();
+
+  const handleRefreshGrossProfit = async () => {
+    if (!firestore) return;
+    toast({ title: 'Memuat ulang Laba Kotor...' });
+    const reportDateStart = startOfDay(currentDate);
+    const reportDateEnd = endOfDay(currentDate);
+    const dailyReportQuery = query(
+      collection(firestore, 'dailyReports'),
+      where('date', '>=', Timestamp.fromDate(reportDateStart)),
+      where('date', '<=', Timestamp.fromDate(reportDateEnd))
+    );
+    const dailyReportSnapshot = await getDocs(dailyReportQuery);
+    let grossProfit = 0;
+    if (!dailyReportSnapshot.empty) {
+      const report = dailyReportSnapshot.docs[0].data() as DailyReport;
+      grossProfit = report.totalGrossProfit || 0;
+    }
+    setRecapData(prev => ({ ...prev, grossProfit }));
+    toast({ title: 'Selesai', description: 'Laba kotor telah diperbarui.' });
+  };
+  
+  const handleRefreshExpenditures = async () => {
+    if (!firestore) return;
+    toast({ title: 'Memuat ulang Pengeluaran...' });
+    let expenditures = 0;
+    const transactionsQuery = query(
+        collection(firestore, 'transactions'), 
+        where('category', 'in', ['operational', 'operational_fee', 'transfer_fee']),
+        where('date', '>=', startOfDay(currentDate).toISOString()),
+        where('date', '<=', endOfDay(currentDate).toISOString())
+    );
+    const transactionsSnapshot = await getDocs(transactionsQuery);
+    transactionsSnapshot.forEach(doc => {
+        expenditures += (doc.data() as Transaction).amount;
+    });
+     setRecapData(prev => ({ ...prev, expenditures }));
+     toast({ title: 'Selesai', description: 'Pengeluaran telah diperbarui.' });
+  }
 
   useEffect(() => {
     const loadDataForDate = async () => {
@@ -54,7 +87,6 @@ export default function MonthlyRecapReportClient({ onDone }: MonthlyRecapReportC
 
       const dateStr = format(currentDate, 'yyyy-MM-dd');
       
-      // 1. Fetch existing recap data
       const recapQuery = query(collection(firestore, 'monthlyRecaps'), where('date', '==', dateStr));
       const recapSnapshot = await getDocs(recapQuery);
 
@@ -63,12 +95,10 @@ export default function MonthlyRecapReportClient({ onDone }: MonthlyRecapReportC
         setRecapData(existingData);
         setDocId(recapSnapshot.docs[0].id);
       } else {
-        // Reset and fetch auto-filled data if no recap exists
         setDocId(null);
         let grossProfit = 0;
         let expenditures = 0;
 
-        // 2. Fetch Daily Report for Gross Profit
         const reportDateStart = startOfDay(currentDate);
         const reportDateEnd = endOfDay(currentDate);
         const dailyReportQuery = query(
@@ -81,19 +111,8 @@ export default function MonthlyRecapReportClient({ onDone }: MonthlyRecapReportC
         if (!dailyReportSnapshot.empty) {
           const report = dailyReportSnapshot.docs[0].data() as DailyReport;
           grossProfit = report.totalGrossProfit || 0;
+          expenditures = report.operationalCosts || 0;
         }
-
-        // 3. Fetch Operational Costs for Expenditures
-        const transactionsQuery = query(
-            collection(firestore, 'transactions'), 
-            where('category', 'in', ['operational', 'operational_fee', 'transfer_fee']),
-            where('date', '>=', reportDateStart.toISOString()),
-            where('date', '<=', reportDateEnd.toISOString())
-        );
-        const transactionsSnapshot = await getDocs(transactionsQuery);
-        transactionsSnapshot.forEach(doc => {
-            expenditures += (doc.data() as Transaction).amount;
-        });
 
         setRecapData({
           grossProfit,
@@ -110,15 +129,19 @@ export default function MonthlyRecapReportClient({ onDone }: MonthlyRecapReportC
     loadDataForDate();
   }, [currentDate, firestore]);
 
-  const handleInputChange = (field: keyof MonthlyRecapType, value: string | number) => {
-    setRecapData(prev => ({ ...prev, [field]: value }));
+  const handleInputChange = (field: keyof Omit<MonthlyRecapType, 'date' | 'id'>, value: string) => {
+    setRecapData(prev => ({ ...prev, [field]: parseRupiah(value) }));
   };
+  
+  const handleNoteChange = (value: string) => {
+    setRecapData(prev => ({ ...prev, notes: value }));
+  }
 
   const handleSaveRecap = async () => {
     if (!firestore) return;
     setIsLoading(true);
 
-    const dataToSave = {
+    const dataToSave: Omit<MonthlyRecapType, 'id'> = {
       date: format(currentDate, 'yyyy-MM-dd'),
       grossProfit: recapData.grossProfit || 0,
       expenditures: recapData.expenditures || 0,
@@ -129,7 +152,7 @@ export default function MonthlyRecapReportClient({ onDone }: MonthlyRecapReportC
     };
     
     try {
-        const docRef = doc(firestore, 'monthlyRecaps', docId || format(currentDate, 'yyyy-MM-dd'));
+        const docRef = doc(firestore, 'monthlyRecaps', dataToSave.date);
         await setDoc(docRef, dataToSave, { merge: true });
         setDocId(docRef.id);
         toast({ title: "Sukses", description: "Rekap berhasil disimpan." });
@@ -173,10 +196,10 @@ export default function MonthlyRecapReportClient({ onDone }: MonthlyRecapReportC
             <Card>
                 <CardContent className="p-4 space-y-4">
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">Laba Kotor (Otomatis/Edit)</label>
+                        <Label>Laba Kotor (Otomatis/Edit)</Label>
                         <div className="flex items-center gap-2">
-                            <Input value={formatToRupiah(recapData.grossProfit)} onChange={e => handleInputChange('grossProfit', parseRupiah(e.target.value))} />
-                             <Button variant="outline" size="icon"><RotateCw className="h-4 w-4" /></Button>
+                            <Input value={formatToRupiah(recapData.grossProfit)} onChange={e => handleInputChange('grossProfit', e.target.value)} />
+                             <Button variant="outline" size="icon" onClick={handleRefreshGrossProfit}><RotateCw className="h-4 w-4" /></Button>
                         </div>
                     </div>
                 </CardContent>
@@ -195,20 +218,23 @@ export default function MonthlyRecapReportClient({ onDone }: MonthlyRecapReportC
                 <Card>
                     <CardContent className="p-4 space-y-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Pengeluaran (Otomatis)</label>
-                            <Input value={formatToRupiah(recapData.expenditures)} readOnly disabled />
+                            <Label>Pengeluaran (Otomatis)</Label>
+                             <div className="flex items-center gap-2">
+                                <Input value={formatToRupiah(recapData.expenditures)} readOnly disabled />
+                                <Button variant="outline" size="icon" onClick={handleRefreshExpenditures}><RotateCw className="h-4 w-4" /></Button>
+                            </div>
                         </div>
                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Biaya Sewa</label>
-                            <Input value={formatToRupiah(recapData.rentalCost)} onChange={e => handleInputChange('rentalCost', parseRupiah(e.target.value))} />
+                            <Label>Biaya Sewa</Label>
+                            <Input value={formatToRupiah(recapData.rentalCost)} onChange={e => handleInputChange('rentalCost', e.target.value)} />
                         </div>
                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Kompensasi</label>
-                            <Input value={formatToRupiah(recapData.compensation)} onChange={e => handleInputChange('compensation', parseRupiah(e.target.value))} />
+                            <Label>Kompensasi</Label>
+                            <Input value={formatToRupiah(recapData.compensation)} onChange={e => handleInputChange('compensation', e.target.value)} />
                         </div>
                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Gaji</label>
-                            <Input value={formatToRupiah(recapData.wages)} onChange={e => handleInputChange('wages', parseRupiah(e.target.value))} />
+                            <Label>Gaji</Label>
+                            <Input value={formatToRupiah(recapData.wages)} onChange={e => handleInputChange('wages', e.target.value)} />
                         </div>
                     </CardContent>
                 </Card>
@@ -226,8 +252,8 @@ export default function MonthlyRecapReportClient({ onDone }: MonthlyRecapReportC
                     </CardContent>
                 </Card>
                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Catatan</label>
-                    <Input placeholder="Tambah catatan..." value={recapData.notes || ''} onChange={e => handleInputChange('notes', e.target.value)} />
+                    <Label>Catatan</Label>
+                    <Input placeholder="Tambah catatan..." value={recapData.notes || ''} onChange={e => handleNoteChange(e.target.value)} />
                 </div>
             </fieldset>
         </div>
